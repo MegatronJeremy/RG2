@@ -51,6 +51,16 @@
                     <release>9</release>
                 </configuration>
             </plugin>
+
+            <!-- Allows running the app from the command line: mvn compile exec:java -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.1.0</version>
+                <configuration>
+                    <mainClass>opengl4.dz1.Main</mainClass>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 </project>
