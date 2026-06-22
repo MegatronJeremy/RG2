@@ -1,22 +1,28 @@
-// Water surface simulation (RG2 DZ2) — height map generation on the GPU.
+// Water surface simulation (RG2 DZ2) — height map + normal map generation on the GPU.
 //
-// The height map is rebuilt every frame from the previous frame's map using the
-// relaxation scheme from the assignment:
+// Height map (CSStep) uses the relaxation scheme from the assignment:
 //     tmp  = (left + right + up + down) / 4 - current
 //     tmp *= dampFactor
 //     next = current + tmp
-// which is the convex blend  next = (1 - damp) * current + damp * average,
-// i.e. a stable diffusion of the surface. Normal map generation is added in step (c).
+// i.e. the stable diffusion  next = (1 - damp) * current + damp * average.
+//
+// Normal map (CSNormals) is built from the height map exactly as in the assignment:
+//     dx = (h_right - h_left), dy = (h_down - h_up)   (heights scaled by MaxWaveHeight)
+//     normal = normalize(float3(-dx * strength, 1, -dy * strength))
 
 #pragma kernel CSInit
 #pragma kernel CSStep
+#pragma kernel CSNormals
 
-RWTexture2D<float> Current; // read: previous frame's height map
-RWTexture2D<float> Next;    // write: this frame's height map
+RWTexture2D<float> Current;  // read: previous frame's height map
+RWTexture2D<float> Next;     // write: this frame's height map
+RWTexture2D<float4> Normals; // write: object-space normals (xyz)
 
-uint2 Size;        // height map dimensions
-float DampFactor;  // [0,1], tuned empirically
-float Seed;        // randomizes the initial map
+uint2 Size;          // map dimensions
+float DampFactor;    // [0,1], tuned empirically
+float Seed;          // randomizes the initial map
+float MaxWaveHeight; // MAXIMUM_WATER_HEIGHT — scales heights into world units
+float NormalStrength;// slope scale for the normal map, tuned empirically
 
 // Cheap integer hash -> [0,1], used only to seed the initial map.
 float Hash(uint2 p)
@@ -27,17 +33,17 @@ float Hash(uint2 p)
     return (float)(n & 0x0fffffffu) / (float)0x0fffffff;
 }
 
+// Clamp neighbour coordinates to the edge so borders stay well-defined.
+uint2 ClampCoord(int2 c)
+{
+    return (uint2)clamp(c, int2(0, 0), int2(Size) - 1);
+}
+
 [numthreads(8, 8, 1)]
 void CSInit(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= Size.x || id.y >= Size.y) return;
     Current[id.xy] = Hash(id.xy);
-}
-
-// Clamp neighbour coordinates to the edge so borders stay well-defined.
-uint2 ClampCoord(int2 c)
-{
-    return (uint2)clamp(c, int2(0, 0), int2(Size) - 1);
 }
 
 [numthreads(8, 8, 1)]
@@ -55,4 +61,21 @@ void CSStep(uint3 id : SV_DispatchThreadID)
     float tmp = (l + r + u + d) * 0.25 - c;
     tmp *= DampFactor;
     Next[id.xy] = c + tmp;
+}
+
+[numthreads(8, 8, 1)]
+void CSNormals(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= Size.x || id.y >= Size.y) return;
+
+    int2 p = int2(id.xy);
+    float hl = Current[ClampCoord(p + int2(-1, 0))] * MaxWaveHeight;
+    float hr = Current[ClampCoord(p + int2( 1, 0))] * MaxWaveHeight;
+    float hu = Current[ClampCoord(p + int2( 0, -1))] * MaxWaveHeight;
+    float hd = Current[ClampCoord(p + int2( 0,  1))] * MaxWaveHeight;
+
+    float dx = hr - hl;
+    float dy = hd - hu;
+    float3 n = normalize(float3(-dx * NormalStrength, 1.0, -dy * NormalStrength));
+    Normals[id.xy] = float4(n, 1.0);
 }

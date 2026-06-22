@@ -52,11 +52,14 @@ public class WaterSimulation : MonoBehaviour
 
     private RenderTexture _heightA;
     private RenderTexture _heightB;
+    private RenderTexture _normalMap;
     private int _initKernel;
     private int _stepKernel;
+    private int _normalsKernel;
     private int _groups; // dispatch groups per axis (numthreads is 8x8)
 
     private static readonly int HeightMapId = Shader.PropertyToID("_HeightMap");
+    private static readonly int NormalMapId = Shader.PropertyToID("_NormalMap");
     private static readonly int MaxWaveHeightId = Shader.PropertyToID("_MaxWaveHeight");
     private static readonly int WaterColorId = Shader.PropertyToID("_WaterColor");
 
@@ -77,6 +80,7 @@ public class WaterSimulation : MonoBehaviour
     {
         if (_heightA != null) _heightA.Release();
         if (_heightB != null) _heightB.Release();
+        if (_normalMap != null) _normalMap.Release();
         if (Application.isPlaying && _material != null) Destroy(_material);
     }
 
@@ -110,10 +114,12 @@ public class WaterSimulation : MonoBehaviour
 
         _heightA = CreateHeightTexture();
         _heightB = CreateHeightTexture();
+        _normalMap = CreateNormalTexture();
         _groups = Mathf.CeilToInt(heightMapSize / 8f);
 
         _initKernel = simShader.FindKernel("CSInit");
         _stepKernel = simShader.FindKernel("CSStep");
+        _normalsKernel = simShader.FindKernel("CSNormals");
 
         // Seed the initial height map with random values.
         simShader.SetInts("Size", heightMapSize, heightMapSize);
@@ -135,7 +141,15 @@ public class WaterSimulation : MonoBehaviour
         // Ping-pong: _heightB now holds the newest map.
         (_heightA, _heightB) = (_heightB, _heightA);
 
+        // Build the normal map from the newest height map.
+        simShader.SetFloat("MaxWaveHeight", maxWaveHeight);
+        simShader.SetFloat("NormalStrength", normalStrength);
+        simShader.SetTexture(_normalsKernel, "Current", _heightA);
+        simShader.SetTexture(_normalsKernel, "Normals", _normalMap);
+        simShader.Dispatch(_normalsKernel, _groups, _groups, 1);
+
         _material.SetTexture(HeightMapId, _heightA);
+        _material.SetTexture(NormalMapId, _normalMap);
         _material.SetFloat(MaxWaveHeightId, maxWaveHeight);
         _material.SetColor(WaterColorId, waterColor);
     }
@@ -143,6 +157,18 @@ public class WaterSimulation : MonoBehaviour
     private RenderTexture CreateHeightTexture()
     {
         var rt = new RenderTexture(heightMapSize, heightMapSize, 0, RenderTextureFormat.RFloat)
+        {
+            enableRandomWrite = true,
+            filterMode = FilterMode.Bilinear,
+            wrapMode = TextureWrapMode.Clamp
+        };
+        rt.Create();
+        return rt;
+    }
+
+    private RenderTexture CreateNormalTexture()
+    {
+        var rt = new RenderTexture(heightMapSize, heightMapSize, 0, RenderTextureFormat.ARGBHalf)
         {
             enableRandomWrite = true,
             filterMode = FilterMode.Bilinear,
