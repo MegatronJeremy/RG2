@@ -56,12 +56,95 @@ public final class CubeSphereGenerator {
             }
         }
 
+        float[] finalPositions = toFloatArray(newPositions);
+        float[] finalNormals = toFloatArray(newNormals);
+        float[] finalTexCoords = toFloatArray(newTexCoords);
+
+        // Tangents are computed on the FINAL mesh (after the UV seam split) because the
+        // tangent direction depends on the texture coordinates, which the split shifts.
+        float[] finalTangents = computeTangents(finalPositions, finalNormals, finalTexCoords, newIndices);
+
         return new MeshData(
-                toFloatArray(newPositions),
-                toFloatArray(newNormals),
-                toFloatArray(newTexCoords),
+                finalPositions,
+                finalNormals,
+                finalTexCoords,
+                finalTangents,
                 newIndices
         );
+    }
+
+    private static float[] computeTangents(float[] positions, float[] normals, float[] texCoords, int[] indices) {
+        int vertexCount = positions.length / 3;
+
+        Vector3f[] accumulated = new Vector3f[vertexCount];
+        for (int i = 0; i < vertexCount; i++) {
+            accumulated[i] = new Vector3f();
+        }
+
+        Vector3f p0 = new Vector3f();
+        Vector3f p1 = new Vector3f();
+        Vector3f p2 = new Vector3f();
+        Vector3f edge1 = new Vector3f();
+        Vector3f edge2 = new Vector3f();
+        Vector3f tangent = new Vector3f();
+        Vector3f scaledEdge2 = new Vector3f();
+
+        for (int i = 0; i < indices.length; i += 3) {
+            int i0 = indices[i];
+            int i1 = indices[i + 1];
+            int i2 = indices[i + 2];
+
+            readPosition(positions, i0, p0);
+            readPosition(positions, i1, p1);
+            readPosition(positions, i2, p2);
+
+            float du1 = texCoords[i1 * 2] - texCoords[i0 * 2];
+            float dv1 = texCoords[i1 * 2 + 1] - texCoords[i0 * 2 + 1];
+            float du2 = texCoords[i2 * 2] - texCoords[i0 * 2];
+            float dv2 = texCoords[i2 * 2 + 1] - texCoords[i0 * 2 + 1];
+
+            float denominator = du1 * dv2 - du2 * dv1;
+            if (Math.abs(denominator) < 1.0e-12f) {
+                continue;
+            }
+            float r = 1.0f / denominator;
+
+            p1.sub(p0, edge1);
+            p2.sub(p0, edge2);
+
+            // tangent = (edge1 * dv2 - edge2 * dv1) * r
+            tangent.set(edge1).mul(dv2).sub(scaledEdge2.set(edge2).mul(dv1)).mul(r);
+
+            accumulated[i0].add(tangent);
+            accumulated[i1].add(tangent);
+            accumulated[i2].add(tangent);
+        }
+
+        float[] tangents = new float[positions.length];
+        Vector3f n = new Vector3f();
+        Vector3f t = new Vector3f();
+
+        for (int v = 0; v < vertexCount; v++) {
+            int base = v * 3;
+            n.set(normals[base], normals[base + 1], normals[base + 2]);
+            t.set(accumulated[v]);
+
+            // Gram-Schmidt: make the tangent orthogonal to the (welded) vertex normal.
+            t.sub(new Vector3f(n).mul(n.dot(t)));
+
+            if (t.lengthSquared() < 1.0e-12f) {
+                // Degenerate UVs (e.g. at the poles): pick any vector perpendicular to N.
+                Vector3f helper = Math.abs(n.y) < 0.999f ? new Vector3f(0.0f, 1.0f, 0.0f) : new Vector3f(1.0f, 0.0f, 0.0f);
+                helper.cross(n, t);
+            }
+            t.normalize();
+
+            tangents[base] = t.x;
+            tangents[base + 1] = t.y;
+            tangents[base + 2] = t.z;
+        }
+
+        return tangents;
     }
 
     private static int duplicateVertexWithShift(
@@ -309,12 +392,14 @@ public final class CubeSphereGenerator {
         public final float[] positions;
         public final float[] normals;
         public final float[] textureCoordinates;
+        public final float[] tangents;
         public final int[] indices;
 
-        public MeshData(float[] positions, float[] normals, float[] textureCoordinates, int[] indices) {
+        public MeshData(float[] positions, float[] normals, float[] textureCoordinates, float[] tangents, int[] indices) {
             this.positions = positions;
             this.normals = normals;
             this.textureCoordinates = textureCoordinates;
+            this.tangents = tangents;
             this.indices = indices;
         }
 

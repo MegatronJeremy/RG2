@@ -20,6 +20,7 @@ public class EarthMesh extends GraphicsObject {
     private int positionBufferObjectId;
     private int normalBufferObjectId;
     private int textureCoordinatesBufferObjectId;
+    private int tangentBufferObjectId;
     private int elementBufferObjectId;
     private int indexCount;
 
@@ -54,6 +55,7 @@ public class EarthMesh extends GraphicsObject {
         FloatBuffer positionBuffer = Buffers.newDirectFloatBuffer(meshData.positions, 0);
         FloatBuffer normalBuffer = Buffers.newDirectFloatBuffer(meshData.normals, 0);
         FloatBuffer textureCoordinatesBuffer = Buffers.newDirectFloatBuffer(meshData.textureCoordinates, 0);
+        FloatBuffer tangentBuffer = Buffers.newDirectFloatBuffer(meshData.tangents, 0);
         IntBuffer indexBuffer = Buffers.newDirectIntBuffer(meshData.indices, 0);
 
         intBuffer.rewind();
@@ -94,6 +96,19 @@ public class EarthMesh extends GraphicsObject {
         );
         gl.glEnableVertexAttribArray(2);
         gl.glVertexAttribPointer(2, 2, GL4.GL_FLOAT, false, 0, 0);
+
+        intBuffer.rewind();
+        gl.glGenBuffers(1, intBuffer);
+        this.tangentBufferObjectId = intBuffer.get(0);
+        gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, this.tangentBufferObjectId);
+        gl.glBufferData(
+                GL4.GL_ARRAY_BUFFER,
+                (long) meshData.tangents.length * Float.BYTES,
+                tangentBuffer,
+                GL4.GL_STATIC_DRAW
+        );
+        gl.glEnableVertexAttribArray(3);
+        gl.glVertexAttribPointer(3, 3, GL4.GL_FLOAT, false, 0, 0);
 
         intBuffer.rewind();
         gl.glGenBuffers(1, intBuffer);
@@ -158,13 +173,14 @@ public class EarthMesh extends GraphicsObject {
 
     @Override
     protected void destroyInternal(GL4 gl) {
-        IntBuffer buffer = Buffers.newDirectIntBuffer(4);
+        IntBuffer buffer = Buffers.newDirectIntBuffer(5);
         buffer.put(this.positionBufferObjectId);
         buffer.put(this.normalBufferObjectId);
         buffer.put(this.textureCoordinatesBufferObjectId);
+        buffer.put(this.tangentBufferObjectId);
         buffer.put(this.elementBufferObjectId);
         buffer.rewind();
-        gl.glDeleteBuffers(4, buffer);
+        gl.glDeleteBuffers(5, buffer);
 
         IntBuffer vaoBuffer = Buffers.newDirectIntBuffer(1);
         vaoBuffer.put(this.vertexArrayObjectId);
