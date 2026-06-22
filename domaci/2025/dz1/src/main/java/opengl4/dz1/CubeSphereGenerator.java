@@ -233,6 +233,14 @@ public final class CubeSphereGenerator {
     private static void computeSmoothNormals(float[] positions, int[] indices, float[] normals) {
         Arrays.fill(normals, 0.0f);
 
+        // Accumulate area-weighted face normals into buckets keyed by the (welded)
+        // vertex position. The six cube faces are generated as independent grids, so
+        // vertices that lie on a shared cube edge are distinct indices at the SAME 3D
+        // position. Welding by position makes those coincident vertices share a single
+        // averaged normal, which removes the lighting seams that otherwise appear along
+        // the twelve cube edges once the sphere is lit.
+        java.util.HashMap<String, Vector3f> welded = new java.util.HashMap<>();
+
         Vector3f p0 = new Vector3f();
         Vector3f p1 = new Vector3f();
         Vector3f p2 = new Vector3f();
@@ -241,41 +249,60 @@ public final class CubeSphereGenerator {
         Vector3f faceNormal = new Vector3f();
 
         for (int i = 0; i < indices.length; i += 3) {
-            int i0 = indices[i];
-            int i1 = indices[i + 1];
-            int i2 = indices[i + 2];
-
-            readPosition(positions, i0, p0);
-            readPosition(positions, i1, p1);
-            readPosition(positions, i2, p2);
+            readPosition(positions, indices[i], p0);
+            readPosition(positions, indices[i + 1], p1);
+            readPosition(positions, indices[i + 2], p2);
 
             p1.sub(p0, e1);
             p2.sub(p0, e2);
             e1.cross(e2, faceNormal);
 
-            addNormal(normals, i0, faceNormal);
-            addNormal(normals, i1, faceNormal);
-            addNormal(normals, i2, faceNormal);
+            accumulateWelded(welded, p0, faceNormal);
+            accumulateWelded(welded, p1, faceNormal);
+            accumulateWelded(welded, p2, faceNormal);
         }
 
-        for (int i = 0; i < normals.length; i += 3) {
-            Vector3f n = new Vector3f(normals[i], normals[i + 1], normals[i + 2]).normalize();
-            normals[i] = n.x;
-            normals[i + 1] = n.y;
-            normals[i + 2] = n.z;
+        Vector3f n = new Vector3f();
+        for (int v = 0; v < positions.length / 3; v++) {
+            int base = v * 3;
+            Vector3f acc = welded.get(positionKey(positions[base], positions[base + 1], positions[base + 2]));
+
+            if (acc != null && acc.lengthSquared() > 1.0e-12f) {
+                n.set(acc).normalize();
+            } else {
+                // Degenerate triangle fan: fall back to the outward radial direction.
+                n.set(positions[base], positions[base + 1], positions[base + 2]).normalize();
+            }
+
+            normals[base] = n.x;
+            normals[base + 1] = n.y;
+            normals[base + 2] = n.z;
         }
+    }
+
+    private static String positionKey(float x, float y, float z) {
+        // Quantize to ~1/4096 world units so coincident vertices (which differ only by
+        // float rounding) collapse to one key, while genuinely distinct grid vertices
+        // (spaced far wider apart) stay separate.
+        long qx = Math.round(x * 4096.0);
+        long qy = Math.round(y * 4096.0);
+        long qz = Math.round(z * 4096.0);
+        return qx + "," + qy + "," + qz;
+    }
+
+    private static void accumulateWelded(java.util.HashMap<String, Vector3f> welded, Vector3f position, Vector3f faceNormal) {
+        String key = positionKey(position.x, position.y, position.z);
+        Vector3f acc = welded.get(key);
+        if (acc == null) {
+            acc = new Vector3f();
+            welded.put(key, acc);
+        }
+        acc.add(faceNormal);
     }
 
     private static void readPosition(float[] positions, int vertexIndex, Vector3f out) {
         int p = vertexIndex * 3;
         out.set(positions[p], positions[p + 1], positions[p + 2]);
-    }
-
-    private static void addNormal(float[] normals, int vertexIndex, Vector3f n) {
-        int base = vertexIndex * 3;
-        normals[base] += n.x;
-        normals[base + 1] += n.y;
-        normals[base + 2] += n.z;
     }
 
     public static final class MeshData {
