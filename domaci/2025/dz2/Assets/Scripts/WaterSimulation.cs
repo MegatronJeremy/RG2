@@ -4,11 +4,20 @@ using UnityEngine.Rendering;
 /// <summary>
 /// Interactive water surface simulation (RG2 DZ2).
 ///
-/// Step (a): flat triangle grid.
-/// Step (b): every frame a compute shader rebuilds the height map (ping-pong between
-/// two RFloat render textures); the water shader displaces vertices from that map.
-/// Normals, reflection, transparency and cursor interaction follow in later steps.
+/// Every frame a compute shader rebuilds the height map (ping-pong between two RFloat
+/// render textures) and the matching normal map; the water shader displaces the grid
+/// vertices from the height map and shades them with cube-map reflection, a directional
+/// specular highlight and Fresnel transparency. Dragging the cursor injects waves.
+///
+/// Two height-update modes are available (see <see cref="SimulationMode"/>): the literal
+/// diffusion scheme from the assignment, and a wave equation with propagating ripples.
 /// </summary>
+public enum SimulationMode
+{
+    Diffusion, // literal assignment pseudocode — the surface smooths out
+    Wave       // wave equation — propagating, interfering ripples
+}
+
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
 public class WaterSimulation : MonoBehaviour
 {
@@ -30,9 +39,26 @@ public class WaterSimulation : MonoBehaviour
     [SerializeField] private int heightMapSize = 256;
 
     [Header("Wave simulation")]
-    [Tooltip("Damping of the relaxation. 0 = frozen, 1 = instantly smoothed. Tune empirically.")]
+    [Tooltip("Diffusion = literal assignment pseudocode (surface smooths out). " +
+             "Wave = wave equation with propagating, interfering ripples (matches the " +
+             "assignment's result image).")]
+    [SerializeField] private SimulationMode mode = SimulationMode.Wave;
+
+    [Tooltip("Diffusion mode: 0 = frozen, 1 = instantly smoothed (try ~0.3). " +
+             "Wave mode: this is the damping of the ripples — use ~0.95–0.99.")]
     [Range(0f, 1f)]
-    [SerializeField] private float dampFactor = 0.5f;
+    [SerializeField] private float dampFactor = 0.97f;
+
+    [Tooltip("How quickly the surface settles back to its rest level. Prevents repeated " +
+             "splashes from raising the whole surface. Higher = calmer, dies out faster. " +
+             "(Diffusion mode only.)")]
+    [Range(0f, 0.2f)]
+    [SerializeField] private float restoreFactor = 0.02f;
+
+    [Tooltip("Simulation steps per second. Lower = ripples propagate more slowly across " +
+             "the surface (the wave travels one cell per step).")]
+    [Range(5f, 120f)]
+    [SerializeField] private float simulationRate = 30f;
 
     [Tooltip("Maximum vertical displacement of the surface, in units.")]
     [SerializeField] private float maxWaveHeight = 0.5f;
@@ -43,6 +69,14 @@ public class WaterSimulation : MonoBehaviour
     [Header("Appearance")]
     [SerializeField] private Color waterColor = new Color(0.1f, 0.3f, 0.5f, 1f);
 
+    [Tooltip("How much of the environment reflection shows at a head-on view (0 = only water color).")]
+    [Range(0f, 1f)]
+    [SerializeField] private float reflectivity = 0.4f;
+
+    [Tooltip("Tightness of the specular highlight from the directional light.")]
+    [Range(1f, 256f)]
+    [SerializeField] private float shininess = 80f;
+
     [Tooltip("Sharpness of the Fresnel falloff for reflection/transparency.")]
     [Range(0.5f, 8f)]
     [SerializeField] private float fresnelPower = 5f;
@@ -51,9 +85,14 @@ public class WaterSimulation : MonoBehaviour
     [Range(0f, 1f)]
     [SerializeField] private float minAlpha = 0.2f;
 
-    [Header("Interaction (step e)")]
+    [Header("Interaction")]
     [Tooltip("Intensity of the wave created when dragging the cursor across the surface.")]
-    [SerializeField] private float interactionStrength = 1f;
+    [Range(0f, 1f)]
+    [SerializeField] private float interactionStrength = 0.5f;
+
+    [Tooltip("Radius of the cursor disturbance, as a fraction of the surface.")]
+    [Range(0.005f, 0.2f)]
+    [SerializeField] private float brushRadius = 0.03f;
 
     private MeshRenderer _renderer;
     private Material _material;
@@ -63,8 +102,12 @@ public class WaterSimulation : MonoBehaviour
     private RenderTexture _normalMap;
     private int _initKernel;
     private int _stepKernel;
+    private int _stepWaveKernel;
     private int _normalsKernel;
+    private int _splashKernel;
     private int _groups; // dispatch groups per axis (numthreads is 8x8)
+    private Camera _camera;
+    private float _stepAccumulator;
 
     private static readonly int HeightMapId = Shader.PropertyToID("_HeightMap");
     private static readonly int NormalMapId = Shader.PropertyToID("_NormalMap");
@@ -72,6 +115,8 @@ public class WaterSimulation : MonoBehaviour
     private static readonly int WaterColorId = Shader.PropertyToID("_WaterColor");
     private static readonly int FresnelPowerId = Shader.PropertyToID("_FresnelPower");
     private static readonly int MinAlphaId = Shader.PropertyToID("_MinAlpha");
+    private static readonly int ReflectivityId = Shader.PropertyToID("_Reflectivity");
+    private static readonly int ShininessId = Shader.PropertyToID("_Shininess");
 
     private void Start()
     {
@@ -83,7 +128,19 @@ public class WaterSimulation : MonoBehaviour
     private void Update()
     {
         if (simShader == null) return;
-        StepSimulation();
+        HandleInteraction();
+
+        // Advance the simulation at a fixed rate (decoupled from frame rate) so the
+        // ripple propagation speed is controllable and frame-rate independent.
+        float stepTime = 1f / Mathf.Max(1f, simulationRate);
+        _stepAccumulator += Time.deltaTime;
+        int steps = 0;
+        while (_stepAccumulator >= stepTime && steps < 8) // cap to avoid spiral of death
+        {
+            StepSimulation();
+            _stepAccumulator -= stepTime;
+            steps++;
+        }
     }
 
     private void OnDestroy()
@@ -129,12 +186,20 @@ public class WaterSimulation : MonoBehaviour
 
         _initKernel = simShader.FindKernel("CSInit");
         _stepKernel = simShader.FindKernel("CSStep");
+        _stepWaveKernel = simShader.FindKernel("CSStepWave");
         _normalsKernel = simShader.FindKernel("CSNormals");
+        _splashKernel = simShader.FindKernel("CSSplash");
+        _camera = Camera.main;
 
-        // Seed the initial height map with random values.
+        // Seed both buffers identically with random values (assignment: "arbitrary values").
+        // Equal buffers mean zero initial velocity for the wave-equation mode.
         simShader.SetInts("Size", heightMapSize, heightMapSize);
         simShader.SetFloat("Seed", Random.value * 1000f);
+        // Wave mode starts from calm (flat) water; diffusion keeps the random "cloud" map.
+        simShader.SetFloat("InitFlat", mode == SimulationMode.Wave ? 1f : 0f);
         simShader.SetTexture(_initKernel, "Current", _heightA);
+        simShader.Dispatch(_initKernel, _groups, _groups, 1);
+        simShader.SetTexture(_initKernel, "Current", _heightB);
         simShader.Dispatch(_initKernel, _groups, _groups, 1);
 
         _material.SetTexture(HeightMapId, _heightA);
@@ -144,9 +209,11 @@ public class WaterSimulation : MonoBehaviour
     {
         simShader.SetInts("Size", heightMapSize, heightMapSize);
         simShader.SetFloat("DampFactor", dampFactor);
-        simShader.SetTexture(_stepKernel, "Current", _heightA);
-        simShader.SetTexture(_stepKernel, "Next", _heightB);
-        simShader.Dispatch(_stepKernel, _groups, _groups, 1);
+        simShader.SetFloat("RestoreFactor", restoreFactor);
+        int stepKernel = mode == SimulationMode.Wave ? _stepWaveKernel : _stepKernel;
+        simShader.SetTexture(stepKernel, "Current", _heightA);
+        simShader.SetTexture(stepKernel, "Next", _heightB);
+        simShader.Dispatch(stepKernel, _groups, _groups, 1);
 
         // Ping-pong: _heightB now holds the newest map.
         (_heightA, _heightB) = (_heightB, _heightA);
@@ -164,6 +231,36 @@ public class WaterSimulation : MonoBehaviour
         _material.SetColor(WaterColorId, waterColor);
         _material.SetFloat(FresnelPowerId, fresnelPower);
         _material.SetFloat(MinAlphaId, minAlpha);
+        _material.SetFloat(ReflectivityId, reflectivity);
+        _material.SetFloat(ShininessId, shininess);
+    }
+
+    /// <summary>
+    /// While the left mouse button is held, raycasts the cursor onto the surface
+    /// plane and injects a height bump there (the "finger through water" splash).
+    /// </summary>
+    private void HandleInteraction()
+    {
+        if (!Input.GetMouseButton(0)) return;
+        if (_camera == null) _camera = Camera.main;
+        if (_camera == null) return;
+
+        // Intersect the cursor ray with the flat base plane of the surface.
+        var plane = new Plane(transform.up, transform.position);
+        Ray ray = _camera.ScreenPointToRay(Input.mousePosition);
+        if (!plane.Raycast(ray, out float enter)) return;
+
+        Vector3 local = transform.InverseTransformPoint(ray.GetPoint(enter));
+        float u = local.x / surfaceSize + 0.5f;
+        float v = local.z / surfaceSize + 0.5f;
+        if (u < 0f || u > 1f || v < 0f || v > 1f) return;
+
+        simShader.SetInts("Size", heightMapSize, heightMapSize);
+        simShader.SetVector("BrushUV", new Vector4(u, v, 0f, 0f));
+        simShader.SetFloat("BrushRadius", Mathf.Max(1f, brushRadius * heightMapSize));
+        simShader.SetFloat("BrushStrength", interactionStrength);
+        simShader.SetTexture(_splashKernel, "Current", _heightA);
+        simShader.Dispatch(_splashKernel, _groups, _groups, 1);
     }
 
     private RenderTexture CreateHeightTexture()
