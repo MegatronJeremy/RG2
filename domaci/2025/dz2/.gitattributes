@@ -1,0 +1,31 @@
+# Normalize line endings for text; leave unknown to auto-detection.
+* text=auto eol=lf
+
+# Source and YAML text assets
+*.cs        text
+*.shader    text
+*.compute   text
+*.cginc     text
+*.hlsl      text
+*.glsl      text
+*.json      text
+*.md        text
+*.txt       text
+*.unity     text eol=lf
+*.mat       text eol=lf
+*.asset     text eol=lf
+*.prefab    text eol=lf
+*.meta      text eol=lf
+
+# Binary assets — never apply EOL conversion (would corrupt them)
+*.cubemap   binary
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.tga       binary
+*.psd       binary
+*.fbx       binary
+*.wav       binary
+*.mp3       binary
+*.ttf       binary
+*.otf       binary
