@@ -156,7 +156,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   resolution: 128
   surfaceSize: 10
-  dampFactor: 0.99
+  simShader: {fileID: 7200000, guid: 14109e03c269a304dac9b757b8825d5d, type: 3}
+  heightMapSize: 256
+  dampFactor: 0.5
   maxWaveHeight: 0.5
   normalStrength: 2
   waterColor: {r: 0.1, g: 0.3, b: 0.5, a: 1}

@@ -1,0 +1,58 @@
+// Water surface simulation (RG2 DZ2) — height map generation on the GPU.
+//
+// The height map is rebuilt every frame from the previous frame's map using the
+// relaxation scheme from the assignment:
+//     tmp  = (left + right + up + down) / 4 - current
+//     tmp *= dampFactor
+//     next = current + tmp
+// which is the convex blend  next = (1 - damp) * current + damp * average,
+// i.e. a stable diffusion of the surface. Normal map generation is added in step (c).
+
+#pragma kernel CSInit
+#pragma kernel CSStep
+
+RWTexture2D<float> Current; // read: previous frame's height map
+RWTexture2D<float> Next;    // write: this frame's height map
+
+uint2 Size;        // height map dimensions
+float DampFactor;  // [0,1], tuned empirically
+float Seed;        // randomizes the initial map
+
+// Cheap integer hash -> [0,1], used only to seed the initial map.
+float Hash(uint2 p)
+{
+    uint n = p.x * 1973u + p.y * 9277u + (uint)Seed * 26699u;
+    n = (n << 13u) ^ n;
+    n = n * (n * n * 15731u + 789221u) + 1376312589u;
+    return (float)(n & 0x0fffffffu) / (float)0x0fffffff;
+}
+
+[numthreads(8, 8, 1)]
+void CSInit(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= Size.x || id.y >= Size.y) return;
+    Current[id.xy] = Hash(id.xy);
+}
+
+// Clamp neighbour coordinates to the edge so borders stay well-defined.
+uint2 ClampCoord(int2 c)
+{
+    return (uint2)clamp(c, int2(0, 0), int2(Size) - 1);
+}
+
+[numthreads(8, 8, 1)]
+void CSStep(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= Size.x || id.y >= Size.y) return;
+
+    int2 p = int2(id.xy);
+    float c = Current[id.xy];
+    float l = Current[ClampCoord(p + int2(-1, 0))];
+    float r = Current[ClampCoord(p + int2( 1, 0))];
+    float u = Current[ClampCoord(p + int2( 0, -1))];
+    float d = Current[ClampCoord(p + int2( 0,  1))];
+
+    float tmp = (l + r + u + d) * 0.25 - c;
+    tmp *= DampFactor;
+    Next[id.xy] = c + tmp;
+}
