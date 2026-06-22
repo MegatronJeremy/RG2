@@ -43,6 +43,14 @@ public class WaterSimulation : MonoBehaviour
     [Header("Appearance")]
     [SerializeField] private Color waterColor = new Color(0.1f, 0.3f, 0.5f, 1f);
 
+    [Tooltip("Sharpness of the Fresnel falloff for reflection/transparency.")]
+    [Range(0.5f, 8f)]
+    [SerializeField] private float fresnelPower = 5f;
+
+    [Tooltip("Transparency when looking straight down at the surface (0 = fully transparent).")]
+    [Range(0f, 1f)]
+    [SerializeField] private float minAlpha = 0.2f;
+
     [Header("Interaction (step e)")]
     [Tooltip("Intensity of the wave created when dragging the cursor across the surface.")]
     [SerializeField] private float interactionStrength = 1f;
@@ -62,6 +70,8 @@ public class WaterSimulation : MonoBehaviour
     private static readonly int NormalMapId = Shader.PropertyToID("_NormalMap");
     private static readonly int MaxWaveHeightId = Shader.PropertyToID("_MaxWaveHeight");
     private static readonly int WaterColorId = Shader.PropertyToID("_WaterColor");
+    private static readonly int FresnelPowerId = Shader.PropertyToID("_FresnelPower");
+    private static readonly int MinAlphaId = Shader.PropertyToID("_MinAlpha");
 
     private void Start()
     {
@@ -152,6 +162,8 @@ public class WaterSimulation : MonoBehaviour
         _material.SetTexture(NormalMapId, _normalMap);
         _material.SetFloat(MaxWaveHeightId, maxWaveHeight);
         _material.SetColor(WaterColorId, waterColor);
+        _material.SetFloat(FresnelPowerId, fresnelPower);
+        _material.SetFloat(MinAlphaId, minAlpha);
     }
 
     private RenderTexture CreateHeightTexture()

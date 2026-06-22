@@ -1,11 +1,13 @@
 // Water surface shader (RG2 DZ2).
 //
 // Vertex stage: reads the runtime height map and displaces vertices vertically.
-// Fragment stage (step c): per-fragment normal from the runtime normal map, then
+// Fragment stage: per-fragment normal from the runtime normal map, then
 //   - cube-map (ambient) reflection sampled from the scene environment probe,
 //   - specular highlight of the directional light (Blinn-Phong),
-//   - tinted by the water color.
-// Fresnel-based transparency is added in step (d).
+//   - tinted by the water color,
+//   - Fresnel transparency (step d): the surface gets more transparent as the view
+//     direction aligns with the normal (looking straight down), more opaque/reflective
+//     at grazing angles.
 Shader "RG2/Water"
 {
     Properties
@@ -16,14 +18,18 @@ Shader "RG2/Water"
         _MaxWaveHeight ("Max Wave Height", Float) = 0.5
         _Shininess ("Shininess", Range(1, 256)) = 64
         _Reflectivity ("Reflectivity", Range(0, 1)) = 0.6
+        _FresnelPower ("Fresnel Power", Range(0.5, 8)) = 5
+        _MinAlpha ("Min Alpha (top-down transparency)", Range(0, 1)) = 0.2
     }
     SubShader
     {
-        Tags { "RenderType" = "Opaque" }
+        Tags { "Queue" = "Transparent" "RenderType" = "Transparent" }
 
         Pass
         {
             Tags { "LightMode" = "ForwardBase" }
+            Blend SrcAlpha OneMinusSrcAlpha
+            ZWrite Off
 
             CGPROGRAM
             #pragma vertex vert
@@ -36,6 +42,8 @@ Shader "RG2/Water"
             float _MaxWaveHeight;
             float _Shininess;
             float _Reflectivity;
+            float _FresnelPower;
+            float _MinAlpha;
             fixed4 _WaterColor;
 
             struct appdata
@@ -73,6 +81,10 @@ Shader "RG2/Water"
                 float3 viewDir = normalize(_WorldSpaceCameraPos - i.worldPos);
                 float3 lightDir = normalize(_WorldSpaceLightPos0.xyz); // directional light
 
+                // Fresnel: 0 looking straight down the normal, ~1 at grazing angles.
+                float facing = saturate(dot(n, viewDir));
+                float fresnel = pow(1.0 - facing, _FresnelPower);
+
                 // Cube-map (ambient) reflection from the scene environment probe.
                 float3 reflDir = reflect(-viewDir, n);
                 float4 envSample = UNITY_SAMPLE_TEXCUBE(unity_SpecCube0, reflDir);
@@ -83,9 +95,15 @@ Shader "RG2/Water"
                 float spec = pow(saturate(dot(n, halfVec)), _Shininess);
                 float3 specular = spec * _LightColor0.rgb;
 
-                float3 baseCol = lerp(_WaterColor.rgb, reflection, _Reflectivity);
+                // More reflection at grazing angles (Fresnel-weighted).
+                float reflAmount = lerp(_Reflectivity, 1.0, fresnel);
+                float3 baseCol = lerp(_WaterColor.rgb, reflection, reflAmount);
                 float3 col = baseCol + specular;
-                return fixed4(col, 1.0);
+
+                // Transparency decreases with the normal/view angle:
+                // transparent (low alpha) when looking straight down, opaque at grazing.
+                float alpha = lerp(_MinAlpha, 1.0, fresnel);
+                return fixed4(col, alpha);
             }
             ENDCG
         }
