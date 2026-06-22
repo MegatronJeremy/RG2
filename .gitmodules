@@ -1,0 +1,3 @@
+[submodule "Snowstorm-Engine"]
+	path = Snowstorm-Engine
+	url = https://github.com/MegatronJeremy/Snowstorm-Engine
