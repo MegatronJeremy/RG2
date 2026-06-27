@@ -24,6 +24,15 @@ Snowstorm-Engine/  # render engine (ugnježdeni git submodule)
 2. **Commit + push nakon svakog koraka.** Commit u relevantnom repou (RG2 ili submodule), zatim
    ako je dirnut submodule — bump pokazivača u nadređenom repou i push i njega, da remote uvek
    bude konzistentan. Poruke commit-a na srpskom, kratke i konkretne.
+2b. **Code review u chatu pre push-a.** Za svaku novu funkcionalnost/izmenu, pre nego što
+   gurneš (`git push` + bump pokazivača), prikaži pregled koda u razgovoru — kao što bi
+   senior inženjer pregledao PR. Pokaži konkretne snippet-e **sa dovoljno okolnog koda**
+   (funkcija/blok u kome izmena živi, linije iznad i ispod — ne izolovane fragmente, već
+   kako se pravi PR diff čita), sa komentarima koji objašnjavaju *zašto* je nešto urađeno
+   tako, kompromise, ne-očigledne invarijante, rizike i šta treba dodatno proveriti. Navedi
+   šta jeste/nije verifikovano
+   (posebno vizuelne/headless rupe). Lokalni commit pre review-a je u redu; kapija je na
+   **push**. Guraj (oba repoa) tek nakon što Vuk odobri.
 3. **Git higijena.** Nikad ne commit-uj `target/`, `.idea/`, `*.iml`, IDE/build artefakte
    (vidi `domaci/2025/dz1/.gitignore`). Originalne velike `.zip` materijale čuvaj u izvornom
    obliku, ne raspakuj ih u repo bez razloga.
