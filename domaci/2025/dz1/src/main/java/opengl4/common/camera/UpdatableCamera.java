@@ -9,6 +9,8 @@ public class UpdatableCamera extends Camera {
     private float distance;
     private float xAngle;
     private float yAngle;
+    private final float zNear;
+    private final float zFar;
 
     public UpdatableCamera(float z, float xAngle, float yAngle, float aspect, float zNear, float zFar) {
         super(
@@ -19,8 +21,17 @@ public class UpdatableCamera extends Camera {
         this.distance = Math.abs(z);
         this.xAngle = xAngle;
         this.yAngle = yAngle;
+        this.zNear = zNear;
+        this.zFar = zFar;
 
         this.updateView();
+    }
+
+    // Rebuild the projection in place when the viewport aspect changes (window
+    // resize). Writes into the existing Camera.projection matrix so getProjection()
+    // / getViewProjection() pick up the new aspect without a new Camera instance.
+    public void setAspect(float aspect) {
+        super.getProjection().identity().perspective((float) Math.toRadians(45.0), aspect, this.zNear, this.zFar);
     }
 
     private static Matrix4f getProjectionMatrix(float aspect, float zNear, float zFar) {
