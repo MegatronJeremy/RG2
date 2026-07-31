@@ -223,7 +223,7 @@ public final class CubeSphereGenerator {
 
                     Vector3f pointOnSphere = cubeToSphere(pointOnCube).normalize();
 
-                    float[] uv = computeSphericalUV(pointOnSphere, radius);
+                    float[] uv = computeSphericalUV(pointOnSphere);
                     float u = uv[0];
                     float v = uv[1];
 
@@ -252,13 +252,17 @@ public final class CubeSphereGenerator {
                     int i2 = i0 + resolution;
                     int i3 = i2 + 1;
 
+                    // CCW winding seen from outside the sphere, so face normals
+                    // (e1 x e2 in computeSmoothNormals) point outward. The mirrored
+                    // order (i0,i2,i1) produced inward normals -> the lit hemisphere
+                    // ended up on the far side from the light.
                     indices[indexOffset++] = i0;
-                    indices[indexOffset++] = i2;
                     indices[indexOffset++] = i1;
+                    indices[indexOffset++] = i2;
 
                     indices[indexOffset++] = i1;
-                    indices[indexOffset++] = i2;
                     indices[indexOffset++] = i3;
+                    indices[indexOffset++] = i2;
                 }
             }
         }
@@ -280,7 +284,7 @@ public final class CubeSphereGenerator {
         return new Vector3f(x, y, z);
     }
 
-    private static float[] computeSphericalUV(Vector3f unitPosition, float radiusIgnored) {
+    private static float[] computeSphericalUV(Vector3f unitPosition) {
         float theta = (float) Math.atan2(-unitPosition.z, unitPosition.x);
         float phi = (float) Math.acos(-unitPosition.y);
 
@@ -301,8 +305,12 @@ public final class CubeSphereGenerator {
         int width = heightMap.getWidth();
         int height = heightMap.getHeight();
 
+        // v already follows the GL texel convention (v=0 -> south pole, row 0), matching
+        // how the fragment shader samples diffuse/normal/specular. Sample the height map
+        // with the SAME v so terrain elevation lines up with the surface color instead of
+        // being mirrored north<->south.
         int x = Math.min(width - 1, (int) (u * (width - 1)));
-        int y = Math.min(height - 1, (int) ((1.0f - v) * (height - 1)));
+        int y = Math.min(height - 1, (int) (v * (height - 1)));
 
         int index = (y * width + x) * 4;
 
