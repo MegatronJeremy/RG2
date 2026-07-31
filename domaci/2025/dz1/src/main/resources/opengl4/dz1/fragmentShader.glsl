@@ -38,14 +38,18 @@ void main() {
     vec3 R = reflect(-L, N);
 
     float ambientStrength = 0.15;
-    float diffuseStrength = max(dot(N, L), 0.0);
+    float NdotL = max(dot(N, L), 0.0);
+    float diffuseStrength = NdotL;
     float shininess = 64.0;
     float specularStrength = 0.8;
 
     vec3 ambient = ambientStrength * albedo;
     vec3 diffuse = diffuseStrength * albedo * lightColor;
 
-    float specularFactor = pow(max(dot(V, R), 0.0), shininess);
+    // Gate the specular on N.L so the highlight only exists on the lit hemisphere.
+    // Without this, reflect(-L, N) still aligns with V somewhere on the dark side,
+    // producing a stray specular dot where there is no direct light at all.
+    float specularFactor = NdotL > 0.0 ? pow(max(dot(V, R), 0.0), shininess) : 0.0;
     vec3 specular = specularStrength * specMask * specularFactor * lightColor;
 
     vec3 color = ambient + diffuse + specular;
