@@ -52,13 +52,37 @@
                 </configuration>
             </plugin>
 
-            <!-- Allows running the app from the command line: mvn compile exec:java -->
+            <!-- Run from the command line: mvn compile exec:exec
+                 Forks a fresh JVM (via exec:exec, not exec:java) so JOGL's native
+                 methods bind under the system classloader. exec:java runs the app
+                 inside Maven's JVM under a custom URLClassLoader, where gluegen_rt's
+                 JNI method LoadLibraryExW fails to bind, so no GL profiles load and
+                 GLProfile.get(GL4) throws "GL4 not available, but: []".
+                 JOGL 2.6.0 is a modular jar (module jogl.all); its NEWT/util packages
+                 are not exported to the unnamed module, so add-exports opens them. -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.1.0</version>
                 <configuration>
-                    <mainClass>opengl4.dz1.Main</mainClass>
+                    <executable>${java.home}/bin/java</executable>
+                    <arguments>
+                        <argument>--add-exports</argument>
+                        <argument>jogl.all/com.jogamp.newt.event=ALL-UNNAMED</argument>
+                        <argument>--add-exports</argument>
+                        <argument>jogl.all/com.jogamp.newt=ALL-UNNAMED</argument>
+                        <argument>--add-exports</argument>
+                        <argument>jogl.all/com.jogamp.newt.opengl=ALL-UNNAMED</argument>
+                        <argument>--add-exports</argument>
+                        <argument>jogl.all/com.jogamp.opengl.util=ALL-UNNAMED</argument>
+                        <argument>--add-exports</argument>
+                        <argument>jogl.all/com.jogamp.opengl.util.awt=ALL-UNNAMED</argument>
+                        <argument>--add-exports</argument>
+                        <argument>jogl.all/com.jogamp.opengl.util.texture=ALL-UNNAMED</argument>
+                        <argument>-classpath</argument>
+                        <classpath/>
+                        <argument>opengl4.dz1.Main</argument>
+                    </arguments>
                 </configuration>
             </plugin>
         </plugins>

@@ -54,6 +54,12 @@ if (-not $javaHome) { Write-Host "Nije pronadjen JDK. Instaliraj JDK 9+ ili otvo
 if (-not $mvn)      { Write-Host "Nije pronadjen Maven. Instaliraj Maven ili koristi IntelliJ-ev bundlovani." -ForegroundColor Red; exit 1 }
 $env:JAVA_HOME = $javaHome
 
+# Iza korporativnog TLS proxyja (npr. Zscaler) JBR-ov cacerts ne veruje presretnutom
+# sertifikatu Maven Central-a -> "PKIX path building failed". Windows cert store vec
+# ima korenski CA proxyja, pa reci Javi da koristi njega za resolver/preuzimanja.
+# (Ne dira se nijedan cacerts fajl; cisto runtime opcija.)
+$env:MAVEN_OPTS = ($env:MAVEN_OPTS + " -Djavax.net.ssl.trustStoreType=WINDOWS-ROOT").Trim()
+
 function Invoke-Mvn([string[]]$mvnArgs) {
     Write-Host ">> mvn $($mvnArgs -join ' ')" -ForegroundColor Cyan
     Write-Host "   JAVA_HOME = $javaHome" -ForegroundColor DarkGray
@@ -72,7 +78,7 @@ function Show-Menu {
     Write-Host ""
     $sel = Read-Host "Izbor"
     switch ($sel) {
-        "1" { Invoke-Mvn @("compile", "exec:java") }
+        "1" { Invoke-Mvn @("compile", "exec:exec") }
         "2" { Invoke-Mvn @("package") }
         "3" { Invoke-Mvn @("clean") }
         "4" { Cmd-Check }
@@ -90,7 +96,7 @@ function Cmd-Check {
 
 switch ($Command.ToLower()) {
     "menu"  { Show-Menu }
-    "run"   { Invoke-Mvn @("compile", "exec:java") }
+    "run"   { Invoke-Mvn @("compile", "exec:exec") }
     "build" { Invoke-Mvn @("package") }
     "clean" { Invoke-Mvn @("clean") }
     "check" { Cmd-Check }
