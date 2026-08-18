@@ -15,11 +15,41 @@ by a measured run; cells still marked as pending have not yet been measured and 
 \section{Metodologija}
 \label{sec:metodologija}
 
-\paragraph{Hardver i scena.} All timings are taken on a single GPU, an AMD Radeon RX 7900 XTX (RDNA3,
-\texttt{gfx1100}); the driver version and operating system are recorded with each result set. The
-test scene is Sponza, a standard interior with strong indirect bounce, lit by ten lights (three spot,
-six point, one directional) at a fixed render resolution stated with the results. A code-generated
-stress scene (a grid of meshes) is available for scaling tests.
+\paragraph{Hardver: cross-vendor postavka.} The central evaluation compares the identical pipeline on
+two current-generation GPUs from different vendors: an AMD Radeon RX 9070 XT (RDNA4) and an NVIDIA
+GeForce RTX 5070 (Blackwell). Both run the same engine binary, the same HLSL-compiled SPIR-V shaders,
+the same render graph, and the same scene and settings; the only variable is the selected physical
+device. That identity is the fairness basis of the comparison: any difference in timing is due to the
+hardware and its driver, not to a different code path. Table~\ref{tab:gpus} lists the relevant
+specifications. Because the algorithm is bit-for-bit identical on both GPUs, the quality metrics
+(PSNR/SSIM) are expected to match across them; the cross-vendor result is therefore a performance
+comparison, and any quality divergence would flag a non-determinism to investigate rather than a real
+difference. The RX 7900 XTX (RDNA3) used during development serves as an optional generational
+reference and as the target of the static occupancy analysis (Section~\ref{sec:occupancy}), which is
+AMD-only.
+
+\begin{table}[tbp]
+\caption{GPU-ovi u cross-vendor pore\dj enju. Vrednosti se popunjavaju iz zvani\v{c}nih specifikacija.}
+\label{tab:gpus}
+\centering
+\begin{tabular}{lll}
+\toprule
+ & AMD RX 9070 XT & NVIDIA RTX 5070 \\
+\midrule
+Arhitektura            & RDNA4 & Blackwell \\
+Compute jedinice / SM  & \textit{--} & \textit{--} \\
+RT akceleratori        & \textit{--} & \textit{--} \\
+Takt (boost)           & \textit{--} & \textit{--} \\
+Memorija / propusnost  & \textit{--} & \textit{--} \\
+TDP                    & \textit{--} & \textit{--} \\
+Drajver / OS           & \textit{--} & \textit{--} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Scena.} The test scene is Sponza, a standard interior with strong indirect bounce, lit by
+ten lights (three spot, six point, one directional) at a fixed render resolution stated with the
+results. A code-generated stress scene (a grid of meshes) is available for scaling tests.
 
 \paragraph{Controls for fair comparison.} Several controls keep the measurements honest and
 reproducible. The camera is held static for every A/B comparison: a moving camera desynchronizes the
@@ -38,7 +68,10 @@ cost of an effect is the difference between adjacent configurations. One caveat 
 difference: it equals the Forward-pass delta only for shadows and reflections, which are inline in
 the Forward pass. Global illumination and ambient occlusion run as their own half-resolution passes
 with separate timestamp scopes, so their cost is read from those per-pass scopes plus the total GPU
-time, not from the Forward delta alone.
+time, not from the Forward delta alone. Across vendors, the raw timestamps are converted to
+milliseconds using each device's timestamp period, so the per-pass times are directly comparable;
+results are reported for both GPUs side by side rather than diffed against a single-machine baseline,
+since here the cross-vendor comparison is itself the measurement.
 
 \paragraph{Quality measurement.} Reconstruction quality is measured in-engine by a metrics pass that
 computes PSNR and SSIM on the GPU against a ground-truth image. The ground truth is a second,
@@ -53,30 +86,30 @@ or reported with this caveat stated explicitly.
 \label{sec:cena}
 
 The per-effect cost is the adjacent-configuration difference from the benchmark matrix, read from the
-per-pass timestamp scopes as described above. Table~\ref{tab:cena} reports it. The effect the cost is
-attributed to, and the passes whose scopes carry it, are listed alongside so the attribution is
-explicit.
+per-pass timestamp scopes as described above, and reported for both GPUs so the cross-vendor
+difference per effect is explicit. Table~\ref{tab:cena} reports it.
 
 \begin{table}[tbp]
-\caption{Cena po efektu na RX 7900 XTX (GPU ms). Vrednosti se popunjavaju iz stvarnog merenja.}
+\caption{Cena po efektu, cross-vendor (GPU ms). Vrednosti se popunjavaju iz stvarnog merenja.}
 \label{tab:cena}
 \centering
-\begin{tabular}{lll}
+\begin{tabular}{llll}
 \toprule
-Konfiguracija & Efekat & GPU ms (TODO) \\
+Konfiguracija & Efekat & ms (9070 XT) & ms (5070) \\
 \midrule
-\texttt{rt-off}   & bazna linija        & \textit{--} \\
-\texttt{+shadows} & senke               & \textit{--} \\
-\texttt{+ao}      & ambijentalna okluzija & \textit{--} \\
-\texttt{+refl}    & refleksije          & \textit{--} \\
-\texttt{+gi}      & globalno osvetljenje & \textit{--} \\
+\texttt{rt-off}   & bazna linija          & \textit{--} & \textit{--} \\
+\texttt{+shadows} & senke                 & \textit{--} & \textit{--} \\
+\texttt{+ao}      & ambijentalna okluzija & \textit{--} & \textit{--} \\
+\texttt{+refl}    & refleksije            & \textit{--} & \textit{--} \\
+\texttt{+gi}      & globalno osvetljenje  & \textit{--} & \textit{--} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\textit{TODO: fill from a perf-bench run on the stated hardware; comment on which effect dominates
-and why (expected: GI and shadows are the largest costs; the half-res + denoise pattern is what keeps
-GI and AO affordable).}
+\textit{TODO: fill from perf-bench runs on both GPUs; comment on which effect dominates on each and
+where the vendors diverge (expected: GI and shadows are the largest costs; the half-res + denoise
+pattern is what keeps GI and AO affordable; RT-hardware and driver differences show up most in the
+trace-heavy passes).}
 
 \section{Broj zrakova naspram kvaliteta i brzine}
 \label{sec:raycount}

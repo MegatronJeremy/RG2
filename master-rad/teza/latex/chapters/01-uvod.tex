@@ -53,11 +53,13 @@ that price is small and is discussed again in Chapter~\ref{ch:zakljucak}.
 The goal is to implement four ray-traced lighting effects, shadows, ambient occlusion, reflections,
 and diffuse global illumination, through inline ray queries in a custom Vulkan engine, and to
 characterize each one. The central research question is: what does each effect cost on the frame
-budget, and how do the ray count and the denoiser trade reconstruction quality against time? Concretely
+budget, and how do the ray count and the denoiser trade reconstruction quality against time, and how does the identical Vulkan implementation perform
+across GPU vendors, AMD RDNA4 versus NVIDIA Blackwell? Concretely
 this breaks into measurable sub-questions: the per-effect GPU cost in milliseconds; the effect of
 samples per pixel on quality (PSNR/SSIM) and on time; the quality and cost of the denoiser with it
 enabled versus disabled; and the impact of tracing at half versus full resolution. The scope is
-deliberately bounded: a single scene class, a single primary GPU (an AMD Radeon RX 7900 XTX, RDNA3),
+deliberately bounded: a single scene class, two current-generation GPUs from different vendors (an AMD Radeon RX 9070 XT, RDNA4, and an NVIDIA
+GeForce RTX 5070, Blackwell), with an RX 7900 XTX as a development reference,
 diffuse global illumination, and a supersampled reference for the quality metrics.
 
 \section{Doprinosi}
@@ -66,8 +68,10 @@ The contributions of this thesis are: an integrated, openly licensed implementat
 ray-query lighting effects inside one custom Vulkan engine; a per-effect GPU cost breakdown produced
 by a reproducible A/B benchmark harness rather than ad-hoc captures; an evaluation of a
 self-implemented SVGF denoiser applied to the ambient-occlusion, global-illumination, and reflection
-signals, covering the quality it recovers, its cost, and its temporal stability; and a reusable
-half-resolution, G-buffer-prepass, denoise-and-upsample pattern shared across the effects.
+signals, covering the quality it recovers, its cost, and its temporal stability; a reusable
+half-resolution, G-buffer-prepass, denoise-and-upsample pattern shared across the effects; and a cross-vendor performance comparison of
+the identical ray-query pipeline on AMD RDNA4 and NVIDIA Blackwell hardware, a fair same-code
+comparison that is scarce in the literature.
 
 \section{Struktura rada}
 

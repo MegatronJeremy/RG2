@@ -12,7 +12,8 @@ Vulkan engine, and to characterize the cost and quality of each. All four effect
 described in Chapter~\ref{ch:implementacija}, sharing one hit-shading routine over a bindless geometry
 table and one reusable SVGF denoiser, and integrated into an existing rasterizing forward renderer
 rather than a standalone tracer. The evaluation in Chapter~\ref{ch:analiza} isolates the per-effect
-GPU cost with an A/B benchmark and measures reconstruction quality against a supersampled reference.
+GPU cost with an A/B benchmark and measures reconstruction quality against a supersampled reference, and compares the identical pipeline
+across two GPU vendors (AMD RDNA4 and NVIDIA Blackwell).
 \textit{TODO: state the headline numbers (per-effect cost, denoiser PSNR/SSIM gain, the ray-count
 knee) once measured; do not pre-write them.} The practical value is a demonstration that a hybrid
 ray-query pipeline gives correct off-screen lighting at an interactive budget without a full path
@@ -22,7 +23,7 @@ lighting, contact shadows, and reflections.
 \section{Ograni\v{c}enja}
 
 The work has clear limitations, stating them sharpens what the results do and do not show. The
-measurements are taken on a single GPU and a single scene class, so the absolute numbers do not
+measurements are taken on two GPUs of comparable market tier and a single scene class, so the absolute numbers do not
 generalize across hardware or content. Global illumination is limited to a single diffuse bounce, and
 shadows are hard or lightly softened rather than physically accurate area shadows. To stay within a
 real-time budget the ray counts are kept very low (one or two per pixel), which places heavy demand
@@ -45,5 +46,5 @@ learned denoiser or upscaler replacing or augmenting SVGF, together with the ven
 cross-vendor cooperative-matrix inference study that motivated an earlier version of this project. A
 third direction is scaling shadows to all lights with a shared denoiser (a MegaLights-style
 half-resolution, stochastic, denoised shadow path) rather than tracing each light independently in
-the forward pass. Finally, a second rendering backend (DirectX 12) and measurements across vendors and
-generations would generalize the performance story beyond a single RDNA3 GPU.
+the forward pass. Finally, the cross-vendor comparison here covers two current-generation cards; broadening it to more cards and
+older generations, plus a second rendering backend (DirectX 12), would extend the performance story further.

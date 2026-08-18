@@ -29,7 +29,7 @@
         frame=single, captionpos=b, tabsize=2, showstringspaces=false}
 
 % Working title (SR). TODO: finalize; keep in sync with 00-naslovna.md.
-\title{Hibridno hardversko pra\'cenje zrakova u realnom vremenu u sopstvenom Vulkan end\v{z}inu}
+\title{Hibridno hardversko pra\'cenje zrakova u realnom vremenu kroz Vulkan: cross-vendor pore\dj enje na AMD i NVIDIA GPU-ovima}
 \author{Vuk \DJ or\dj evi\'c}
 \indeks{2024/3102}
 \mentor{prof. (TBD)}
@@ -47,13 +47,14 @@ rasterized forward renderer in a custom Vulkan engine, denoised by a shared SVGF
 rasterization approximates these global effects with screen-space and precomputed methods that fail
 on off-screen or dynamic information; hardware ray tracing makes per-pixel scene queries feasible.
 The per-effect GPU cost is isolated with an A/B configuration matrix, and reconstruction quality is
-measured with PSNR/SSIM against a supersampled reference on a fixed scene and camera. Main numerical
-results: TODO (fill from Chapter 4).
+measured with PSNR/SSIM against a supersampled reference on a fixed scene and camera. The identical
+pipeline is compared across two vendors, AMD RDNA4 and NVIDIA Blackwell, isolating the effect of
+hardware and driver on the same code. Main numerical results: TODO (fill from Chapter 4).
 \end{abstract}
 
 \begin{keywords}
 ray tracing u realnom vremenu; ray query; Vulkan; globalno osvetljenje; ambijentalna okluzija;
-refleksije; SVGF; uklanjanje \v{s}uma; hibridno renderovanje
+refleksije; SVGF; uklanjanje \v{s}uma; hibridno renderovanje; cross-vendor; AMD RDNA4; NVIDIA Blackwell
 \end{keywords}
 
 \tableofcontents
