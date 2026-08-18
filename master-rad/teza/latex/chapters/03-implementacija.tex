@@ -232,7 +232,24 @@ inputs, and the depth/normal G-buffer are the only signal-specific data, and eve
 shared. AO alone enables the hit-distance guide from Section~\ref{sec:efekti}; GI and reflections
 pass a zero weight there, making that term a no-op. Reflections reuse GI's temporal shader, worth
 noting as a limitation since a reflection history has view-dependent content that a diffuse-tuned
-reprojection does not perfectly handle.
+reprojection does not perfectly handle. Figure~\ref{fig:svgf} shows the two-stage flow.
+
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}[>={Stealth[]}, node distance=5mm,
+  box/.style={draw, rounded corners, align=center, text width=10.6cm, inner sep=4pt, font=\small}]
+  \node[box] (in)  {Noisy input (half-resolution GI / AO / reflections)};
+  \node[box, below=of in]  (tp) {\textbf{Temporal:} reproject by motion vectors, accumulate history
+    (up to 32 frames), estimate per-pixel variance};
+  \node[box, below=of tp]  (at) {\textbf{\`A-trous spatial filter:} 5 iterations, stride $1, 2, 4,
+    \dots$; edge-stopping on normal, depth, and variance};
+  \node[box, below=of at]  (out){Denoised, then upsampled, into the Forward pass};
+  \draw[->] (in) -- (tp); \draw[->] (tp) -- (at); \draw[->] (at) -- (out);
+\end{tikzpicture}
+\caption{SVGF denoiser: temporalna akumulacija sa procenom varijanse, zatim varijansom-vo\dj en
+\`a-trous prostorni filter, deljen izme\dj u GI, AO i refleksija.}
+\label{fig:svgf}
+\end{figure}
 
 \subsection{Temporalna akumulacija}
 
