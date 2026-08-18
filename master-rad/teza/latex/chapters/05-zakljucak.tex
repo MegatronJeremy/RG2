@@ -1,19 +1,49 @@
 \chapter{Zaklju\v{c}ak}
 \label{ch:zakljucak}
 
-% Draft. Content to be ported/expanded from ../05-zakljucak.md.
 % PPK order: recap zadatak goals -> results (advantages, limitations, application) -> future work.
-% 1-1.5 pages.
-
-This chapter recaps the goals set in the assignment, reviews the most significant results with their
-advantages and limitations, and outlines future work. \textit{TODO: port and expand; pull headline
-numbers from Chapter~\ref{ch:analiza} once measured.}
+% 5.1 recap is qualitative; headline numbers pending Ch4. 5.2/5.3 are complete.
 
 \section{Rezime (osvrt na ciljeve iz zadatka)}
-\textit{TODO.}
+
+The goal set in the assignment was to implement four ray-traced lighting effects, shadows, ambient
+occlusion, reflections, and diffuse global illumination, through inline ray queries in a custom
+Vulkan engine, and to characterize the cost and quality of each. All four effects were implemented as
+described in Chapter~\ref{ch:implementacija}, sharing one hit-shading routine over a bindless geometry
+table and one reusable SVGF denoiser, and integrated into an existing rasterizing forward renderer
+rather than a standalone tracer. The evaluation in Chapter~\ref{ch:analiza} isolates the per-effect
+GPU cost with an A/B benchmark and measures reconstruction quality against a supersampled reference.
+\textit{TODO: state the headline numbers (per-effect cost, denoiser PSNR/SSIM gain, the ray-count
+knee) once measured; do not pre-write them.} The practical value is a demonstration that a hybrid
+ray-query pipeline gives correct off-screen lighting at an interactive budget without a full path
+tracer, which is directly applicable to real-time engines that want physically grounded indirect
+lighting, contact shadows, and reflections.
 
 \section{Ograni\v{c}enja}
-\textit{TODO.}
+
+The work has clear limitations, stating them sharpens what the results do and do not show. The
+measurements are taken on a single GPU and a single scene class, so the absolute numbers do not
+generalize across hardware or content. Global illumination is limited to a single diffuse bounce, and
+shadows are hard or lightly softened rather than physically accurate area shadows. To stay within a
+real-time budget the ray counts are kept very low (one or two per pixel), which places heavy demand
+on the denoiser and exposes its failure modes: temporal ghosting and lag under fast motion,
+particularly for reflections, which reuse the diffuse-tuned temporal reprojection. The
+top-level acceleration structure is fully rebuilt on every dynamic frame rather than refit, which is
+heavier than necessary for small transform changes. The spatial denoiser's shader is
+register-limited on the target GPU, which bounds its throughput. Finally, using inline ray queries
+gives up the hardware ray scheduling and recursion that a ray-tracing pipeline would provide, a
+deliberate tradeoff for integration simplicity that would matter for deeper or more numerous bounces.
 
 \section{Budu\'ci rad}
-\textit{TODO: ReSTIR, neuralna rekonstrukcija, vi\v{s}e RT svetala, DX12 / cross-vendor.}
+
+Several directions extend the work. Sampling is the most immediate: replacing the naive per-light and
+cosine-hemisphere sampling with reservoir resampling (ReSTIR and ReSTIR GI) would improve quality at
+equal ray count, especially for many lights and for indirect paths
+\cite{bitterli2020restir, ouyang2021restirgi}. Reconstruction is the second: the engine already
+contains a temporal neural network used as an anti-aliasing resolve, and a natural next step is a
+learned denoiser or upscaler replacing or augmenting SVGF, together with the vendor-neutral,
+cross-vendor cooperative-matrix inference study that motivated an earlier version of this project. A
+third direction is scaling shadows to all lights with a shared denoiser (a MegaLights-style
+half-resolution, stochastic, denoised shadow path) rather than tracing each light independently in
+the forward pass. Finally, a second rendering backend (DirectX 12) and measurements across vendors and
+generations would generalize the performance story beyond a single RDNA3 GPU.

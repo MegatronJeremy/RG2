@@ -84,8 +84,10 @@ scratch. "Expanded" below tracks the LaTeX chapter content.
 | 1 Uvod | ☑ | ☑ | ☐ |
 | 2 Pregled | ☑ | ☑ | ☐ |
 | 3 Implementacija | ☑ | ☑ | ☐ |
-| 4 Analiza | ☑ | ☐ | ☐ |
-| 5 Zaključak | ☑ | ☐ | ☐ |
+| 4 Analiza | ☑ | ◐ | ☐ |
+| 5 Zaključak | ☑ | ☑ | ☐ |
+
+(◐ Ch4: methodology written; result tables/plots pending real GPU measurement.)
 
 ## Open logistics (from Đukić's email)
 

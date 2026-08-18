@@ -1,32 +1,118 @@
 \chapter{Analiza}
 \label{ch:analiza}
 
-% Draft. Content to be ported/expanded from ../04-analiza.md.
-% This is the graded core: measure per-effect cost + quality, compare to Chapter 2 solutions.
-% Every number must come from a run, never estimated.
+% Draft. Methodology (4.1) is complete and verified; result tables are placeholders to be filled
+% from real runs. NO fabricated numbers.
 
-This chapter evaluates the system: per-effect GPU cost, the ray-count vs quality/speed tradeoff, the
-denoiser's contribution, and a comparison against the existing solutions from
-Chapter~\ref{ch:pregled}. \textit{TODO: port methodology and fill tables from real runs.}
+This chapter evaluates the system. It first fixes the methodology, hardware, scene, and the two
+measurement setups (Section~\ref{sec:metodologija}), then reports the per-effect GPU cost
+(Section~\ref{sec:cena}), the ray-count versus quality and speed tradeoff
+(Section~\ref{sec:raycount}), the contribution of the denoiser (Section~\ref{sec:denoise-eval}), a
+comparison against the existing solutions from Chapter~\ref{ch:pregled} (Section~\ref{sec:poredjenje}),
+and the static shader occupancy (Section~\ref{sec:occupancy}). Every number reported here is produced
+by a measured run; cells still marked as pending have not yet been measured and are not estimated.
 
 \section{Metodologija}
 \label{sec:metodologija}
-\textit{TODO: HW (RX 7900 XTX / gfx1100), Sponza (10 lights), static camera, perf-bench matrix,
-PSNR/SSIM vs SSAA reference. Note the two measurement caveats.}
+
+\paragraph{Hardver i scena.} All timings are taken on a single GPU, an AMD Radeon RX 7900 XTX (RDNA3,
+\texttt{gfx1100}); the driver version and operating system are recorded with each result set. The
+test scene is Sponza, a standard interior with strong indirect bounce, lit by ten lights (three spot,
+six point, one directional) at a fixed render resolution stated with the results. A code-generated
+stress scene (a grid of meshes) is available for scaling tests.
+
+\paragraph{Controls for fair comparison.} Several controls keep the measurements honest and
+reproducible. The camera is held static for every A/B comparison: a moving camera desynchronizes the
+frame sequence between two runs and fabricates differences that are timing artifacts rather than real
+effects. The shader cache is cleared before any GPU metric is trusted, since a stale cache produces
+nondeterministic results. Performance baselines are per-machine and per-resolution, because absolute
+milliseconds are not comparable across GPUs or output sizes. Persisted console variables are ignored
+during a benchmark run so that a leftover setting cannot silently change the configuration.
+
+\paragraph{Performance measurement.} Each render-graph pass is wrapped in a GPU timestamp scope, and
+a harness (\texttt{perf-bench}) averages those per-pass timings over a fixed frame budget after a
+fifteen-frame warmup that also covers the one-frame timestamp latency. The benchmark sweeps a fixed
+matrix of configurations, \texttt{rt-off} $\rightarrow$ \texttt{shadows} $\rightarrow$ \texttt{+ao}
+$\rightarrow$ \texttt{+refl} $\rightarrow$ \texttt{+gi}, enabling one more effect at each step, so the
+cost of an effect is the difference between adjacent configurations. One caveat applies to that
+difference: it equals the Forward-pass delta only for shadows and reflections, which are inline in
+the Forward pass. Global illumination and ambient occlusion run as their own half-resolution passes
+with separate timestamp scopes, so their cost is read from those per-pass scopes plus the total GPU
+time, not from the Forward delta alone.
+
+\paragraph{Quality measurement.} Reconstruction quality is measured in-engine by a metrics pass that
+computes PSNR and SSIM on the GPU against a ground-truth image. The ground truth is a second,
+unjittered, full-resolution forward render of the same frame, optionally supersampled
+(\texttt{render.gt.ssaa}) and box-downsampled in linear HDR to give an anti-aliased reference. A
+second caveat applies here: the ground-truth path forces raster shadows, so with ray-traced shadows
+enabled the metric compares ray-traced against raster shadows, not against a ray-traced reference.
+Shadow-quality numbers are therefore either measured on the non-shadow effects against the reference,
+or reported with this caveat stated explicitly.
 
 \section{Cena po efektu (GPU ms)}
 \label{sec:cena}
-\textit{TODO: fill from a real perf-bench run.}
+
+The per-effect cost is the adjacent-configuration difference from the benchmark matrix, read from the
+per-pass timestamp scopes as described above. Table~\ref{tab:cena} reports it. The effect the cost is
+attributed to, and the passes whose scopes carry it, are listed alongside so the attribution is
+explicit.
+
+\begin{table}[tbp]
+\caption{Cena po efektu na RX 7900 XTX (GPU ms). Vrednosti se popunjavaju iz stvarnog merenja.}
+\label{tab:cena}
+\centering
+\begin{tabular}{lll}
+\toprule
+Konfiguracija & Efekat & GPU ms (TODO) \\
+\midrule
+\texttt{rt-off}   & bazna linija        & \textit{--} \\
+\texttt{+shadows} & senke               & \textit{--} \\
+\texttt{+ao}      & ambijentalna okluzija & \textit{--} \\
+\texttt{+refl}    & refleksije          & \textit{--} \\
+\texttt{+gi}      & globalno osvetljenje & \textit{--} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textit{TODO: fill from a perf-bench run on the stated hardware; comment on which effect dominates
+and why (expected: GI and shadows are the largest costs; the half-res + denoise pattern is what keeps
+GI and AO affordable).}
 
 \section{Broj zrakova naspram kvaliteta i brzine}
-\textit{TODO.}
+\label{sec:raycount}
+
+This section sweeps the samples-per-pixel count for each effect (and, where relevant, ray length and
+bounce count), plotting reconstruction quality (PSNR/SSIM) and GPU time against the ray count, to
+find the knee past which additional rays stop paying for themselves. \textit{TODO: run the sweep and
+present the plots; this is the central quality/performance tradeoff the research question asks about.}
 
 \section{Evaluacija denoiser-a (SVGF)}
 \label{sec:denoise-eval}
-\textit{TODO.}
+
+This section isolates the denoiser's contribution: the noisy input (denoiser disabled) against the
+denoised result against the reference, at a fixed low sample count, reporting the PSNR/SSIM gain, the
+temporal stability under motion, and the denoiser's own GPU cost against the quality it recovers.
+\textit{TODO: measure denoiser on/off; tie the cost to the register-limited \texttt{GIDenoise.comp}
+shader from Section~\ref{sec:denoising}.}
 
 \section{Pore\dj enje sa postoje\'cim re\v{s}enjima}
-\textit{TODO.}
+\label{sec:poredjenje}
+
+This section compares the ray-traced effects against the existing solutions surveyed in
+Chapter~\ref{ch:pregled}. Against screen-space methods, the comparison shows the same scene and camera
+in the cases where the screen-space version is wrong (off-screen occluders, disocclusion) and the
+ray-traced version is correct, alongside the honest cost difference. Against an offline reference, it
+reports how close the denoised hybrid gets at a real-time budget and where it visibly diverges. The
+positioning against production systems (Lumen, RTXGI, ReSTIR) is qualitative: the contribution is an
+integrated, measured, openly licensed ray-query implementation, not a system that beats a production
+global-illumination solution. \textit{TODO: produce the comparison figures and the offline-reference
+quality gap.}
 
 \section{Zauzetost i cena \v{s}ejdera (opciono)}
-\textit{TODO.}
+\label{sec:occupancy}
+
+This section reports the static shader occupancy (VGPR/LDS usage and register spills) per ray-tracing
+and denoising shader, from the offline occupancy gate, and identifies the one occupancy-limited
+shader (\texttt{GIDenoise.comp}). These figures are static and theoretical (register-derived
+occupancy), distinct from achieved occupancy measured with a runtime profiler. \textit{TODO: include
+the occupancy table.}
