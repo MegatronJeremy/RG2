@@ -1,0 +1,22 @@
+# LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.bbl
+*.blg
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+*.xdv
+*.idx
+*.ilg
+*.ind
+*.nav
+*.snm
+*.vrb
+
+# Build output (regenerated from source; un-ignore if you want to commit the compiled thesis)
+/main.pdf
