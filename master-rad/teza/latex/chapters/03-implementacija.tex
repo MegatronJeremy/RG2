@@ -149,7 +149,7 @@ visibility query, so it too uses \texttt{ACCEPT_FIRST_HIT_AND_END_SEARCH}. Rays 
 
 The pass writes \texttt{float4(ao, ao, ao, meanHitT)}: the occlusion value, and in alpha the mean
 distance to the occluders. That hit distance is not cosmetic; it drives a hit-distance-guided term in
-the denoiser (Section~\ref{sec:denoising}), the same idea NVIDIA's ReBLUR uses to scale the spatial
+the denoiser (Section~\ref{sec:denoising}), the same idea NVIDIA's ReBLUR denoiser \cite{nvidia_nrd} uses to scale the spatial
 filter by how far the occluder was. The half-resolution result is denoised and bilaterally upsampled
 before the forward pass multiplies it into the ambient term.
 
@@ -184,10 +184,10 @@ samples the sky cube.
 
 The pass outputs incoming irradiance only, without the receiver's albedo, which is multiplied in at
 full resolution in the forward pass. This is the demodulated-irradiance convention that both the SVGF
-denoiser and probe systems such as DDGI/RTXGI rely on: filtering irradiance rather than final color
+denoiser and probe systems such as DDGI/RTXGI \cite{majercik2019ddgi, nvidia_rtxgi} rely on: filtering irradiance rather than final color
 keeps the denoiser's edge-stopping from being misled by albedo texture detail. The forward pass then
 replaces its flat ambient term with this ray-traced indirect, the same substitution Lumen and RTXGI
-make. At two rays per pixel and half resolution the raw output is very noisy; it is usable only after
+make \cite{epic_lumen}. At two rays per pixel and half resolution the raw output is very noisy; it is usable only after
 the temporal-plus-spatial denoise of Section~\ref{sec:denoising}, which is the point of the whole
 pipeline and the subject of much of Chapter~\ref{ch:analiza}.
 
@@ -196,7 +196,7 @@ pipeline and the subject of much of Chapter~\ref{ch:analiza}.
 
 The ray-traced effects are sampled at one or two rays per pixel, which is far too noisy to display,
 so a denoiser is not optional; it is what turns the noisy estimates into usable images. Snowstorm
-implements a variant of Spatiotemporal Variance-Guided Filtering (SVGF), the standard real-time
+implements a variant of Spatiotemporal Variance-Guided Filtering (SVGF) \cite{schied2017svgf}, the standard real-time
 reconstruction filter for path-traced effects, as a single reusable component.
 
 The denoiser is signal-agnostic. One \texttt{Denoiser} class (\texttt{Render/Denoiser.\{hpp,cpp\}})
@@ -261,7 +261,7 @@ quality it recovers.
 \section{TAA / temporal resolve}
 \label{sec:taa}
 
-After the forward pass produces the shaded HDR image, a temporal anti-aliasing resolve
+After the forward pass produces the shaded HDR image, a temporal anti-aliasing resolve \cite{karis2014taa}
 (\texttt{TemporalResolvePass}, \texttt{TemporalResolve.frag.hlsl}) accumulates it across frames to
 remove aliasing and to converge the residual noise the per-effect denoisers leave behind. The camera
 projection is jittered every frame by a Halton(2,3) sequence over a 16-phase cycle, so each frame

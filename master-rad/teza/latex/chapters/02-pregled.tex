@@ -17,8 +17,8 @@ Rasterization projects each triangle onto the image plane and resolves visibilit
 buffer. It is a stream operation that maps well to GPU hardware and excels at primary visibility and
 raw throughput, but it processes one triangle at a time with no access to the rest of the scene, so
 it cannot natively answer ``what else is visible from this point.'' Ray tracing takes the opposite
-approach: it casts rays into the scene, finds their nearest intersections, and estimates light
-transport by sampling. This answers arbitrary point-to-point visibility, which is what indirect
+approach: it casts rays into the scene, finds their nearest intersections \cite{moller1997raytri}, and estimates light
+transport by sampling \cite{pharr2016pbrt}. This answers arbitrary point-to-point visibility, which is what indirect
 lighting, reflections, and occlusion require, at the cost of per-ray traversal work and of noise
 introduced by sampling. Both are approximations of the same rendering equation
 \cite{kajiya1986rendering}: rasterization resolves the direct, primary-visibility term efficiently,
