@@ -174,7 +174,24 @@ The pass writes \texttt{float4(ao, ao, ao, meanHitT)}: the occlusion value, and 
 distance to the occluders. That hit distance is not cosmetic; it drives a hit-distance-guided term in
 the denoiser (Section~\ref{sec:denoising}), the same idea NVIDIA's ReBLUR denoiser \cite{nvidia_nrd} uses to scale the spatial
 filter by how far the occluder was. The half-resolution result is denoised and bilaterally upsampled
-before the forward pass multiplies it into the ambient term.
+before the forward pass multiplies it into the ambient term. Figure~\ref{fig:ao} illustrates the
+hemisphere sampling.
+
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}[>={Stealth[]}]
+  \draw[thick] (-2.7,0) -- (2.7,0);
+  \draw[dashed] (-1.9,0) arc (180:0:1.9);
+  \draw[->, thick] (0,0) -- (0,2.25) node[above] {$N$};
+  \foreach \a in {30,60,90,120,150} \draw[->, black!65] (0,0) -- (\a:1.9);
+  \draw[fill=black!12] (0.85,0.55) rectangle (1.35,1.3);
+  \node[font=\scriptsize] at (1.1,0.95) {okluder};
+  \fill (0,0) circle (1.7pt) node[below=3pt] {$P$};
+\end{tikzpicture}
+\caption{Uzorkovanje po hemisferi za AO: iz ta\v{c}ke $P$ se baca vi\v{s}e kratkih zraka po hemisferi
+oko normale $N$; udeo zraka koji u zadatom polupre\v{c}niku pogodi geometriju daje okluziju.}
+\label{fig:ao}
+\end{figure}
 
 \subsection{Refleksije (reflections)}
 
