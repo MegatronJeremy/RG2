@@ -54,6 +54,29 @@ depth prepass, inline RT shadows, and the sky) $\rightarrow$ \texttt{Upscale} $\
 $\rightarrow$ the comparison and metrics passes.
 \end{quote}
 
+Figure~\ref{fig:framegraph} summarizes this flow.
+
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}[node distance=5mm, >={Stealth[]},
+  box/.style={draw, rounded corners, align=center, text width=10.4cm, inner sep=4pt, font=\small}]
+  \node[box] (gb)   {G-buffer: \texttt{DepthNormal} (depth + geometric normal), \texttt{Velocity}};
+  \node[box, below=of gb]   (rt)  {RT effects, traced before Forward: GI and AO at half resolution,
+    Reflections at full resolution; each trace followed by \texttt{Temporal} $\rightarrow$
+    \texttt{Denoise} $\rightarrow$ \texttt{Upsample}};
+  \node[box, below=of rt]   (fw)  {\texttt{Forward} (\texttt{DefaultLit}): early-Z prepass, inline RT
+    shadows, sky; combines direct lighting with the sampled GI, AO, and reflections};
+  \node[box, below=of fw]   (taa) {\texttt{TemporalResolve} (TAA)};
+  \node[box, below=of taa]  (post){Post: tonemap $\rightarrow$ FXAA $\rightarrow$ Sharpen};
+  \node[box, below=of post] (cmp) {Compare / Metrics (PSNR, SSIM)};
+  \draw[->] (gb) -- (rt); \draw[->] (rt) -- (fw); \draw[->] (fw) -- (taa);
+  \draw[->] (taa) -- (post); \draw[->] (post) -- (cmp);
+\end{tikzpicture}
+\caption{Redosled prolaza po frejmu: GI, AO i refleksije se denoise-uju pre Forward prolaza koji ih
+uzorkuje, dok su senke inline u Forward-u.}
+\label{fig:framegraph}
+\end{figure}
+
 The structural decision worth stating: global illumination, ambient occlusion, and reflections run
 as compute passes \emph{before} the forward pass, each writing a denoised, full-resolution texture
 that the forward shader then samples. Only ray-traced shadows are traced inline, inside the forward
