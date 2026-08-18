@@ -38,7 +38,32 @@ acceleration structure (TLAS) stores instances, each a transform referencing a B
 many instances share one BLAS and lets the TLAS, which changes as objects move, be rebuilt per frame
 while the heavier BLAS persists. A structure can be fully rebuilt (highest traversal quality) or
 refit (box extents updated for small deformations, cheaper but lower quality); dynamic scenes trade
-these off each frame.
+these off each frame. Figure~\ref{fig:tlasblas} shows the two-level structure and the instance
+sharing it enables.
+
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}[>={Stealth[]},
+  inst/.style={draw, rounded corners, font=\small, align=center, minimum width=2.4cm, minimum height=8mm},
+  blas/.style={draw, rounded corners, font=\small, align=center, minimum width=3.0cm, minimum height=9mm, fill=black!5}]
+  \node[inst] (i0) {Instanca 0\\(transform)};
+  \node[inst, right=7mm of i0] (i1) {Instanca 1\\(transform)};
+  \node[inst, right=7mm of i1] (i2) {Instanca 2\\(transform)};
+  \begin{scope}[on background layer]
+    \node[draw, dashed, rounded corners, fit=(i0)(i1)(i2), inner sep=7pt,
+          label=above:{\small TLAS (rebuild po ,,dirty'' frejmu)}] (tlas) {};
+  \end{scope}
+  \node[blas, below=16mm of i0, xshift=7mm] (bA) {BLAS: Mesh A};
+  \node[blas, below=16mm of i2, xshift=-7mm] (bB) {BLAS: Mesh B};
+  \draw[->] (i0) -- (bA);
+  \draw[->] (i1) -- (bA);
+  \draw[->] (i2) -- (bB);
+\end{tikzpicture}
+\caption{Dvonivo struktura ubrzanja: TLAS dr\v{z}i instance (transform + pokaziva\v{c} na BLAS), pri
+\v{c}emu vi\v{s}e instanci mo\v{z}e deliti isti BLAS; BLAS dr\v{z}i geometriju mre\v{z}e u lokalnom
+prostoru.}
+\label{fig:tlasblas}
+\end{figure}
 
 \section{Trasiranje zrakova u Vulkan-u: RT-pipeline naspram ray query}
 \label{sec:vulkanrt}

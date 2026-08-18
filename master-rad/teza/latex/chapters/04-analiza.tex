@@ -106,6 +106,26 @@ Konfiguracija & Efekat & ms (9070 XT) & ms (5070) \\
 \end{tabular}
 \end{table}
 
+Figure~\ref{fig:cost-chart} presents the same data graphically once measured.
+
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[ybar, bar width=9pt, width=0.9\textwidth, height=6cm,
+  symbolic x coords={senke,AO,refl,GI}, xtick=data,
+  ymin=0, ylabel={GPU ms}, xlabel={efekat},
+  legend style={at={(0.5,1.04)}, anchor=south, legend columns=-1},
+  enlarge x limits=0.25]
+\addplot table[x=effect, y=ms9070] {data/perf-cost.dat};
+\addplot table[x=effect, y=ms5070] {data/perf-cost.dat};
+\legend{AMD RX 9070 XT, NVIDIA RTX 5070}
+\end{axis}
+\end{tikzpicture}
+\caption{Cena po efektu, cross-vendor (GPU ms). Prazan grafik (nulte vrednosti); popunjava se iz
+\texttt{data/perf-cost.dat} nakon merenja.}
+\label{fig:cost-chart}
+\end{figure}
+
 \textit{TODO: fill from perf-bench runs on both GPUs; comment on which effect dominates on each and
 where the vendors diverge (expected: GI and shadows are the largest costs; the half-res + denoise
 pattern is what keeps GI and AO affordable; RT-hardware and driver differences show up most in the
