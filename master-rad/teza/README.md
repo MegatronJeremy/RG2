@@ -74,15 +74,18 @@ ordered by citation order.
 
 ## Status
 
+Source of truth is now the LaTeX project (`latex/`); the markdown chapters remain as English
+scratch. "Expanded" below tracks the LaTeX chapter content.
+
 | Part | Skeleton | Expanded (EN) | Translated (SR) |
 |---|---|---|---|
-| Naslovna | ☐ | ☐ | ☐ |
-| Sažetak | ☐ | ☐ | ☐ |
-| 1 Uvod | ☐ | ☐ | ☐ |
-| 2 Pregled | ☐ | ☐ | ☐ |
+| Naslovna | ☑ | ☑ | ☐ |
+| Sažetak | ☑ | ☑ | ☐ |
+| 1 Uvod | ☑ | ☑ | ☐ |
+| 2 Pregled | ☑ | ☑ | ☐ |
 | 3 Implementacija | ☑ | ☑ | ☐ |
-| 4 Analiza | ☐ | ☐ | ☐ |
-| 5 Zaključak | ☐ | ☐ | ☐ |
+| 4 Analiza | ☑ | ☐ | ☐ |
+| 5 Zaključak | ☑ | ☐ | ☐ |
 
 ## Open logistics (from Đukić's email)
 

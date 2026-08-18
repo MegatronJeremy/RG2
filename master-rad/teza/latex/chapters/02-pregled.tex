@@ -1,22 +1,108 @@
 \chapter{Pregled postoje\'cih re\v{s}enja i tehnologija}
 \label{ch:pregled}
 
-% Draft. Content to be ported/expanded from ../02-pregled.md.
+% Draft: English body, Serbian headings.
 
-This chapter provides the background needed to read the implementation and the comparison baselines
-the analysis measures against. \textit{TODO: port and expand from the markdown skeleton.}
+This chapter provides the background the rest of the thesis relies on and the set of existing
+solutions the evaluation compares against. It first contrasts rasterization with ray tracing and
+introduces acceleration structures and the Vulkan ray-tracing extensions (Sections~\ref{sec:rastervsrt}
+to \ref{sec:vulkanrt}), then surveys existing real-time approaches to the same lighting effects
+(Section~\ref{sec:postojeca}) and the denoising methods that make ray-traced effects usable at
+real-time sample counts (Section~\ref{sec:denoise-pregled}).
 
 \section{Rasterizacija naspram trasiranja zrakova}
-\textit{TODO.}
+\label{sec:rastervsrt}
+
+Rasterization projects each triangle onto the image plane and resolves visibility with a depth
+buffer. It is a stream operation that maps well to GPU hardware and excels at primary visibility and
+raw throughput, but it processes one triangle at a time with no access to the rest of the scene, so
+it cannot natively answer ``what else is visible from this point.'' Ray tracing takes the opposite
+approach: it casts rays into the scene, finds their nearest intersections, and estimates light
+transport by sampling. This answers arbitrary point-to-point visibility, which is what indirect
+lighting, reflections, and occlusion require, at the cost of per-ray traversal work and of noise
+introduced by sampling. Both are approximations of the same rendering equation
+\cite{kajiya1986rendering}: rasterization resolves the direct, primary-visibility term efficiently,
+while ray tracing addresses the visibility integrals rasterization cannot express. A hybrid renderer
+uses each where it is strong \cite{akenine2018rtr}.
 
 \section{Strukture ubrzanja: BVH, TLAS/BLAS}
-\textit{TODO.}
+\label{sec:accel-pregled}
+
+Testing every ray against every triangle is $O(\text{rays} \times \text{triangles})$ and hopeless at
+scene scale, so ray tracing depends on a spatial acceleration structure that culls most geometry per
+ray. The standard structure is a bounding-volume hierarchy (BVH): a tree of nested bounding boxes
+whose traversal descends only into boxes a ray actually enters, reducing the expected cost per ray to
+roughly logarithmic in the triangle count. Vulkan exposes a two-level structure. A bottom-level
+acceleration structure (BLAS) stores a mesh's triangle geometry in object space; a top-level
+acceleration structure (TLAS) stores instances, each a transform referencing a BLAS. The split lets
+many instances share one BLAS and lets the TLAS, which changes as objects move, be rebuilt per frame
+while the heavier BLAS persists. A structure can be fully rebuilt (highest traversal quality) or
+refit (box extents updated for small deformations, cheaper but lower quality); dynamic scenes trade
+these off each frame.
 
 \section{Trasiranje zrakova u Vulkan-u: RT-pipeline naspram ray query}
-\textit{TODO.}
+\label{sec:vulkanrt}
+
+Vulkan ray tracing rests on three extensions: \texttt{VK_KHR_acceleration_structure} to build and
+manage the BVH, and two ways to trace against it, \texttt{VK_KHR_ray_tracing_pipeline} and
+\texttt{VK_KHR_ray_query} \cite{khronos_rayquery}. The ray-tracing pipeline defines dedicated shader
+stages (ray generation, closest-hit, any-hit, miss, intersection), uses a shader binding table to map
+geometry to shaders, schedules rays in hardware, and supports recursion. It is the natural structure
+for a full path tracer. Inline ray queries instead expose a \texttt{RayQuery} object usable from any
+existing shader stage: the shader runs the traversal loop itself, with no binding table and no
+recursion. Table~\ref{tab:pipeline-vs-rayquery} summarizes the difference. This thesis uses ray
+queries because the effects are bounded additions to an existing rasterizing renderer rather than a
+standalone tracer, as argued in Section~\ref{sec:rendergraph}.
+
+\begin{table}[tbp]
+\caption{Ray-tracing pipeline naspram inline ray query u Vulkan-u.}
+\label{tab:pipeline-vs-rayquery}
+\centering
+\begin{tabular}{lll}
+\toprule
+Aspekt & RT pipeline & Ray query \\
+\midrule
+Shader stages       & namenski (raygen, hit, miss) & bilo koji postoje\'ci stage \\
+Shader binding table & potreban & nije potreban \\
+Rekurzija           & podr\v{z}ana & nije podr\v{z}ana \\
+Hardversko rasporedjivanje & da & ne (poziva\v{c} pi\v{s}e petlju) \\
+Integracija         & zahteva zaseban pipeline & drop-in u postoje\'ci prolaz \\
+Pogodno za          & pun path tracer & ograni\v{c}eni efekti na rasteru \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \section{Postoje\'ca real-time re\v{s}enja za GI i RT efekte}
-\textit{TODO: SSAO/SSR/SSGI, VXGI, DDGI/RTXGI, Lumen, ReSTIR.}
+\label{sec:postojeca}
+
+The effects implemented here have a long line of real-time approximations, which form the comparison
+set for Chapter~\ref{ch:analiza}. \emph{Screen-space} methods compute occlusion, reflections, and
+indirect light from the depth and color buffers alone: SSAO and its horizon-based refinement
+\cite{mittring2007cryengine, bavoil2008hbao}, screen-space reflections, and screen-space global
+illumination. They are inexpensive and widely shipped, but being limited to on-screen data they break
+on off-screen occluders and under disocclusion, which is exactly the failure the ray-traced versions
+avoid. \emph{Voxel} methods such as voxel cone tracing voxelize the scene and cone-trace indirect
+light \cite{crassin2011vxgi}: scene-wide, but coarse, memory-heavy, and prone to leaking.
+\emph{Probe} methods such as dynamic diffuse global illumination and NVIDIA's RTXGI ray-trace
+irradiance into a grid of probes and interpolate \cite{majercik2019ddgi, nvidia_rtxgi}: robust and
+cheap to sample, but low-frequency and sensitive to probe placement. Production \emph{hybrid} systems,
+most prominently Unreal Engine's Lumen, combine software and hardware ray tracing into a complete GI
+solution \cite{epic_lumen}; it is the bar this work acknowledges rather than tries to beat. Finally,
+\emph{reservoir} resampling (ReSTIR and ReSTIR GI) is the current state of the art for sampling many
+lights and indirect paths \cite{bitterli2020restir, ouyang2021restirgi}; it is positioned as future
+work in Chapter~\ref{ch:zakljucak}.
 
 \section{Uklanjanje \v{s}uma (denoising) za RT}
-\textit{TODO: SVGF, A-SVGF, NRD, ML denoiseri, TAA.}
+\label{sec:denoise-pregled}
+
+At the one-to-few rays per pixel a real-time budget allows, every ray-traced effect is noisy, so
+denoising is a mandatory part of the pipeline rather than an optional post-effect. This thesis
+implements Spatiotemporal Variance-Guided Filtering (SVGF) \cite{schied2017svgf}, which combines
+temporal reprojection and accumulation with a variance-guided \`a-trous spatial filter whose blur
+strength adapts to the estimated per-pixel variance, so it smooths noisy regions while preserving
+converged detail. Chapter~\ref{ch:implementacija} describes this engine's variant in detail. The main
+alternatives are its adaptive successor A-SVGF \cite{schied2018asvgf}, NVIDIA's production Real-Time
+Denoisers (ReBLUR and ReLAX) \cite{nvidia_nrd}, and machine-learning denoisers such as Intel's Open
+Image Denoise \cite{intel_oidn}. Over the denoised result, temporal anti-aliasing accumulates jittered
+frames to remove aliasing and to converge the remaining noise \cite{karis2014taa}; its interaction
+with the per-effect denoisers is part of the implementation in Chapter~\ref{ch:implementacija}.
