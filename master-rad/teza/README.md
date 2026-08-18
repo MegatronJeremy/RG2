@@ -80,7 +80,7 @@ ordered by citation order.
 | Sažetak | ☐ | ☐ | ☐ |
 | 1 Uvod | ☐ | ☐ | ☐ |
 | 2 Pregled | ☐ | ☐ | ☐ |
-| 3 Implementacija | ☐ | ☐ | ☐ |
+| 3 Implementacija | ☑ | ☑ | ☐ |
 | 4 Analiza | ☐ | ☐ | ☐ |
 | 5 Zaključak | ☐ | ☐ | ☐ |
 
