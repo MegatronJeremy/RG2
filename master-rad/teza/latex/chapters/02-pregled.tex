@@ -143,21 +143,36 @@ Pogodno za          & pun path tracer & ograni\v{c}eni efekti na rasteru \\
 \label{sec:postojeca}
 
 The effects implemented here have a long line of real-time approximations, which form the comparison
-set for Chapter~\ref{ch:analiza}. \emph{Screen-space} methods compute occlusion, reflections, and
-indirect light from the depth and color buffers alone: SSAO and its horizon-based refinement
-\cite{mittring2007cryengine, bavoil2008hbao}, screen-space reflections, and screen-space global
-illumination. They are inexpensive and widely shipped, but being limited to on-screen data they break
-on off-screen occluders and under disocclusion, which is exactly the failure the ray-traced versions
-avoid. \emph{Voxel} methods such as voxel cone tracing voxelize the scene and cone-trace indirect
-light \cite{crassin2011vxgi}: scene-wide, but coarse, memory-heavy, and prone to leaking.
-\emph{Probe} methods such as dynamic diffuse global illumination and NVIDIA's RTXGI ray-trace
-irradiance into a grid of probes and interpolate \cite{majercik2019ddgi, nvidia_rtxgi}: robust and
-cheap to sample, but low-frequency and sensitive to probe placement. Production \emph{hybrid} systems,
-most prominently Unreal Engine's Lumen, combine software and hardware ray tracing into a complete GI
-solution \cite{epic_lumen}; it is the bar this work acknowledges rather than tries to beat. Finally,
-\emph{reservoir} resampling (ReSTIR and ReSTIR GI) is the current state of the art for sampling many
-lights and indirect paths \cite{bitterli2020restir, ouyang2021restirgi}; it is positioned as future
-work in Chapter~\ref{ch:zakljucak}.
+set for Chapter~\ref{ch:analiza}.
+
+\emph{Screen-space} methods work entirely from the G-buffer. Screen-space ambient occlusion samples
+the depth buffer in a kernel around each pixel and compares the sampled depths against the pixel's own
+to estimate how occluded it is \cite{mittring2007cryengine}; horizon-based ambient occlusion instead
+integrates the largest unoccluded horizon angle from the depth field \cite{bavoil2008hbao}.
+Screen-space reflections march the reflected ray through the depth buffer until it crosses a surface.
+All are inexpensive and ship widely, but they see only what is currently on screen, so they fail on
+off-screen occluders and reflectors and under disocclusion, and they miss thin geometry the depth
+buffer does not represent. This is precisely the class of error the ray-traced versions remove, since
+they query the true scene.
+
+\emph{Voxel} approaches voxelize the scene into a (often sparse) grid storing radiance and cone-trace
+that volume to gather indirect light \cite{crassin2011vxgi}. They are scene-wide and independent of
+what is on screen, but the voxel resolution is coarse, which causes light leaking across thin walls
+and demands significant memory and revoxelization work for dynamic geometry. \emph{Probe} methods
+place a grid of light probes, each storing irradiance (and, in dynamic diffuse global illumination, a
+visibility distribution that suppresses leaking) updated by tracing rays from the probe; shading
+points interpolate the surrounding probes \cite{majercik2019ddgi, nvidia_rtxgi}. Probes are robust
+and very cheap to sample, but inherently low-frequency: they smooth out contact darkening and fine
+indirect detail, and their quality depends on probe placement and density.
+
+Production \emph{hybrid} systems combine several of these. Unreal Engine's Lumen traces mesh
+signed-distance fields in software and switches to hardware ray tracing where available, backed by a
+world-space radiance cache, to deliver a complete dynamic global-illumination solution
+\cite{epic_lumen}; it is the bar this work acknowledges rather than tries to beat. Finally,
+\emph{reservoir} resampling (ReSTIR and ReSTIR GI) reuses importance samples spatially and temporally
+across neighboring pixels and frames, sharply lowering variance for many-light direct lighting and
+for indirect paths \cite{bitterli2020restir, ouyang2021restirgi}; it is the current state of the art
+and is positioned as future work in Chapter~\ref{ch:zakljucak}.
 
 \section{Uklanjanje \v{s}uma (denoising) za RT}
 \label{sec:denoise-pregled}

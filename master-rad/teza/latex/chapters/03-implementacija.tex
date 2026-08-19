@@ -116,6 +116,15 @@ which is the common case for the benchmark scene. A full rebuild on every dynami
 than a refit would be; this is called out as a limitation in Chapter~\ref{ch:zakljucak} and was
 chosen for implementation simplicity given that the test scenes are largely static.
 
+Building a structure follows the standard Vulkan sequence: the required scratch and result buffer
+sizes are queried with \texttt{vkGetAccelerationStructureBuildSizesKHR}, the scratch and structure
+buffers are allocated, and \texttt{vkCmdBuildAccelerationStructuresKHR} records the build. A BLAS
+geometry is described by a \texttt{VkAccelerationStructureGeometryKHR} that points at the vertex and
+index buffers by device address and is flagged \texttt{OPAQUE}, so traversal never invokes an any-hit
+shader. Each TLAS instance is a \texttt{VkAccelerationStructureInstanceKHR} carrying the $3\times4$
+world transform, a visibility mask, the \texttt{instanceCustomIndex}, and the device address of its
+BLAS.
+
 The engine uses inline ray queries only. It enables \texttt{VK_KHR_ray_query} and
 \texttt{VK_KHR_acceleration_structure} (plus \texttt{VK_KHR_deferred_host_operations} for the build)
 but not the ray-tracing-pipeline extension, consistent with the rationale in
@@ -367,6 +376,17 @@ aggressively where the signal is noisy and preserves detail where it has converg
 is filtered with the squared tap weights, and all guide buffers are point-sampled to avoid bleeding
 across edges. The variance term can be disabled (\texttt{LumaPhi = 0}), reducing the filter to a
 plain bilateral blur, which is a useful baseline in Chapter~\ref{ch:analiza}.
+Listing~\ref{lst:atrous} shows the per-tap weight.
+
+\begin{lstlisting}[caption={Edge-stopping te\v{z}ine za \`a-trous filter (SVGF jezgro, HLSL).}, label={lst:atrous}]
+float w_n = pow(saturate(dot(N, N_tap)), K_NORMAL);              // normal
+float w_z = exp(-abs(z - z_tap) / (K_DEPTH * abs(dzdx) + 1e-4)); // depth
+float w_l = exp(-abs(lum - lum_tap) /                            // variance-guided luminance
+                (LUMA_PHI * sqrt(varBlur) + 1e-4));
+float w   = w_n * w_z * w_l * kernel[dy + 2] * kernel[dx + 2];   // combined tap weight
+sum  += w * color_tap;
+wSum += w;
+\end{lstlisting}
 
 \subsection{Odstupanja od SVGF i cena}
 
