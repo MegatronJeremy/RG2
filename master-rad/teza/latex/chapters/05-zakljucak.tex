@@ -44,7 +44,7 @@ equal ray count, especially for many lights and for indirect paths
 contains a temporal neural network used as an anti-aliasing resolve, and a natural next step is a
 learned denoiser or upscaler replacing or augmenting SVGF, together with the vendor-neutral,
 cross-vendor cooperative-matrix inference study that motivated an earlier version of this project. A
-third direction is scaling shadows to all lights with a shared denoiser (a MegaLights-style
-half-resolution, stochastic, denoised shadow path) rather than tracing each light independently in
-the forward pass. Finally, the cross-vendor comparison here covers two current-generation cards; broadening it to more cards and
+third direction is scaling the denoised shadows to many lights more cheaply, with a MegaLights-style
+stochastic per-pixel light selection on the shared denoiser, rather than tracing every light every
+frame; a dedicated, penumbra-aware shadow denoiser in place of the shared one is a related refinement. Finally, the cross-vendor comparison here covers two current-generation cards; broadening it to more cards and
 older generations, plus a second rendering backend (DirectX 12), would extend the performance story further.

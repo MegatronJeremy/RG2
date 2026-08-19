@@ -32,6 +32,10 @@ material at trace time. The ImGui editor hosts the
 CVar console and the performance readouts used to drive and measure the effects
 (Section~\ref{sec:alati}). Everything below is a set of passes and shaders added on top of this host.
 
+% Runtime GPU selection pending implementation (engine #152).
+The Vulkan physical device is selected at startup (by index or name through a CVar), so the same
+binary runs on either GPU; the cross-vendor evaluation of Chapter~\ref{ch:analiza} depends on this.
+
 \section{Render graf i struktura frejma}
 \label{sec:rendergraph}
 
@@ -51,8 +55,9 @@ vectors) $\rightarrow$ \texttt{GI} $\rightarrow$ \texttt{GITemporal} $\rightarro
 \texttt{GIDenoise} $\rightarrow$ \texttt{GIUpsample} $\rightarrow$ \texttt{AO} $\rightarrow$
 \texttt{AOTemporal} $\rightarrow$ \texttt{AODenoise} $\rightarrow$ \texttt{AOUpsample} $\rightarrow$
 \texttt{Reflection} $\rightarrow$ \texttt{ReflectionTemporal} $\rightarrow$
-\texttt{ReflectionDenoise} $\rightarrow$ \texttt{Forward} (\texttt{DefaultLit}, including the early-Z
-depth prepass, inline RT shadows, and the sky) $\rightarrow$ \texttt{Upscale} $\rightarrow$
+\texttt{ReflectionDenoise} $\rightarrow$ \texttt{Shadow} $\rightarrow$ \texttt{ShadowTemporal}
+$\rightarrow$ \texttt{ShadowDenoise} $\rightarrow$ \texttt{Forward} (\texttt{DefaultLit}, the early-Z
+depth prepass and the sky) $\rightarrow$ \texttt{Upscale} $\rightarrow$
 \texttt{TemporalResolve} (TAA) $\rightarrow$ tonemap $\rightarrow$ FXAA $\rightarrow$ Sharpen
 $\rightarrow$ the comparison and metrics passes.
 \end{quote}
@@ -64,34 +69,31 @@ Figure~\ref{fig:framegraph} summarizes this flow.
 \begin{tikzpicture}[node distance=5mm, >={Stealth[]},
   box/.style={draw, rounded corners, align=center, text width=10.4cm, inner sep=4pt, font=\small}]
   \node[box] (gb)   {G-buffer: \texttt{DepthNormal} (depth + geometric normal), \texttt{Velocity}};
-  \node[box, below=of gb]   (rt)  {RT effects, traced before Forward: GI and AO at half resolution,
-    Reflections at full resolution; each trace followed by \texttt{Temporal} and
-    \texttt{Denoise}, with \texttt{Upsample} to full resolution for the half-res GI and AO only};
-  \node[box, below=of rt]   (fw)  {\texttt{Forward} (\texttt{DefaultLit}): early-Z prepass, inline RT
-    shadows, sky; combines direct lighting with the sampled GI, AO, and reflections};
+  \node[box, below=of gb]   (rt)  {RT effects, traced before Forward: shadows (per-light visibility)
+    and GI/AO at half resolution, reflections at full resolution; each trace followed by
+    \texttt{Temporal} and \texttt{Denoise}, with \texttt{Upsample} for the half-res signals};
+  \node[box, below=of rt]   (fw)  {\texttt{Forward} (\texttt{DefaultLit}): early-Z prepass, sky;
+    combines direct lighting with the sampled shadows, GI, AO, and reflections};
   \node[box, below=of fw]   (taa) {\texttt{TemporalResolve} (TAA)};
   \node[box, below=of taa]  (post){Post: tonemap $\rightarrow$ FXAA $\rightarrow$ Sharpen};
   \node[box, below=of post] (cmp) {Compare / Metrics (PSNR, SSIM)};
   \draw[->] (gb) -- (rt); \draw[->] (rt) -- (fw); \draw[->] (fw) -- (taa);
   \draw[->] (taa) -- (post); \draw[->] (post) -- (cmp);
 \end{tikzpicture}
-\caption{Redosled prolaza po frejmu: GI, AO i refleksije se denoise-uju pre Forward prolaza koji ih
-uzorkuje, dok su senke inline u Forward-u.}
+\caption{Redosled prolaza po frejmu: senke, GI, AO i refleksije se denoise-uju pre Forward prolaza,
+koji uzorkuje njihove rezultate.}
 \label{fig:framegraph}
 \end{figure}
 
-Global illumination, ambient occlusion, and reflections run
-as compute passes \emph{before} the forward pass, each writing a denoised, full-resolution texture
-that the forward shader then samples. Only ray-traced shadows are traced inline, inside the forward
-shader. There are two reasons. GI, AO, and reflections need the depth+normal G-buffer as their
-starting surface, so they must follow \texttt{DepthNormal} but can precede shading. And running them
-ahead of forward lets the forward pass do a single lit combine (direct lighting plus sampled
-indirect, AO, and reflection) instead of interleaving trace and shade. Shadows are the exception
-because a shadow ray is a cheap per-light visibility test, naturally evaluated at the point each
-light's contribution is accumulated, so keeping it inline avoids allocating a separate visibility
-buffer per light. This split, screen-space compute effects feeding a forward combine while shadows
-stay inline, follows how hybrid renderers such as Unreal's Lumen separate their screen passes from
-hit lighting.
+All four effects run as compute passes \emph{before} the forward pass, each writing a denoised texture
+that the forward shader then samples. They need the depth+normal G-buffer as their starting surface,
+so they follow \texttt{DepthNormal} but precede shading; running them ahead of forward lets it do a
+single lit combine (direct lighting plus the sampled shadows, indirect, AO, and reflection) instead
+of interleaving trace and shade. Shadows in particular produce a per-light visibility signal that is
+denoised like the other effects rather than applied inline, so the noisy low-sample soft penumbra can
+be reconstructed before it is used. This split, screen-space compute effects feeding a forward
+combine, follows how hybrid renderers such as Unreal's Lumen separate their screen passes from hit
+lighting.
 
 GI and AO are traced at half resolution (\texttt{render.gi.scale}, \texttt{render.ao.scale}, both
 0.5 by default) and bilaterally upsampled to full resolution before the forward pass samples them;
@@ -149,11 +151,20 @@ forward pass and inside \texttt{ShadeSurfaceHit}, is a metallic-roughness Cook-T
 Schlick Fresnel term, over a Lambertian diffuse term; the ambient term uses a prefiltered environment
 cube and a precomputed BRDF lookup table.
 
+% Screen-space baselines pending implementation (engine #151).
+For the evaluation in Chapter~\ref{ch:analiza}, each effect can also be produced by a raster
+screen-space approximation, selected per effect through a mode setting: screen-space ambient occlusion
+(SSAO), screen-space reflections (SSR), and screen-space global illumination (SSGI). These read the
+same depth+normal G-buffer and write into the same slot the forward pass samples, so the ray-traced
+and screen-space versions differ only in how the signal is produced. They are the baselines the
+ray-traced effects are compared against in Section~\ref{sec:poredjenje}.
+
 \subsection{Senke (RT shadows)}
 
-Shadows are the one effect traced inline in the forward shader (\texttt{DefaultLit.frag.hlsl}, in
-the \texttt{SS_RAYTRACING} permutation), evaluated per light as that light's contribution is
-accumulated. A shadow ray is a pure visibility test, so it uses the cheapest traversal:
+Shadows are traced per light into a visibility signal that the shared denoiser reconstructs before the
+forward pass applies it (the shadow query and shading live in \texttt{DefaultLit.frag.hlsl} and the
+shared RT includes, in the \texttt{SS_RAYTRACING} permutation). A shadow ray is a pure visibility
+test, so it uses the cheapest traversal:
 \texttt{RayQuery} with \texttt{ACCEPT_FIRST_HIT_AND_END_SEARCH | CULL_NON_OPAQUE}, which stops at the
 first opaque hit rather than searching for the closest. Any committed hit between the surface and the
 light marks the surface as shadowed. The ray origin is offset along the geometric normal and toward
@@ -179,8 +190,8 @@ penumbra factor in $[0,1]$. The disk radius encodes the light's angular size: th
 \texttt{tan(SunAngularRadius)}, while point and spot lights use
 \texttt{LightSourceRadius / distanceToLight}, so a physically larger or nearer source gives a softer
 edge. Directions are decorrelated per pixel and per frame with an interleaved-gradient-noise hash,
-spreading the two-sample penumbra across frames for the temporal accumulator to resolve
-(Section~\ref{sec:taa}). Each light traces its own ray or rays inside the directional, point, and
+spreading the two-sample penumbra across frames for the denoiser and temporal accumulator to resolve
+(Sections~\ref{sec:denoising} and \ref{sec:taa}). Each light traces its own ray or rays inside the directional, point, and
 spot loops; the sun uses an effectively infinite \texttt{tMax}, local lights clamp \texttt{tMax} just
 short of the light. With ray-traced shadows disabled the shader falls back to raster shadow maps.
 
@@ -207,9 +218,9 @@ odgovara uglovnoj veli\v{c}ini izvora oko pravca $L$; udeo neblokiranih zraka da
 \label{fig:shadow}
 \end{figure}
 
-Keeping shadows inline reuses the light loop the forward shader already runs and avoids a separate
-per-light visibility buffer. The cost is that shadow tracing is folded into the forward-pass timing
-rather than isolated in its own scope, which Section~\ref{sec:cena} accounts for.
+Because the visibility signal is denoised before use, shadow tracing runs as its own passes with their
+own GPU timestamp scopes (\texttt{Shadow}, \texttt{ShadowTemporal}, \texttt{ShadowDenoise}), which
+Section~\ref{sec:cena} accounts for separately from the forward pass.
 
 \subsection{Ambijentalna okluzija (AO)}
 
@@ -344,11 +355,11 @@ The denoiser is signal-agnostic. One \texttt{Denoiser} class (\texttt{Render/Den
 drives two passes, a temporal accumulation (\texttt{Temporal}) and a spatial \`a-trous filter
 (\texttt{Atrous}), and all per-viewport GPU state (history, moments, and scratch ping-pong textures)
 lives in a \texttt{DenoiserInstance} component the caller owns. The same denoiser is instantiated
-three times, for GI, AO, and reflections; each signal gets its own instance and configuration but
-runs identical code. This reuse is a deliberate design choice: the noisy estimate, its variance
+four times, for shadows, GI, AO, and reflections; each signal gets its own instance and configuration
+but runs identical code. This reuse is a deliberate design choice: the noisy estimate, its variance
 inputs, and the depth/normal G-buffer are the only signal-specific data, and everything else is
-shared. AO alone enables the hit-distance guide from Section~\ref{sec:efekti}; GI and reflections
-pass a zero weight there, making that term a no-op. Reflections reuse GI's temporal shader, a
+shared. AO and shadows enable the hit-distance guide (occluder distance for AO, penumbra scale for shadows);
+GI and reflections pass a zero weight there, making that term a no-op. Reflections reuse GI's temporal shader, a
 limitation since a reflection history has view-dependent content that a diffuse-tuned
 reprojection does not perfectly handle. Figure~\ref{fig:svgf} shows the two-stage flow.
 
@@ -479,10 +490,10 @@ simplification of the full problem, not a factor that distorts the relative meas
     upsampled; reflections are traced at full resolution.
   \item \textbf{Low sample counts with reconstruction.} Effects use one or two rays per pixel and
     depend on the SVGF denoiser (GI, AO, reflections) and temporal accumulation for a usable image.
-  \item \textbf{Shadows are temporally resolved, not SVGF-denoised.} Ray-traced shadows use one hard
-    or two soft rays per light and are converged only by temporal anti-aliasing, so soft penumbrae
-    remain noisy under fast motion; a dedicated shadow denoiser is future work
-    (Chapter~\ref{ch:zakljucak}).
+  \item \textbf{Approximate soft shadows.} Ray-traced shadows use one hard or two soft rays per
+    light, denoised via the shared denoiser; this is a stochastic approximation of area-light
+    penumbrae, not a fully converged soft shadow. A dedicated, penumbra-aware shadow denoiser is
+    future work (Chapter~\ref{ch:zakljucak}).
   \item \textbf{Inline ray queries only.} No ray-tracing pipeline, shader binding table, or
     recursion; all hit lighting is a single bounce evaluated in \texttt{ShadeSurfaceHit}.
   \item \textbf{Secondary hits lit by the sun and IBL only.} A ray hit is shaded by the directional

@@ -176,25 +176,25 @@ shader from Section~\ref{sec:denoising}.}
 \section{Pore\dj enje sa postoje\'cim re\v{s}enjima}
 \label{sec:poredjenje}
 
-This section positions the ray-traced effects against the existing solutions surveyed in
-Chapter~\ref{ch:pregled}. The engine does not implement screen-space baselines (SSAO, SSR, SSGI), so
-the comparison against them is qualitative: it points, on ray-traced captures, to the cases those
-methods structurally cannot handle (off-screen occluders and reflectors, disocclusion) and relates
-them to the limitations set out in Section~\ref{sec:postojeca}, rather than an in-engine A/B. The
-quantitative comparison is against the converged reference of Section~\ref{sec:metodologija}: how
-close the real-time denoised hybrid comes in PSNR/SSIM and where it visibly diverges
-(Figure~\ref{fig:rt-vs-ref}). The positioning against production systems (Lumen, RTXGI, ReSTIR) is
-qualitative: the contribution is an integrated, measured, openly licensed ray-query implementation,
-not a system that beats a production global-illumination solution. \textit{TODO: produce the
-comparison captures and the reference quality gap.}
+This section compares the ray-traced effects against the existing solutions surveyed in
+Chapter~\ref{ch:pregled}. The engine implements raster screen-space baselines (SSAO, SSR, SSGI;
+Section~\ref{sec:efekti}), so the comparison is a same-scene, same-camera A/B: for each effect, the
+screen-space version against the ray-traced version, showing the cases the screen-space method
+structurally cannot handle (off-screen occluders and reflectors, disocclusion) and the cost
+difference (Figure~\ref{fig:rt-vs-ss}). Separately, the real-time hybrid is compared against the
+converged reference of Section~\ref{sec:metodologija} in PSNR/SSIM, to show how close it comes and
+where it diverges. The positioning against production systems (Lumen, RTXGI, ReSTIR) is qualitative:
+the contribution is an integrated, measured, openly licensed ray-query implementation, not a system
+that beats a production global-illumination solution. \textit{TODO: produce the comparison captures
+and the reference quality gap.}
 
 \begin{figure}[tbp]
 \centering
-\phshot{0.46\textwidth}{4.5cm}{real-time (ovaj rad, nizak spp + denoise)}\hfill%
-\phshot{0.46\textwidth}{4.5cm}{referenca (SSAA, konvergirano)}
-\caption{Real-time hibridni izlaz naspram konvergirane reference (SSAA). \textit{(placeholderi;
-zameniti stvarnim snimcima.)}}
-\label{fig:rt-vs-ref}
+\phshot{0.46\textwidth}{4.5cm}{screen-space (SSAO / SSR / SSGI)}\hfill%
+\phshot{0.46\textwidth}{4.5cm}{ray-traced (ovaj rad)}
+\caption{Ista scena i kamera: screen-space aproksimacije naspram ray-traced efekata, u slu\v{c}aju
+sa off-screen geometrijom. \textit{(placeholderi; zameniti stvarnim snimcima.)}}
+\label{fig:rt-vs-ss}
 \end{figure}
 
 \section{Zauzetost i cena \v{s}ejdera (opciono)}
