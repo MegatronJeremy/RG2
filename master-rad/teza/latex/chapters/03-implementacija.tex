@@ -464,3 +464,30 @@ error, and a static shader-occupancy gate tracks register pressure. A cross-thre
 with a headless JSON fallback) and a per-frame time watchdog round out the instrumentation, so a
 stall can be attributed to a specific system or pass without a manual capture. Section~\ref{sec:metodologija}
 combines these into the evaluation methodology.
+
+\section{Uslovi i pretpostavke}
+\label{sec:uslovi}
+
+The implementation makes several deliberate approximations to stay within a real-time budget. They
+are collected here so the results in Chapter~\ref{ch:analiza} are read in the right context; each is a
+simplification of the full problem, not a factor that distorts the relative measurements.
+
+\begin{itemize}
+  \item \textbf{Diffuse, single-bounce GI.} Global illumination computes one diffuse indirect bounce;
+    multi-bounce and glossy indirect are out of scope.
+  \item \textbf{Half-resolution GI and AO.} GI and AO are traced at half resolution and bilaterally
+    upsampled; reflections are traced at full resolution.
+  \item \textbf{Low sample counts with reconstruction.} Effects use one or two rays per pixel and
+    depend on the SVGF denoiser (GI, AO, reflections) and temporal accumulation for a usable image.
+  \item \textbf{Shadows are temporally resolved, not SVGF-denoised.} Ray-traced shadows use one hard
+    or two soft rays per light and are converged only by temporal anti-aliasing, so soft penumbrae
+    remain noisy under fast motion; a dedicated shadow denoiser is future work
+    (Chapter~\ref{ch:zakljucak}).
+  \item \textbf{Inline ray queries only.} No ray-tracing pipeline, shader binding table, or
+    recursion; all hit lighting is a single bounce evaluated in \texttt{ShadeSurfaceHit}.
+  \item \textbf{Secondary hits lit by the sun and IBL only.} A ray hit is shaded by the directional
+    light (with a shadow ray) plus image-based ambient, not by the scene's local point and spot
+    lights.
+  \item \textbf{Full TLAS rebuild per dynamic frame.} The top-level structure is rebuilt, not refit,
+    on any frame the scene changes; a fully static scene skips the rebuild.
+\end{itemize}
