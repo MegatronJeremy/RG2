@@ -184,15 +184,18 @@ Figure~\ref{fig:shadow} shows the soft-shadow disk sampling.
 \begin{figure}[tbp]
 \centering
 \begin{tikzpicture}[>={Stealth[]}]
-  \draw[thick] (-2.9,0) -- (2.4,0);
+  \draw[thick] (-2.6,0) -- (2.6,0);                      % surface
+  % light-source disk (perpendicular to L), drawn as a circle
+  \draw[fill=black!8] (2.7,2.4) circle (0.45);
+  \node[font=\scriptsize, align=center] at (2.7,3.25) {izvor\\(polupre\v{c}nik $r$)};
+  % direction to the light centre
+  \draw[dashed] (0,0) -- (2.7,2.4);
+  \node[font=\scriptsize] at (1.55,1.05) {$L$};
+  % sample rays fanning to distinct points across the disk
+  \draw[->, black!65] (0,0) -- (2.72,2.83);
+  \draw[->, black!65] (0,0) -- (3.08,2.22);
+  \draw[->, black!65] (0,0) -- (2.36,2.06);
   \fill (0,0) circle (1.7pt) node[below=3pt] {$P$};
-  % light disk (angular size), up-right
-  \draw[thick] (3.3,2.55) -- (4.3,3.05);
-  \node[font=\scriptsize, align=center] at (3.8,3.35) {izvor\\(polupre\v{c}nik)};
-  % sample rays into the disk
-  \foreach \tx/\ty in {3.3/2.55, 3.62/2.71, 3.98/2.87, 4.3/3.05}
-    \draw[->, black!65] (0,0) -- (\tx,\ty);
-  \draw[dashed] (0,0) -- (3.8,2.8) node[midway, below right, font=\scriptsize] {$L$};
 \end{tikzpicture}
 \caption{Meke senke: iz ta\v{c}ke $P$ se baca vi\v{s}e zraka ka disku \v{c}iji polupre\v{c}nik
 odgovara uglovnoj veli\v{c}ini izvora oko pravca $L$; udeo neblokiranih zraka daje penumbru.}
@@ -242,9 +245,10 @@ hemisphere sampling.
   \draw[thick] (-2.7,0) -- (2.7,0);
   \draw[dashed] (-1.9,0) arc (180:0:1.9);
   \draw[->, thick] (0,0) -- (0,2.25) node[above] {$N$};
-  \foreach \a in {30,60,90,120,150} \draw[->, black!65] (0,0) -- (\a:1.9);
-  \draw[fill=black!12] (0.85,0.55) rectangle (1.35,1.3);
-  \node[font=\scriptsize] at (1.1,0.95) {okluder};
+  \foreach \a in {30,60,90,120,150} \draw[->, black!60] (0,0) -- (\a:1.9);
+  \draw[fill=black!12] (0.85,0.55) rectangle (1.3,1.25);
+  \draw[thin] (1.3,1.1) -- (2.05,1.6);
+  \node[font=\scriptsize, anchor=west] at (2.05,1.6) {okluder};
   \fill (0,0) circle (1.7pt) node[below=3pt] {$P$};
 \end{tikzpicture}
 \caption{Uzorkovanje po hemisferi za AO: iz ta\v{c}ke $P$ se baca vi\v{s}e kratkih zraka po hemisferi
