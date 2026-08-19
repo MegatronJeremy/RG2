@@ -76,7 +76,10 @@ since here the cross-vendor comparison is itself the measurement.
 \paragraph{Quality measurement.} Reconstruction quality is measured in-engine by a metrics pass that
 computes PSNR and SSIM on the GPU against a ground-truth image. The ground truth is a second,
 unjittered, full-resolution forward render of the same frame, optionally supersampled
-(\texttt{render.gt.ssaa}) and box-downsampled in linear HDR to give an anti-aliased reference. A
+(\texttt{render.gt.ssaa}) and box-downsampled in linear HDR to give an anti-aliased reference. For
+the reconstruction-quality comparison the reference is rendered with denoising disabled and a high
+supersampling factor so that it approximates a converged image; the factor used and the resulting
+effective sample count are stated with the results. A
 second caveat applies here: the ground-truth path forces raster shadows, so with ray-traced shadows
 enabled the metric compares ray-traced against raster shadows, not against a ray-traced reference.
 Shadow-quality numbers are therefore either measured on the non-shadow effects against the reference,
@@ -173,23 +176,25 @@ shader from Section~\ref{sec:denoising}.}
 \section{Pore\dj enje sa postoje\'cim re\v{s}enjima}
 \label{sec:poredjenje}
 
-This section compares the ray-traced effects against the existing solutions surveyed in
-Chapter~\ref{ch:pregled}. Against screen-space methods, the comparison shows the same scene and camera
-in the cases where the screen-space version is wrong (off-screen occluders, disocclusion) and the
-ray-traced version is correct, alongside the honest cost difference. Against an offline reference, it
-reports how close the denoised hybrid gets at a real-time budget and where it visibly diverges. The
-positioning against production systems (Lumen, RTXGI, ReSTIR) is qualitative: the contribution is an
-integrated, measured, openly licensed ray-query implementation, not a system that beats a production
-global-illumination solution. \textit{TODO: produce the comparison figures and the offline-reference
-quality gap.}
+This section positions the ray-traced effects against the existing solutions surveyed in
+Chapter~\ref{ch:pregled}. The engine does not implement screen-space baselines (SSAO, SSR, SSGI), so
+the comparison against them is qualitative: it points, on ray-traced captures, to the cases those
+methods structurally cannot handle (off-screen occluders and reflectors, disocclusion) and relates
+them to the limitations set out in Section~\ref{sec:postojeca}, rather than an in-engine A/B. The
+quantitative comparison is against the converged reference of Section~\ref{sec:metodologija}: how
+close the real-time denoised hybrid comes in PSNR/SSIM and where it visibly diverges
+(Figure~\ref{fig:rt-vs-ref}). The positioning against production systems (Lumen, RTXGI, ReSTIR) is
+qualitative: the contribution is an integrated, measured, openly licensed ray-query implementation,
+not a system that beats a production global-illumination solution. \textit{TODO: produce the
+comparison captures and the reference quality gap.}
 
 \begin{figure}[tbp]
 \centering
-\phshot{0.46\textwidth}{4.5cm}{screen-space (SSAO / SSR / SSGI)}\hfill%
-\phshot{0.46\textwidth}{4.5cm}{ray-traced (ovaj rad)}
-\caption{Ista scena i kamera: screen-space aproksimacije naspram ray-traced efekata, u slu\v{c}aju
-sa off-screen geometrijom. \textit{(placeholderi; zameniti stvarnim snimcima.)}}
-\label{fig:rt-vs-ss}
+\phshot{0.46\textwidth}{4.5cm}{real-time (ovaj rad, nizak spp + denoise)}\hfill%
+\phshot{0.46\textwidth}{4.5cm}{referenca (SSAA, konvergirano)}
+\caption{Real-time hibridni izlaz naspram konvergirane reference (SSAA). \textit{(placeholderi;
+zameniti stvarnim snimcima.)}}
+\label{fig:rt-vs-ref}
 \end{figure}
 
 \section{Zauzetost i cena \v{s}ejdera (opciono)}

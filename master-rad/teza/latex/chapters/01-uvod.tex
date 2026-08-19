@@ -62,9 +62,9 @@ that price is small and is discussed again in Chapter~\ref{ch:zakljucak}.
 
 The goal is to implement four ray-traced lighting effects, shadows, ambient occlusion, reflections,
 and diffuse global illumination, through inline ray queries in a custom Vulkan engine, and to
-characterize each one. The central research question is: what does each effect cost on the frame
-budget, and how do the ray count and the denoiser trade reconstruction quality against time, and how does the identical Vulkan implementation perform
-across GPU vendors, AMD RDNA4 versus NVIDIA Blackwell? Concretely
+characterize each one. The central research question has three parts: the per-effect cost on the frame
+budget; how the ray count and the denoiser trade reconstruction quality against time; and how the
+identical Vulkan implementation performs across GPU vendors (AMD RDNA4 versus NVIDIA Blackwell). Concretely
 this breaks into measurable sub-questions: the per-effect GPU cost in milliseconds; the effect of
 samples per pixel on quality (PSNR/SSIM) and on time; the quality and cost of the denoiser with it
 enabled versus disabled; and the impact of tracing at half versus full resolution. The scope is
@@ -81,7 +81,7 @@ self-implemented SVGF denoiser applied to the ambient-occlusion, global-illumina
 signals, covering the quality it recovers, its cost, and its temporal stability; a reusable
 half-resolution, G-buffer-prepass, denoise-and-upsample pattern shared across the effects; and a cross-vendor performance comparison of
 the identical ray-query pipeline on AMD RDNA4 and NVIDIA Blackwell hardware, a fair same-code
-comparison that is scarce in the literature.
+comparison that is rarely reported.
 
 \section{Struktura rada}
 

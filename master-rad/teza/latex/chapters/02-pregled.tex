@@ -20,7 +20,7 @@ it cannot natively answer ``what else is visible from this point.'' Ray tracing 
 approach: it casts rays into the scene, finds their nearest intersections \cite{moller1997raytri}, and estimates light
 transport by sampling \cite{pharr2016pbrt}. This answers arbitrary point-to-point visibility, which is what indirect
 lighting, reflections, and occlusion require, at the cost of per-ray traversal work and of noise
-introduced by sampling. Both are approximations of the same rendering equation
+introduced by sampling. The common reference for both is the rendering equation
 \cite{kajiya1986rendering}, which expresses the outgoing radiance $L_o$ at a point $\mathbf{x}$ in
 direction $\omega_o$ as emitted radiance plus the reflected integral over the hemisphere $\Omega$:
 \begin{equation}

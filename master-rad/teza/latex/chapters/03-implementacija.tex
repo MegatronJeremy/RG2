@@ -65,8 +65,8 @@ Figure~\ref{fig:framegraph} summarizes this flow.
   box/.style={draw, rounded corners, align=center, text width=10.4cm, inner sep=4pt, font=\small}]
   \node[box] (gb)   {G-buffer: \texttt{DepthNormal} (depth + geometric normal), \texttt{Velocity}};
   \node[box, below=of gb]   (rt)  {RT effects, traced before Forward: GI and AO at half resolution,
-    Reflections at full resolution; each trace followed by \texttt{Temporal} $\rightarrow$
-    \texttt{Denoise} $\rightarrow$ \texttt{Upsample}};
+    Reflections at full resolution; each trace followed by \texttt{Temporal} and
+    \texttt{Denoise}, with \texttt{Upsample} to full resolution for the half-res GI and AO only};
   \node[box, below=of rt]   (fw)  {\texttt{Forward} (\texttt{DefaultLit}): early-Z prepass, inline RT
     shadows, sky; combines direct lighting with the sampled GI, AO, and reflections};
   \node[box, below=of fw]   (taa) {\texttt{TemporalResolve} (TAA)};
@@ -80,7 +80,7 @@ uzorkuje, dok su senke inline u Forward-u.}
 \label{fig:framegraph}
 \end{figure}
 
-The structural decision worth stating: global illumination, ambient occlusion, and reflections run
+Global illumination, ambient occlusion, and reflections run
 as compute passes \emph{before} the forward pass, each writing a denoised, full-resolution texture
 that the forward shader then samples. Only ray-traced shadows are traced inline, inside the forward
 shader. There are two reasons. GI, AO, and reflections need the depth+normal G-buffer as their
@@ -143,7 +143,11 @@ how many are cast, what a hit returns, and whether the query needs the closest h
 The effects that shade their hits (reflections and GI, plus the secondary lighting they evaluate)
 share one routine, \texttt{ShadeSurfaceHit} in \texttt{RTHitShading.hlsli}, which resolves the hit
 triangle through the bindless geometry table and evaluates a single bounce of lighting. Shadows and
-AO need only a visibility answer and use the cheaper any-hit traversal.
+AO need only a visibility answer and use the cheaper any-hit traversal. The shading itself, both in the
+forward pass and inside \texttt{ShadeSurfaceHit}, is a metallic-roughness Cook-Torrance model: a GGX
+(Trowbridge-Reitz) normal distribution, Smith geometry with the Schlick-GGX approximation, and a
+Schlick Fresnel term, over a Lambertian diffuse term; the ambient term uses a prefiltered environment
+cube and a precomputed BRDF lookup table.
 
 \subsection{Senke (RT shadows)}
 
@@ -344,8 +348,8 @@ three times, for GI, AO, and reflections; each signal gets its own instance and 
 runs identical code. This reuse is a deliberate design choice: the noisy estimate, its variance
 inputs, and the depth/normal G-buffer are the only signal-specific data, and everything else is
 shared. AO alone enables the hit-distance guide from Section~\ref{sec:efekti}; GI and reflections
-pass a zero weight there, making that term a no-op. Reflections reuse GI's temporal shader, worth
-noting as a limitation since a reflection history has view-dependent content that a diffuse-tuned
+pass a zero weight there, making that term a no-op. Reflections reuse GI's temporal shader, a
+limitation since a reflection history has view-dependent content that a diffuse-tuned
 reprojection does not perfectly handle. Figure~\ref{fig:svgf} shows the two-stage flow.
 
 \begin{figure}[tbp]
