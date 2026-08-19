@@ -24,6 +24,13 @@
 \usepackage[hidelinks]{hyperref}
 \usepackage[nohyphen]{underscore} % literal _ in text/\texttt; break at _ without a hyphen
 \setlength{\emergencystretch}{3em} % avoid right-margin overhang on hard-to-break code lines
+\usepackage{needspace} % keep short atomic blocks (code listings) from splitting across pages
+
+% Widow/orphan control: don't strand a single line at the top/bottom of a page.
+% Safe here because the class is \raggedbottom (oneside): slack goes to the page bottom.
+\clubpenalty=10000
+\widowpenalty=10000
+\displaywidowpenalty=10000
 \usepackage{fancyhdr}
 
 % Serbian structural names (PPK); pin them so the class's English defaults never leak through.

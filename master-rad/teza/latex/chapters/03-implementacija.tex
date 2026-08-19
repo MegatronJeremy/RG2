@@ -155,6 +155,7 @@ first opaque hit rather than searching for the closest. Any committed hit betwee
 light marks the surface as shadowed. The ray origin is offset along the geometric normal and toward
 the light (\texttt{positionWS + Ng*0.02 + L*0.01}) to avoid self-intersection. Listing~\ref{lst:shadow} shows the inline query in HLSL.
 
+\needspace{12\baselineskip}
 \begin{lstlisting}[caption={Inline ray-query test vidljivosti za senku (HLSL).}, label={lst:shadow}]
 RayQuery<RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_CULL_NON_OPAQUE> q;
 RayDesc ray;
@@ -217,6 +218,7 @@ visibility query, so it too uses \texttt{ACCEPT_FIRST_HIT_AND_END_SEARCH}. Rays 
 \texttt{1 - saturate(t / AORadius)}, so nearer occluders darken more, and the result is scaled by
 \texttt{render.ao.intensity}. Listing~\ref{lst:ao} shows the gather loop.
 
+\needspace{14\baselineskip}
 \begin{lstlisting}[caption={AO uzorkovanje hemisfere (HLSL, karakteristi\v{c}an ise\v{c}ak).}, label={lst:ao}]
 float occlusion = 0.0;
 for (uint k = 0; k < RayCount; ++k)
@@ -400,6 +402,7 @@ across edges. The variance term can be disabled (\texttt{LumaPhi = 0}), reducing
 plain bilateral blur, which is a useful baseline in Chapter~\ref{ch:analiza}.
 Listing~\ref{lst:atrous} shows the per-tap weight.
 
+\needspace{9\baselineskip}
 \begin{lstlisting}[caption={Edge-stopping te\v{z}ine za \`a-trous filter (SVGF jezgro, HLSL).}, label={lst:atrous}]
 float w_n = pow(saturate(dot(N, N_tap)), K_NORMAL);              // normal
 float w_z = exp(-abs(z - z_tap) / (K_DEPTH * abs(dzdx) + 1e-4)); // depth
