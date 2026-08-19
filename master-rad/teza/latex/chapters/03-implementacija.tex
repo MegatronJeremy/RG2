@@ -25,7 +25,10 @@ implemented over a Vulkan RHI in \texttt{Platform/Vulkan/}, using volk for entry
 Vulkan Memory Allocator for allocations, and spirv-reflect to derive descriptor layouts from the
 compiled shaders. An HLSL shader pipeline compiled to SPIR-V through dxc. And a bindless descriptor
 model, which is what lets one ray-query hit-shading routine index any mesh's vertices, indices, and
-material without per-draw descriptor churn (Section~\ref{sec:efekti}). The ImGui editor hosts the
+material without per-draw descriptor churn (Section~\ref{sec:efekti}). Concretely, each mesh exposes
+its vertex and index buffers by device address, and a per-instance geometry table indexed by
+\texttt{instanceCustomIndex} lets the hit shader fetch the hit triangle's attributes and its bindless
+material at trace time. The ImGui editor hosts the
 CVar console and the performance readouts used to drive and measure the effects
 (Section~\ref{sec:alati}). Everything below is a set of passes and shaders added on top of this host.
 
@@ -209,7 +212,22 @@ oriented by a tangent basis and rotated per pixel by interleaved gradient noise.
 visibility query, so it too uses \texttt{ACCEPT_FIRST_HIT_AND_END_SEARCH}. Rays are limited to
 \texttt{render.ao.radius} (\texttt{TMax = AORadius}); a hit contributes
 \texttt{1 - saturate(t / AORadius)}, so nearer occluders darken more, and the result is scaled by
-\texttt{render.ao.intensity}.
+\texttt{render.ao.intensity}. Listing~\ref{lst:ao} shows the gather loop.
+
+\begin{lstlisting}[caption={AO uzorkovanje hemisfere (HLSL, karakteristi\v{c}an ise\v{c}ak).}, label={lst:ao}]
+float occlusion = 0.0;
+for (uint k = 0; k < RayCount; ++k)
+{
+    float3 dir = CosineHemisphere(k, RayCount, ign, N); // cosine-weighted, IGN-rotated around N
+    RayQuery<RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_CULL_NON_OPAQUE> q;
+    RayDesc ray = MakeRay(positionWS + N * 0.02, dir, 0.0, AORadius);
+    q.TraceRayInline(SceneTLAS, RAY_FLAG_NONE, 0xFF, ray);
+    q.Proceed();
+    if (q.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
+        occlusion += 1.0 - saturate(q.CommittedRayT() / AORadius);
+}
+occlusion = 1.0 - occlusion / RayCount;
+\end{lstlisting}
 
 The pass writes \texttt{float4(ao, ao, ao, meanHitT)}: the occlusion value, and in alpha the mean
 distance to the occluders. That hit distance is not cosmetic; it drives a hit-distance-guided term in
@@ -431,5 +449,7 @@ of effect configurations so the per-pass cost of each effect can be read off dir
 quality is measured in-engine by a metrics pass computing PSNR and SSIM against a ground-truth image
 on the GPU, where the ground truth is a second, unjittered, optionally supersampled render of the
 same frame. A smoke harness boots the engine headlessly and fails on any crash or Vulkan validation
-error, and a static shader-occupancy gate tracks register pressure. Section~\ref{sec:metodologija}
+error, and a static shader-occupancy gate tracks register pressure. A cross-thread profiler (Tracy,
+with a headless JSON fallback) and a per-frame time watchdog round out the instrumentation, so a
+stall can be attributed to a specific system or pass without a manual capture. Section~\ref{sec:metodologija}
 combines these into the evaluation methodology.
