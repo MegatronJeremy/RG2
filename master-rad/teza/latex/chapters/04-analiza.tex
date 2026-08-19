@@ -131,6 +131,18 @@ where the vendors diverge (expected: GI and shadows are the largest costs; the h
 pattern is what keeps GI and AO affordable; RT-hardware and driver differences show up most in the
 trace-heavy passes).}
 
+\begin{figure}[tbp]
+\centering
+\phshot{0.46\textwidth}{3.8cm}{senke}\hfill\phshot{0.46\textwidth}{3.8cm}{ambijentalna okluzija}
+
+\vspace{5pt}
+
+\phshot{0.46\textwidth}{3.8cm}{refleksije}\hfill\phshot{0.46\textwidth}{3.8cm}{globalno osvetljenje}
+\caption{Pojedina\v{c}ni efekti izolovani na sceni Sponza. \textit{(placeholderi; zameniti stvarnim
+snimcima.)}}
+\label{fig:effect-gallery}
+\end{figure}
+
 \section{Broj zrakova naspram kvaliteta i brzine}
 \label{sec:raycount}
 
@@ -148,6 +160,16 @@ temporal stability under motion, and the denoiser's own GPU cost against the qua
 \textit{TODO: measure denoiser on/off; tie the cost to the register-limited \texttt{GIDenoise.comp}
 shader from Section~\ref{sec:denoising}.}
 
+\begin{figure}[tbp]
+\centering
+\phshot{0.30\textwidth}{4cm}{\v{s}um (1--2 spp)}\hfill%
+\phshot{0.30\textwidth}{4cm}{denoise-ovano}\hfill%
+\phshot{0.30\textwidth}{4cm}{referenca (SSAA)}
+\caption{Doprinos denoiser-a: \v{s}um pri niskom broju uzoraka, denoise-ovan rezultat, i referenca.
+\textit{(placeholderi; zameniti stvarnim snimcima.)}}
+\label{fig:denoise-compare}
+\end{figure}
+
 \section{Pore\dj enje sa postoje\'cim re\v{s}enjima}
 \label{sec:poredjenje}
 
@@ -160,6 +182,15 @@ positioning against production systems (Lumen, RTXGI, ReSTIR) is qualitative: th
 integrated, measured, openly licensed ray-query implementation, not a system that beats a production
 global-illumination solution. \textit{TODO: produce the comparison figures and the offline-reference
 quality gap.}
+
+\begin{figure}[tbp]
+\centering
+\phshot{0.46\textwidth}{4.5cm}{screen-space (SSAO / SSR / SSGI)}\hfill%
+\phshot{0.46\textwidth}{4.5cm}{ray-traced (ovaj rad)}
+\caption{Ista scena i kamera: screen-space aproksimacije naspram ray-traced efekata, u slu\v{c}aju
+sa off-screen geometrijom. \textit{(placeholderi; zameniti stvarnim snimcima.)}}
+\label{fig:rt-vs-ss}
+\end{figure}
 
 \section{Zauzetost i cena \v{s}ejdera (opciono)}
 \label{sec:occupancy}

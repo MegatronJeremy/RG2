@@ -78,6 +78,12 @@
 % PPK reference title quotes: „...“ (low-opening, high-closing), Serbian style.
 \newcommand{\rqt}[1]{\quotedblbase #1\textquotedblleft}
 
+% Screenshot placeholder: a framed, fixed-size box standing in for a not-yet-captured render.
+% To insert the real capture later, replace \phshot{width}{height}{desc} with
+% \includegraphics[width=...]{figures/<file>}.
+\newcommand{\phshot}[3]{{\setlength{\fboxsep}{6pt}\fbox{\parbox[c][#2][c]{#1}{%
+  \centering\itshape\small [screenshot placeholder]\par\vspace{3pt}#3}}}}
+
 % Working title (SR). TODO: finalize; keep in sync with 00-naslovna.md.
 \title{Hibridno hardversko pra\'cenje zrakova u realnom vremenu kroz Vulkan: cross-vendor pore\dj enje na AMD i NVIDIA GPU-ovima}
 \author{Vuk \DJ or\dj evi\'c}
