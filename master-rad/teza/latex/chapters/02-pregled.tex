@@ -23,7 +23,34 @@ lighting, reflections, and occlusion require, at the cost of per-ray traversal w
 introduced by sampling. Both are approximations of the same rendering equation
 \cite{kajiya1986rendering}: rasterization resolves the direct, primary-visibility term efficiently,
 while ray tracing addresses the visibility integrals rasterization cannot express. A hybrid renderer
-uses each where it is strong \cite{akenine2018rtr}.
+uses each where it is strong \cite{akenine2018rtr}. Figure~\ref{fig:rastervsrt} contrasts the two.
+
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}[>={Stealth[]}, scale=0.9]
+  \begin{scope}
+    \node[font=\small] at (1.9,3.1) {Rasterizacija};
+    \fill (0,1.3) circle (1.6pt) node[left, font=\scriptsize] {oko};
+    \draw[thick] (1,0.35) -- (1,2.35); \node[font=\scriptsize] at (1,0.05) {ravan slike};
+    \draw[fill=black!8] (3.4,0.7) -- (4.0,2.1) -- (2.8,1.95) -- cycle;
+    \draw[black!55] (0,1.3) -- (3.4,0.7);
+    \draw[black!55] (0,1.3) -- (4.0,2.1);
+    \draw[black!55] (0,1.3) -- (2.8,1.95);
+    \node[font=\scriptsize] at (3.5,2.4) {trougao};
+  \end{scope}
+  \begin{scope}[xshift=6.4cm]
+    \node[font=\small] at (1.9,3.1) {Trasiranje zrakova};
+    \fill (0,1.3) circle (1.6pt) node[left, font=\scriptsize] {oko};
+    \draw[thick] (1,0.35) -- (1,2.35); \node[font=\scriptsize] at (1,0.05) {ravan slike};
+    \fill[black!8] (3.5,1.3) circle (0.5);
+    \draw[->, black!70] (0,1.3) -- (2.95,1.3);
+    \node[font=\scriptsize] at (2.0,1.55) {zrak};
+  \end{scope}
+\end{tikzpicture}
+\caption{Rasterizacija (projekcija trouglova na ravan slike) naspram trasiranja zrakova (zrak kroz
+piksel u scenu do najbli\v{z}eg preseka).}
+\label{fig:rastervsrt}
+\end{figure}
 
 \section{Strukture ubrzanja: BVH, TLAS/BLAS}
 \label{sec:accel-pregled}

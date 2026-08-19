@@ -155,6 +155,26 @@ spreading the two-sample penumbra across frames for the temporal accumulator to 
 spot loops; the sun uses an effectively infinite \texttt{tMax}, local lights clamp \texttt{tMax} just
 short of the light. With ray-traced shadows disabled the shader falls back to raster shadow maps.
 
+Figure~\ref{fig:shadow} shows the soft-shadow disk sampling.
+
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}[>={Stealth[]}]
+  \draw[thick] (-2.9,0) -- (2.4,0);
+  \fill (0,0) circle (1.7pt) node[below=3pt] {$P$};
+  % light disk (angular size), up-right
+  \draw[thick] (3.3,2.55) -- (4.3,3.05);
+  \node[font=\scriptsize, align=center] at (3.8,3.35) {izvor\\(polupre\v{c}nik)};
+  % sample rays into the disk
+  \foreach \tx/\ty in {3.3/2.55, 3.62/2.71, 3.98/2.87, 4.3/3.05}
+    \draw[->, black!65] (0,0) -- (\tx,\ty);
+  \draw[dashed] (0,0) -- (3.8,2.8) node[midway, below right, font=\scriptsize] {$L$};
+\end{tikzpicture}
+\caption{Meke senke: iz ta\v{c}ke $P$ se baca vi\v{s}e zraka ka disku \v{c}iji polupre\v{c}nik
+odgovara uglovnoj veli\v{c}ini izvora oko pravca $L$; udeo neblokiranih zraka daje penumbru.}
+\label{fig:shadow}
+\end{figure}
+
 Keeping shadows inline reuses the light loop the forward shader already runs and avoids a separate
 per-light visibility buffer. The cost is that shadow tracing is folded into the forward-pass timing
 rather than isolated in its own scope, which Section~\ref{sec:cena} accounts for.
@@ -210,7 +230,24 @@ by \texttt{ShadeSurfaceHit}, which resolves the triangle through the bindless ge
 evaluates one bounce (sun lighting with its own shadow ray, plus image-based ambient); a miss samples
 the prefiltered sky cube. The pass writes raw reflected radiance plus hit distance; the Fresnel term,
 the BRDF weighting, and \texttt{render.reflections.intensity} are applied afterward in the forward
-pass, where the reflection is combined with the rest of the shading.
+pass, where the reflection is combined with the rest of the shading. Figure~\ref{fig:refl} shows the
+reflection direction and the roughness cone.
+
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}[>={Stealth[]}]
+  \draw[thick] (-2.7,0) -- (2.7,0);
+  \draw[->, thick] (0,0) -- (0,2.2) node[above] {$N$};
+  \draw[->, black!55] (-2.05,2.05) -- (0,0); \node[font=\scriptsize] at (-1.55,1.35) {$V$};
+  \foreach \a in {50,62,74} \draw[->, black!65] (0,0) -- (\a:2.15);
+  \draw[dashed] (0,0) -- (62:2.3) node[above right, font=\scriptsize] {$R$};
+  \node[font=\scriptsize, align=center] at (2.0,1.05) {konus\\(hrapavost)};
+  \fill (0,0) circle (1.7pt) node[below=3pt] {$P$};
+\end{tikzpicture}
+\caption{Refleksije: pravac odbijanja $R$ vektora pogleda $V$ oko normale $N$; glatka povr\v{s}ina
+daje jedan o\v{s}tar zrak, a hrapava uzorkuje konus oko $R$.}
+\label{fig:refl}
+\end{figure}
 
 \subsection{Globalno osvetljenje (GI)}
 
@@ -229,7 +266,22 @@ keeps the denoiser's edge-stopping from being misled by albedo texture detail. T
 replaces its flat ambient term with this ray-traced indirect, the same substitution Lumen and RTXGI
 make \cite{epic_lumen}. At two rays per pixel and half resolution the raw output is very noisy; it is usable only after
 the temporal-plus-spatial denoise of Section~\ref{sec:denoising}, which is the point of the whole
-pipeline and the subject of much of Chapter~\ref{ch:analiza}.
+pipeline and the subject of much of Chapter~\ref{ch:analiza}. Figure~\ref{fig:gi} shows the hemisphere gather.
+
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}[>={Stealth[]}]
+  \draw[thick] (-2.9,0) -- (2.9,0);
+  \draw[dashed] (-2.1,0) arc (180:0:2.1);
+  \draw[->, thick] (0,0) -- (0,2.45) node[above] {$N$};
+  \foreach \a in {35,70,110,145} \draw[->, black!60] (0,0) -- (\a:2.1);
+  \foreach \a in {35,70,110,145} \fill[black!30] (\a:2.1) circle (2.4pt);
+  \fill (0,0) circle (1.7pt) node[below=3pt] {$P$};
+\end{tikzpicture}
+\caption{Globalno osvetljenje: kosinusno uzorkovanje hemisfere oko $N$ iz ta\v{c}ke $P$; svaki zrak
+koji pogodi geometriju vra\'ca radijansu (jedno odbijanje).}
+\label{fig:gi}
+\end{figure}
 
 \section{Denoising (SVGF)}
 \label{sec:denoising}
