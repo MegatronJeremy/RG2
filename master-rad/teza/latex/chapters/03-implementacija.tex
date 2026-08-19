@@ -141,7 +141,19 @@ accumulated. A shadow ray is a pure visibility test, so it uses the cheapest tra
 \texttt{RayQuery} with \texttt{ACCEPT_FIRST_HIT_AND_END_SEARCH | CULL_NON_OPAQUE}, which stops at the
 first opaque hit rather than searching for the closest. Any committed hit between the surface and the
 light marks the surface as shadowed. The ray origin is offset along the geometric normal and toward
-the light (\texttt{positionWS + Ng*0.02 + L*0.01}) to avoid self-intersection.
+the light (\texttt{positionWS + Ng*0.02 + L*0.01}) to avoid self-intersection. Listing~\ref{lst:shadow} shows the inline query in HLSL.
+
+\begin{lstlisting}[caption={Inline ray-query test vidljivosti za senku (HLSL).}, label={lst:shadow}]
+RayQuery<RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_CULL_NON_OPAQUE> q;
+RayDesc ray;
+ray.Origin    = positionWS + Ng * 0.02 + L * 0.01;
+ray.Direction = L;
+ray.TMin      = 0.0;
+ray.TMax      = distanceToLight - 0.05;   // sun: effectively infinite
+q.TraceRayInline(SceneTLAS, RAY_FLAG_NONE, 0xFF, ray);
+q.Proceed();
+bool shadowed = (q.CommittedStatus() == COMMITTED_TRIANGLE_HIT);
+\end{lstlisting}
 
 Two quality levels are exposed through the \texttt{render.shadows.soft} CVar. The hard path casts one
 ray straight at the light. The soft path casts \texttt{SHADOW_RAY_COUNT = 2} rays whose directions

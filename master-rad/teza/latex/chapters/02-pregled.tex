@@ -21,9 +21,20 @@ approach: it casts rays into the scene, finds their nearest intersections \cite{
 transport by sampling \cite{pharr2016pbrt}. This answers arbitrary point-to-point visibility, which is what indirect
 lighting, reflections, and occlusion require, at the cost of per-ray traversal work and of noise
 introduced by sampling. Both are approximations of the same rendering equation
-\cite{kajiya1986rendering}: rasterization resolves the direct, primary-visibility term efficiently,
-while ray tracing addresses the visibility integrals rasterization cannot express. A hybrid renderer
-uses each where it is strong \cite{akenine2018rtr}. Figure~\ref{fig:rastervsrt} contrasts the two.
+\cite{kajiya1986rendering}, which expresses the outgoing radiance $L_o$ at a point $\mathbf{x}$ in
+direction $\omega_o$ as emitted radiance plus the reflected integral over the hemisphere $\Omega$:
+\begin{equation}
+L_o(\mathbf{x}, \omega_o) = L_e(\mathbf{x}, \omega_o) + \int_{\Omega}
+f_r(\mathbf{x}, \omega_i, \omega_o)\, L_i(\mathbf{x}, \omega_i)\, (\omega_i \cdot \mathbf{n})\,
+\mathrm{d}\omega_i,
+\label{eq:rendering}
+\end{equation}
+where $f_r$ is the bidirectional reflectance distribution function (BRDF), $L_i$ the incident
+radiance, $\mathbf{n}$ the surface normal, and the cosine term $(\omega_i \cdot \mathbf{n})$ accounts
+for the projected solid angle. Rasterization resolves the emitted and direct terms efficiently
+through projection, but the integral, which requires the incident radiance $L_i$ from every direction
+and therefore scene-wide visibility, is exactly what it cannot express and what ray tracing evaluates
+by sampling. A hybrid renderer uses each where it is strong \cite{akenine2018rtr}. Figure~\ref{fig:rastervsrt} contrasts the two.
 
 \begin{figure}[tbp]
 \centering
@@ -59,7 +70,11 @@ Testing every ray against every triangle is $O(\text{rays} \times \text{triangle
 scene scale, so ray tracing depends on a spatial acceleration structure that culls most geometry per
 ray. The standard structure is a bounding-volume hierarchy (BVH): a tree of nested bounding boxes
 whose traversal descends only into boxes a ray actually enters, reducing the expected cost per ray to
-roughly logarithmic in the triangle count. Vulkan exposes a two-level structure. A bottom-level
+roughly logarithmic in the triangle count. Build quality is governed by a cost heuristic, most
+commonly the surface area heuristic (SAH), which prefers splits that minimize the probability-weighted
+surface area of the child nodes and thus the expected number of node and triangle tests per ray. On
+current GPUs the traversal and the ray-triangle intersection are executed by dedicated
+fixed-function units, which is what makes casting a ray per pixel affordable in real time. Vulkan exposes a two-level structure. A bottom-level
 acceleration structure (BLAS) stores a mesh's triangle geometry in object space; a top-level
 acceleration structure (TLAS) stores instances, each a transform referencing a BLAS. The split lets
 many instances share one BLAS and lets the TLAS, which changes as objects move, be rebuilt per frame
@@ -147,7 +162,16 @@ work in Chapter~\ref{ch:zakljucak}.
 \section{Uklanjanje \v{s}uma (denoising) za RT}
 \label{sec:denoise-pregled}
 
-At the one-to-few rays per pixel a real-time budget allows, every ray-traced effect is noisy, so
+The integral in Equation~\eqref{eq:rendering} has no closed form, so it is estimated by Monte Carlo
+integration: drawing $N$ directions $\omega_k$ from a probability density $p$ and averaging,
+\begin{equation}
+L_o \approx L_e + \frac{1}{N}\sum_{k=1}^{N}
+\frac{f_r(\omega_k)\, L_i(\omega_k)\, (\omega_k \cdot \mathbf{n})}{p(\omega_k)}.
+\label{eq:mc}
+\end{equation}
+The estimator is unbiased, but its variance falls only as $1/N$, so the error (its standard
+deviation) falls as $1/\sqrt{N}$: halving the noise costs four times the rays. At the one-to-few rays
+per pixel a real-time budget allows, the variance is large and the raw estimate is heavily noisy, so
 denoising is a mandatory part of the pipeline rather than an optional post-effect. This thesis
 implements Spatiotemporal Variance-Guided Filtering (SVGF) \cite{schied2017svgf}, which combines
 temporal reprojection and accumulation with a variance-guided \`a-trous spatial filter whose blur
