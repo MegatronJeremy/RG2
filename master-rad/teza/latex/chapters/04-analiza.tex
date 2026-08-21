@@ -87,22 +87,25 @@ real-time global-illumination and denoiser work is evaluated in practice.
 \label{sec:cena}
 
 The per-effect cost is the adjacent-configuration difference from the benchmark matrix, read from the
-per-pass timestamp scopes as described above, and reported for both GPUs so the cross-vendor
-difference per effect is explicit. Table~\ref{tab:cena} reports it.
+per-pass timestamp scopes as described above, measured on the development RX 7900 XTX; the
+cross-vendor RX 9070 XT and RTX 5070 columns come from runs on those cards. Table~\ref{tab:cena}
+reports it.
 
 \begin{table}[tbp]
-\caption{Cena po efektu, cross-vendor (GPU ms). Vrednosti se popunjavaju iz stvarnog merenja.}
+\caption{Cena po efektu na razvojnom RX 7900 XTX: \texttt{rt-off} je ukupno GPU vreme bez RT efekata,
+a svaki naredni red je dodatak (delta) tog efekta u odnosu na prethodnu konfiguraciju (sa svim
+efektima $\approx 9.24$ ms). Kolone 9070 XT / 5070 se popunjavaju iz njihovih merenja.}
 \label{tab:cena}
 \centering
-\begin{tabular}{llll}
+\begin{tabular}{llrrr}
 \toprule
-Konfiguracija & Efekat & ms (9070 XT) & ms (5070) \\
+Konfiguracija & Efekat & ms (7900 XTX) & ms (9070 XT) & ms (5070) \\
 \midrule
-\texttt{rt-off}   & bazna linija          & \textit{--} & \textit{--} \\
-\texttt{+shadows} & senke                 & \textit{--} & \textit{--} \\
-\texttt{+ao}      & ambijentalna okluzija & \textit{--} & \textit{--} \\
-\texttt{+refl}    & refleksije            & \textit{--} & \textit{--} \\
-\texttt{+gi}      & globalno osvetljenje  & \textit{--} & \textit{--} \\
+\texttt{rt-off}   & bazna linija (ukupno) & 1.605 & \textit{--} & \textit{--} \\
+\texttt{+shadows} & senke                 & 3.401 & \textit{--} & \textit{--} \\
+\texttt{+ao}      & ambijentalna okluzija & 0.736 & \textit{--} & \textit{--} \\
+\texttt{+refl}    & refleksije            & 2.439 & \textit{--} & \textit{--} \\
+\texttt{+gi}      & globalno osvetljenje  & 1.056 & \textit{--} & \textit{--} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -117,20 +120,20 @@ Figure~\ref{fig:cost-chart} presents the same data graphically once measured.
   ymin=0, ylabel={GPU ms}, xlabel={efekat},
   legend style={at={(0.5,1.04)}, anchor=south, legend columns=-1},
   enlarge x limits=0.25]
-\addplot table[x=effect, y=ms9070] {data/perf-cost.dat};
-\addplot table[x=effect, y=ms5070] {data/perf-cost.dat};
-\legend{AMD RX 9070 XT, NVIDIA RTX 5070}
+\addplot table[x=effect, y=ms7900] {data/perf-cost.dat};
+\legend{AMD RX 7900 XTX}
 \end{axis}
 \end{tikzpicture}
-\caption{Cena po efektu, cross-vendor (GPU ms). Prazan grafik (nulte vrednosti); popunjava se iz
-\texttt{data/perf-cost.dat} nakon merenja.}
+\caption{Cena po efektu na RX 7900 XTX (GPU ms). Kolone za 9070 XT / 5070 se dodaju iz njihovih
+merenja.}
 \label{fig:cost-chart}
 \end{figure}
 
-\textit{TODO: fill from perf-bench runs on both GPUs; comment on which effect dominates on each and
-where the vendors diverge (expected: GI and shadows are the largest costs; the half-res + denoise
-pattern is what keeps GI and AO affordable; RT-hardware and driver differences show up most in the
-trace-heavy passes).}
+On the 7900 XTX shadows are the most expensive effect (3.40 ms), then reflections (2.44 ms), global
+illumination (1.06 ms), and ambient occlusion (0.74 ms); together they add about 7.6 ms over the
+1.6 ms baseline, for a real-time total near 9.24 ms. The half-resolution trace plus denoise is what
+keeps GI and AO cheap despite their hemispheric gather. \textit{TODO: add the RX 9070 XT and RTX 5070
+columns from their runs and discuss where the vendors diverge.}
 
 \begin{figure}[tbp]
 \centering
@@ -202,8 +205,39 @@ difference (Figure~\ref{fig:rt-vs-ss}). Separately, the real-time hybrid is comp
 path-traced reference of Section~\ref{sec:metodologija} in FLIP, PSNR, and SSIM, to show how close it comes and
 where it diverges. The positioning against production systems (Lumen, RTXGI, ReSTIR) is qualitative:
 the contribution is an integrated, measured, openly licensed ray-query implementation, not a system
-that beats a production global-illumination solution. \textit{TODO: produce the comparison captures
-and the reference quality gap.}
+that beats a production global-illumination solution.
+
+Table~\ref{tab:quality} reports each technique's image quality against the path-traced reference,
+averaged over the three viewpoints.
+
+\begin{table}[tbp]
+\caption{Kvalitet svake tehnike u odnosu na path-traced referencu (prosek preko tri pogleda: atrium,
+floor, gallery). Manji FLIP i ve\'ci PSNR/SSIM su bolji.}
+\label{tab:quality}
+\centering
+\begin{tabular}{lrrr}
+\toprule
+Tehnika & FLIP $\downarrow$ & PSNR (dB) $\uparrow$ & SSIM $\uparrow$ \\
+\midrule
+raster (bez efekata) & 0.441 & 14.98 & 0.380 \\
+SSAO                 & 0.421 & 15.47 & 0.398 \\
+RT AO                & 0.421 & 15.49 & 0.397 \\
+SSR                  & 0.436 & 15.11 & 0.391 \\
+RT refleksije        & 0.435 & 15.17 & 0.394 \\
+RT GI                & 0.222 & 21.53 & 0.613 \\
+sve RT (all-RT)      & \textbf{0.145} & \textbf{25.77} & \textbf{0.777} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Two results stand out. First, global illumination is the dominant quality lever: RT GI alone lifts
+PSNR from 15.0 (raster) to 21.5 and roughly halves FLIP, and enabling all effects reaches FLIP 0.145,
+PSNR 25.8, SSIM 0.78, by far the closest to the reference. Second, at these whole-frame metrics
+screen-space and ray-traced AO and reflections are near-parity (SSAO versus RT AO, and SSR versus RT
+reflections, differ by under 0.02 in FLIP), because the occlusion and reflection contributions are
+small at the whole-frame level; the ray-traced advantage is off-screen correctness, which a
+whole-frame average does not isolate and which the per-view captures (Figure~\ref{fig:rt-vs-ss}) make
+visible. \textit{TODO: once SSGI lands, add its row for the GI comparison.}
 
 \begin{figure}[tbp]
 \centering

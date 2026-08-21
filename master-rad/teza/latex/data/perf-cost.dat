@@ -1,5 +1,5 @@
-effect  ms9070  ms5070
-senke   0       0
-AO      0       0
-refl    0       0
-GI      0       0
+effect  ms7900  ms9070  ms5070
+senke   3.401   0       0
+AO      0.736   0       0
+refl    2.439   0       0
+GI      1.056   0       0
