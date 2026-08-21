@@ -219,6 +219,18 @@ odgovara uglovnoj veli\v{c}ini izvora oko pravca $L$; udeo neblokiranih zraka da
 \label{fig:shadow}
 \end{figure}
 
+Figure~\ref{fig:shadow-hs} contrasts a hard and a soft shadow on the scene.
+
+% pending capture (engine ready): render.shadows.mode = RT, render.shadows.soft off/on
+\begin{figure}[tbp]
+\centering
+\phshot{0.46\textwidth}{4.2cm}{tvrde senke (1 zrak)}\hfill%
+\phshot{0.46\textwidth}{4.2cm}{meke senke (2 zraka + denoise)}
+\caption{Tvrde naspram mekih ray-traced senki; penumbra sledi uglovnu veli\v{c}inu izvora.
+\textit{(placeholderi; zameniti stvarnim snimcima.)}}
+\label{fig:shadow-hs}
+\end{figure}
+
 Because the visibility signal is denoised before use, shadow tracing runs as its own passes with their
 own GPU timestamp scopes (\texttt{Shadow}, \texttt{ShadowTemporal}, \texttt{ShadowDenoise}), which
 Section~\ref{sec:cena} accounts for separately from the forward pass.
@@ -310,6 +322,18 @@ daje jedan o\v{s}tar zrak, a hrapava uzorkuje konus oko $R$.}
 \label{fig:refl}
 \end{figure}
 
+Figure~\ref{fig:refl-glossy} shows sharp versus glossy reflections.
+
+% pending capture: render.reflections.mode = RT, low vs high material roughness
+\begin{figure}[tbp]
+\centering
+\phshot{0.46\textwidth}{4.2cm}{o\v{s}tra refleksija (roughness = 0)}\hfill%
+\phshot{0.46\textwidth}{4.2cm}{hrapava, glossy (roughness > 0)}
+\caption{O\v{s}tra naspram hrapave (glossy) ray-traced refleksije, aproksimirane konusom po
+hrapavosti povr\v{s}ine. \textit{(placeholderi; zameniti stvarnim snimcima.)}}
+\label{fig:refl-glossy}
+\end{figure}
+
 \subsection{Globalno osvetljenje (GI)}
 
 Global illumination is the headline effect and the most expensive. It is a compute pass
@@ -342,6 +366,19 @@ pipeline and the subject of much of Chapter~\ref{ch:analiza}. Figure~\ref{fig:gi
 \caption{Globalno osvetljenje: kosinusno uzorkovanje hemisfere oko $N$ iz ta\v{c}ke $P$; svaki zrak
 koji pogodi geometriju vra\'ca radijansu (jedno odbijanje).}
 \label{fig:gi}
+\end{figure}
+
+Figure~\ref{fig:gi-onoff} shows the scene without and with ray-traced global illumination, the
+clearest single visual in the thesis.
+
+% pending capture: render.gi.rt off vs on, same view
+\begin{figure}[tbp]
+\centering
+\phshot{0.46\textwidth}{4.6cm}{bez GI (direktno + IBL)}\hfill%
+\phshot{0.46\textwidth}{4.6cm}{sa GI (indirektno bojenje)}
+\caption{Scena bez i sa globalnim osvetljenjem: jedan difuzni indirektni odboj daje prelivanje boja i
+popunu u senkama. \textit{(placeholderi; zameniti stvarnim snimcima.)}}
+\label{fig:gi-onoff}
 \end{figure}
 
 \section{Denoising (SVGF)}
@@ -497,6 +534,16 @@ technique through the same tonemap chain and reports FLIP, PSNR, and SSIM of the
 reference, averaged over several viewpoints and diffed against a committed baseline;
 \texttt{quality-tune} searches the real-time CVars to minimize the averaged FLIP against the
 reference. Section~\ref{sec:metodologija} uses these for the quality evaluation.
+Figure~\ref{fig:pt-ref} shows a converged reference frame.
+
+% pending capture: render.pathtrace on, accumulated to convergence
+\begin{figure}[tbp]
+\centering
+\phshot{0.72\textwidth}{6cm}{konvergirani path-traced referentni kadar (Sponza)}
+\caption{Konvergirani referentni kadar iz ugra\dj enog path tracer-a, prema kome se u FLIP/PSNR/SSIM
+mere sve real-time tehnike. \textit{(placeholder; zameniti stvarnim snimkom.)}}
+\label{fig:pt-ref}
+\end{figure}
 
 \section{Uslovi i pretpostavke}
 \label{sec:uslovi}

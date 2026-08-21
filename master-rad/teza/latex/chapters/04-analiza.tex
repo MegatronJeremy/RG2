@@ -151,6 +151,19 @@ This section sweeps the samples-per-pixel count for each effect (and, where rele
 bounce count), plotting reconstruction quality (PSNR/SSIM) and GPU time against the ray count, to
 find the knee past which additional rays stop paying for themselves. \textit{TODO: run the sweep and
 present the plots; this is the central quality/performance tradeoff the research question asks about.}
+Figure~\ref{fig:spp-sweep} shows the raw (pre-denoise) noise falling as the ray count rises.
+
+% pending capture: GI at 1/2/4/8 rays, denoiser off, same view
+\begin{figure}[tbp]
+\centering
+\phshot{0.22\textwidth}{3cm}{1 spp}\hfill%
+\phshot{0.22\textwidth}{3cm}{2 spp}\hfill%
+\phshot{0.22\textwidth}{3cm}{4 spp}\hfill%
+\phshot{0.22\textwidth}{3cm}{8 spp}
+\caption{Uticaj broja zraka po pikselu na \v{s}um pre denoise-a (GI): vi\v{s}e zraka konvergira ka
+referenci, uz proporcionalno ve\'cu cenu. \textit{(placeholderi; zameniti stvarnim snimcima.)}}
+\label{fig:spp-sweep}
+\end{figure}
 
 \section{Evaluacija denoiser-a (SVGF)}
 \label{sec:denoise-eval}
