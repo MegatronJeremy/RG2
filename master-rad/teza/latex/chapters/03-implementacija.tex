@@ -125,8 +125,8 @@ Building a structure follows the standard Vulkan sequence: the required scratch 
 sizes are queried with \texttt{vkGetAccelerationStructureBuildSizesKHR}, the scratch and structure
 buffers are allocated, and \texttt{vkCmdBuildAccelerationStructuresKHR} records the build. A BLAS
 geometry is described by a \texttt{VkAccelerationStructureGeometryKHR} that points at the vertex and
-index buffers by device address and is flagged \texttt{OPAQUE}, so traversal never invokes an any-hit
-shader. Each TLAS instance is a \texttt{VkAccelerationStructureInstanceKHR} carrying the $3\times4$
+index buffers by device address and is flagged \texttt{OPAQUE} for opaque meshes (so traversal skips
+the any-hit stage); alpha-cutout materials instead use a minimal any-hit alpha test. Each TLAS instance is a \texttt{VkAccelerationStructureInstanceKHR} carrying the $3\times4$
 world transform, a visibility mask, the \texttt{instanceCustomIndex}, and the device address of its
 BLAS.
 
@@ -152,12 +152,13 @@ Schlick Fresnel term, over a Lambertian diffuse term; the ambient term uses a pr
 cube and a precomputed BRDF lookup table.
 
 % Screen-space baselines pending implementation (engine #151).
-For the evaluation in Chapter~\ref{ch:analiza}, each effect can also be produced by a raster
-screen-space approximation, selected per effect through a mode setting: screen-space ambient occlusion
-(SSAO), screen-space reflections (SSR), and screen-space global illumination (SSGI). These read the
-same depth+normal G-buffer and write into the same slot the forward pass samples, so the ray-traced
-and screen-space versions differ only in how the signal is produced. They are the baselines the
-ray-traced effects are compared against in Section~\ref{sec:poredjenje}.
+For the evaluation in Chapter~\ref{ch:analiza}, ambient occlusion and reflections can also be produced
+by a raster screen-space approximation, selected through a mode setting (\texttt{render.ao.mode},
+\texttt{render.reflections.mode}): screen-space ambient occlusion (SSAO) and screen-space reflections
+(SSR). These read the same depth+normal G-buffer and write into the same slot the forward pass
+samples, so the ray-traced and screen-space versions differ only in how the signal is produced; they
+are the screen-space baselines the ray-traced effects are compared against in
+Section~\ref{sec:poredjenje}. A screen-space GI baseline (SSGI) is planned.
 
 \subsection{Senke (RT shadows)}
 
@@ -468,13 +469,34 @@ from the command line for headless runs. Each render-graph pass is bracketed by 
 scope, and a harness (\texttt{perf-bench}) averages those per-pass timings over a fixed frame budget
 past a warmup, writes them to JSON, and diffs against a committed baseline; it sweeps a fixed matrix
 of effect configurations so the per-pass cost of each effect can be read off directly. Reconstruction
-quality is measured in-engine by a metrics pass computing PSNR and SSIM against a ground-truth image
-on the GPU, where the ground truth is a second, unjittered, optionally supersampled render of the
-same frame. A smoke harness boots the engine headlessly and fails on any crash or Vulkan validation
+quality is measured by \texttt{quality-bench}, which compares each real-time technique against a
+converged path-traced reference (Section~\ref{sec:pathtracer}) in FLIP, PSNR, and SSIM over several
+viewpoints, and an auto-tuner (\texttt{quality-tune}) can search the real-time CVars against that same
+reference. A smoke harness boots the engine headlessly and fails on any crash or Vulkan validation
 error, and a static shader-occupancy gate tracks register pressure. A cross-thread profiler (Tracy,
 with a headless JSON fallback) and a per-frame time watchdog round out the instrumentation, so a
 stall can be attributed to a specific system or pass without a manual capture. Section~\ref{sec:metodologija}
 combines these into the evaluation methodology.
+
+\section{Referentni path tracer}
+\label{sec:pathtracer}
+
+The correctness of the real-time effects is judged against a reference produced by a brute-force path
+tracer built into the engine (\texttt{PathTrace.comp.hlsl}). It is a unidirectional path tracer with
+next-event estimation to the sun (a delta directional light sampled exactly by a shadow ray at every
+hit, so the sky on a ray miss is added without the sun disk to avoid double-counting), the same
+metallic-roughness microfacet BSDF as the forward shading (GGX specular over Lambertian diffuse),
+multi-bounce indirect with Russian-roulette termination, and progressive accumulation into a
+persistent HDR buffer while the camera is static. Because shadows, ambient occlusion, reflections, and
+indirect light all emerge from the same multi-bounce transport, one converged path trace is the ground
+truth for all of them at once. It is not a real-time path: it converges over many frames and exists
+only as the correctness anchor.
+
+Two harnesses build on it. \texttt{quality-bench} captures the converged reference and each real-time
+technique through the same tonemap chain and reports FLIP, PSNR, and SSIM of the technique against the
+reference, averaged over several viewpoints and diffed against a committed baseline;
+\texttt{quality-tune} searches the real-time CVars to minimize the averaged FLIP against the
+reference. Section~\ref{sec:metodologija} uses these for the quality evaluation.
 
 \section{Uslovi i pretpostavke}
 \label{sec:uslovi}

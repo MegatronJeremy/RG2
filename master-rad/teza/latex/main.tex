@@ -2,9 +2,10 @@
 % Master rad, ETF Beograd, using the official etf.cls (master option).
 % Drafting language: English (translate to Serbian later); structural strings are Serbian via babel.
 % Build: pdflatex x2 (manual thebibliography, no bibtex).
-% PENDING IMPLEMENTATION (verify before submission): the text describes three engine features that
-% are in progress, not yet built: shadow denoising (Snowstorm-Engine #150), screen-space baselines
-% SSAO/SSR/SSGI (#151), runtime GPU selection (#152). Results/tables/captures remain placeholders.
+% PENDING IMPLEMENTATION (verify before submission): some described features are not yet built:
+% SSGI (Snowstorm-Engine #151; SSAO+SSR are done), shadow denoising (#150; shadows are raster-map or
+% RT-inline today, not yet denoised), runtime GPU selection (#152). Implemented: the path-traced
+% reference + FLIP/PSNR/SSIM quality gate (#153) and SSAO/SSR. Result tables/captures are placeholders.
 \documentclass[master,a4paper,12pt,oneside]{etf}
 
 \usepackage[T1]{fontenc}
@@ -88,7 +89,7 @@
   \centering\itshape\small [screenshot placeholder]\par\vspace{3pt}#3}}}}
 
 % Working title (SR). TODO: finalize; keep in sync with 00-naslovna.md.
-\title{Hibridno hardversko pra\'cenje zrakova u realnom vremenu kroz Vulkan: cross-vendor pore\dj enje na AMD i NVIDIA GPU-ovima}
+\title{Hibridno pra\'cenje zrakova u realnom vremenu u sopstvenom Vulkan end\v{z}inu}
 \author{Vuk \DJ or\dj evi\'c}
 \indeks{2024/3102}
 \mentor{prof. (TBD)}
@@ -108,7 +109,7 @@ temporal anti-aliasing. Real-time
 rasterization approximates these global effects with screen-space and precomputed methods that fail
 on off-screen or dynamic information; hardware ray tracing makes per-pixel scene queries feasible.
 The per-effect GPU cost is isolated with an A/B configuration matrix, and reconstruction quality is
-measured with PSNR/SSIM against a supersampled reference on a fixed scene and camera. The identical
+measured with FLIP, PSNR, and SSIM against a converged path-traced reference across several viewpoints. The identical
 pipeline is compared across two vendors, AMD RDNA4 and NVIDIA Blackwell, isolating the effect of
 hardware and driver on the same code. Main numerical results: TODO (fill from Chapter 4).
 \end{abstract}

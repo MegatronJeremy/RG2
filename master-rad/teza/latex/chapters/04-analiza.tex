@@ -73,17 +73,15 @@ milliseconds using each device's timestamp period, so the per-pass times are dir
 results are reported for both GPUs side by side rather than diffed against a single-machine baseline,
 since here the cross-vendor comparison is itself the measurement.
 
-\paragraph{Quality measurement.} Reconstruction quality is measured in-engine by a metrics pass that
-computes PSNR and SSIM on the GPU against a ground-truth image. The ground truth is a second,
-unjittered, full-resolution forward render of the same frame, optionally supersampled
-(\texttt{render.gt.ssaa}) and box-downsampled in linear HDR to give an anti-aliased reference. For
-the reconstruction-quality comparison the reference is rendered with denoising disabled and a high
-supersampling factor so that it approximates a converged image; the factor used and the resulting
-effective sample count are stated with the results. A
-second caveat applies here: the ground-truth path forces raster shadows, so with ray-traced shadows
-enabled the metric compares ray-traced against raster shadows, not against a ray-traced reference.
-Shadow-quality numbers are therefore either measured on the non-shadow effects against the reference,
-or reported with this caveat stated explicitly.
+\paragraph{Quality measurement.} Reconstruction quality is measured against a converged
+\emph{path-traced} reference (Section~\ref{sec:pathtracer}): a brute-force unidirectional path tracer
+with next-event estimation, accumulated over many frames on a static view, which is the correctness
+anchor for every effect at once (shadows, ambient occlusion, reflections, and indirect). For each
+real-time technique the harness (\texttt{quality-bench}) captures the same tonemapped present as the
+reference and reports three image-quality metrics against it: \textbf{FLIP} (a perceptual difference
+metric), \textbf{PSNR}, and \textbf{SSIM}. The metrics are averaged over several fixed viewpoints
+(atrium, floor, and gallery views of Sponza) so a single view cannot bias the result, which is how
+real-time global-illumination and denoiser work is evaluated in practice.
 
 \section{Cena po efektu (GPU ms)}
 \label{sec:cena}
@@ -158,7 +156,7 @@ present the plots; this is the central quality/performance tradeoff the research
 \label{sec:denoise-eval}
 
 This section isolates the denoiser's contribution: the noisy input (denoiser disabled) against the
-denoised result against the reference, at a fixed low sample count, reporting the PSNR/SSIM gain, the
+denoised result against the path-traced reference, at a fixed low sample count, reporting the FLIP/PSNR/SSIM gain, the
 temporal stability under motion, and the denoiser's own GPU cost against the quality it recovers.
 \textit{TODO: measure denoiser on/off; tie the cost to the register-limited \texttt{GIDenoise.comp}
 shader from Section~\ref{sec:denoising}.}
@@ -167,7 +165,7 @@ shader from Section~\ref{sec:denoising}.}
 \centering
 \phshot{0.30\textwidth}{4cm}{\v{s}um (1--2 spp)}\hfill%
 \phshot{0.30\textwidth}{4cm}{denoise-ovano}\hfill%
-\phshot{0.30\textwidth}{4cm}{referenca (SSAA)}
+\phshot{0.30\textwidth}{4cm}{referenca (path tracer)}
 \caption{Doprinos denoiser-a: \v{s}um pri niskom broju uzoraka, denoise-ovan rezultat, i referenca.
 \textit{(placeholderi; zameniti stvarnim snimcima.)}}
 \label{fig:denoise-compare}
@@ -177,12 +175,12 @@ shader from Section~\ref{sec:denoising}.}
 \label{sec:poredjenje}
 
 This section compares the ray-traced effects against the existing solutions surveyed in
-Chapter~\ref{ch:pregled}. The engine implements raster screen-space baselines (SSAO, SSR, SSGI;
-Section~\ref{sec:efekti}), so the comparison is a same-scene, same-camera A/B: for each effect, the
+Chapter~\ref{ch:pregled}. The engine implements raster screen-space baselines for ambient occlusion and
+reflections (SSAO, SSR; Section~\ref{sec:efekti}), so the comparison is a same-scene, same-camera A/B: the
 screen-space version against the ray-traced version, showing the cases the screen-space method
 structurally cannot handle (off-screen occluders and reflectors, disocclusion) and the cost
 difference (Figure~\ref{fig:rt-vs-ss}). Separately, the real-time hybrid is compared against the
-converged reference of Section~\ref{sec:metodologija} in PSNR/SSIM, to show how close it comes and
+path-traced reference of Section~\ref{sec:metodologija} in FLIP, PSNR, and SSIM, to show how close it comes and
 where it diverges. The positioning against production systems (Lumen, RTXGI, ReSTIR) is qualitative:
 the contribution is an integrated, measured, openly licensed ray-query implementation, not a system
 that beats a production global-illumination solution. \textit{TODO: produce the comparison captures
@@ -190,7 +188,7 @@ and the reference quality gap.}
 
 \begin{figure}[tbp]
 \centering
-\phshot{0.46\textwidth}{4.5cm}{screen-space (SSAO / SSR / SSGI)}\hfill%
+\phshot{0.46\textwidth}{4.5cm}{screen-space (SSAO / SSR)}\hfill%
 \phshot{0.46\textwidth}{4.5cm}{ray-traced (ovaj rad)}
 \caption{Ista scena i kamera: screen-space aproksimacije naspram ray-traced efekata, u slu\v{c}aju
 sa off-screen geometrijom. \textit{(placeholderi; zameniti stvarnim snimcima.)}}
