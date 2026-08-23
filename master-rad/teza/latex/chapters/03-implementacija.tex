@@ -242,20 +242,33 @@ odgovara uglovnoj veli\v{c}ini izvora oko pravca $L$; udeo neblokiranih zraka da
 \label{fig:shadow}
 \end{figure}
 
-Figure~\ref{fig:shadow-hs} contrasts a hard and a soft shadow on the scene. Penumbra width is set by
-the angular size of the source, \texttt{render.shadow.sun\_angle\_deg} for the directional light and
-\texttt{render.shadow.source\_radius} for the punctual ones. The atrium is lit mainly by punctual
-lights, and at the default 0.1-unit radius the penumbra is narrower than a pixel, so the two settings
-are indistinguishable; the figure therefore uses a 1.5-unit source, with the sun left at its physical
-angular diameter.
+Figure~\ref{fig:shadow-hs} contrasts a hard and a soft shadow on the scene. Penumbra width is
+$2H\tan(\theta/2)$ in the occluder-to-receiver distance $H$ and the source's angular size $\theta$,
+the latter being \texttt{render.shadow.sun\_angle\_deg} for the directional light and
+\texttt{render.shadow.source\_radius} for the punctual ones. The figure frames the sunlit floor strip,
+because the sun is the only light in this scene with a distant occluder: its transverse edge is cast
+by the roof light-well lip about 10.4 units above the floor, while the four enabled torches sit a
+couple of units from the walls they light. At the sun's physical angular diameter that penumbra is
+roughly 36 pixels of a 2560-wide capture and disappears once scaled into the page, so the figure
+raises the angle to $3^\circ$ and says so.
+
+Widening \texttt{render.shadow.source\_radius} instead would be the wrong control here, and the
+reason is a limitation worth stating. Cone samples falling below the shading normal's horizon are
+skipped while the average still divides by the full sample count, which is deliberate (counting them
+lit is the leak that next-event estimation rejects in the path tracer), although it means a wider cone
+also darkens grazing surfaces systematically. At a 1.5-unit radius that darkening accounts for about
+three quarters of the frame difference and swamps the penumbra it was meant to show. Driving the sun
+avoids it: the sun is near vertical, so it meets the floor at $\mathbf{n}\cdot\boldsymbol{\omega}
+\approx 1$, where no sample is horizon-rejected.
 
 \begin{figure}[tbp]
 \centering
 \includegraphics[width=0.48\textwidth]{figures/shadow_hard.png}\hfill%
 \includegraphics[width=0.48\textwidth]{figures/shadow_soft.png}
-\caption{Tvrde (levo) naspram mekih (desno) ray-traced senki: jedina razlika je
-\texttt{render.shadow.soft}, pri polupre\v{c}niku izvora od 1,5 jedinice. Penumbra prati uglovnu
-veli\v{c}inu izvora, pa na podrazumevanih 0,1 jedinice ostaje u\v{z}a od piksela.}
+\caption{Tvrde (levo) naspram mekih (desno) ray-traced senki na osun\v{c}anoj traci poda: jedina
+razlika je \texttt{render.shadow.soft}. Uglovni pre\v{c}nik sunca je podignut na $3^\circ$, oko
+\v{s}est puta iznad fizi\v{c}kih $0{,}53^\circ$, jer je na stvarnoj vrednosti penumbra u\v{z}a od
+onoga \v{s}to se vidi u \v{s}tampi.}
 \label{fig:shadow-hs}
 \end{figure}
 
