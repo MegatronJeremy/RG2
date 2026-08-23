@@ -242,14 +242,20 @@ odgovara uglovnoj veli\v{c}ini izvora oko pravca $L$; udeo neblokiranih zraka da
 \label{fig:shadow}
 \end{figure}
 
-Figure~\ref{fig:shadow-hs} contrasts a hard and a soft shadow on the scene.
+Figure~\ref{fig:shadow-hs} contrasts a hard and a soft shadow on the scene. Penumbra width is set by
+the angular size of the source, \texttt{render.shadow.sun\_angle\_deg} for the directional light and
+\texttt{render.shadow.source\_radius} for the punctual ones. The atrium is lit mainly by punctual
+lights, and at the default 0.1-unit radius the penumbra is narrower than a pixel, so the two settings
+are indistinguishable; the figure therefore uses a 1.5-unit source, with the sun left at its physical
+angular diameter.
 
 \begin{figure}[tbp]
 \centering
 \includegraphics[width=0.48\textwidth]{figures/shadow_hard.png}\hfill%
 \includegraphics[width=0.48\textwidth]{figures/shadow_soft.png}
-\caption{Tvrde (levo, 1 zrak) naspram mekih (desno, 2 zraka + denoise) ray-traced senki; penumbra
-sledi uglovnu veli\v{c}inu izvora.}
+\caption{Tvrde (levo) naspram mekih (desno) ray-traced senki: jedina razlika je
+\texttt{render.shadow.soft}, pri polupre\v{c}niku izvora od 1,5 jedinice. Penumbra prati uglovnu
+veli\v{c}inu izvora, pa na podrazumevanih 0,1 jedinice ostaje u\v{z}a od piksela.}
 \label{fig:shadow-hs}
 \end{figure}
 
@@ -347,15 +353,21 @@ daje jedan o\v{s}tar zrak, a hrapava uzorkuje konus oko $R$.}
 \label{fig:refl}
 \end{figure}
 
-Figure~\ref{fig:refl-glossy} shows sharp versus glossy reflections.
+Figure~\ref{fig:refl-onoff} shows the contribution of the pass. The cone width itself is not
+separable by eye in this scene: Sponza's materials are texture-driven fabric and stone with no large
+low-roughness surface, so sweeping \texttt{render.reflections.cone\_scale} from 0 (a pure mirror ray)
+to 3 moves the frame by a mean 0.16/255 at the best of six camera poses tried, against 3.16 for
+enabling the pass at all. The cone is therefore documented by its formula rather than by a
+side-by-side, and the figure shows the pass off against on.
 
 \begin{figure}[tbp]
 \centering
-\includegraphics[width=0.48\textwidth]{figures/refl_sharp.png}\hfill%
-\includegraphics[width=0.48\textwidth]{figures/refl_glossy.png}
-\caption{O\v{s}tra (levo, konus \v{s}irine 0) naspram hrapave, glossy (desno) ray-traced
-refleksije, aproksimirane konusom po hrapavosti povr\v{s}ine.}
-\label{fig:refl-glossy}
+\includegraphics[width=0.48\textwidth]{figures/refl_off.png}\hfill%
+\includegraphics[width=0.48\textwidth]{figures/refl_rt.png}
+\caption{Bez refleksija (levo) naspram ray-traced refleksija (desno), pri uglu gledanja blizu
+tangentnog gde je Fresnel-ov doprinos najve\'ci. Sjaj na draperijama i kamenu je razlika koju
+donosi prolaz.}
+\label{fig:refl-onoff}
 \end{figure}
 
 \subsection{Globalno osvetljenje (GI)}

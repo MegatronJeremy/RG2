@@ -199,18 +199,19 @@ this metric. The denoiser and temporal accumulation already recover most of the 
 from a single ray; once they are in the pipeline, additional samples per pixel are not where this
 engine's ray budget should go. This is consistent with the SVGF design goal (spatiotemporal
 filtering to make 1 sample per pixel viable) rather than a property specific to this
-implementation. Figure~\ref{fig:spp-sweep} shows the raw (pre-denoise, pre-temporal) noise this
-filtering is masking: the same four ray counts captured with the denoiser and temporal resolve both
-disabled, at 2 frames, so no accumulated history hides the per-frame noise.
+implementation. Figure~\ref{fig:spp-sweep} shows the raw noise this filtering is masking, at the two
+extremes of the sweep. The capture disables the denoiser, the temporal resolve, and TAA, and is cut
+off at a fixed 30-frame cap. Disabling TAA is what makes the figure honest: TAA is itself a temporal
+accumulator, so with it enabled the capture settles to the same high-frequency energy as the denoised
+image (5.9 in both cases) and the ray count appears to make no difference. With it off the ray count
+separates cleanly, from 10.8 at one ray per pixel to 7.3 at eight.
 
 \begin{figure}[tbp]
 \centering
-\includegraphics[width=0.235\textwidth]{figures/spp_sweep_1.png}\hfill%
-\includegraphics[width=0.235\textwidth]{figures/spp_sweep_2.png}\hfill%
-\includegraphics[width=0.235\textwidth]{figures/spp_sweep_4.png}\hfill%
-\includegraphics[width=0.235\textwidth]{figures/spp_sweep_8.png}
-\caption{Uticaj broja zraka po pikselu na \v{s}um pre denoise-a i pre temporalnog resolve-a (GI;
-redom 1, 2, 4, 8 zraka po pikselu, sleva nadesno): vi\v{s}e zraka konvergira ka referenci, uz
+\includegraphics[width=0.48\textwidth]{figures/spp_sweep_1.png}\hfill%
+\includegraphics[width=0.48\textwidth]{figures/spp_sweep_8.png}
+\caption{Uticaj broja zraka po pikselu na \v{s}um pre denoise-a, pre temporalnog resolve-a i bez TAA
+(GI; levo 1 zrak, desno 8 zrakova po pikselu): vi\v{s}e zraka konvergira ka referenci, uz
 proporcionalno ve\'cu cenu (Tabela~\ref{tab:raycount}).}
 \label{fig:spp-sweep}
 \end{figure}
@@ -262,8 +263,10 @@ runs at half resolution.
 \vspace{5pt}
 
 \includegraphics[width=0.62\textwidth]{figures/denoise_compare_reference.png}
-\caption{Doprinos denoiser-a na 2 zraka po pikselu: \v{s}um pre denoise-a (gore), denoise-ovan
-rezultat (sredina), i path-traced referenca (dole).}
+\caption{Rekonstrukcija na 2 zraka po pikselu: sirov signal bez denoiser-a, temporalnog resolve-a i
+TAA (gore), pun real-time rezultat sa sve tri komponente uklju\v{c}ene (sredina), i path-traced
+referenca (dole). Razlika gore-sredina je doprinos cele rekonstrukcije; doprinos samog denoiser-a
+izolovan je metrikama u tekstu, gde se vidi pre svega u temporalnoj stabilnosti.}
 \label{fig:denoise-compare}
 \end{figure}
 
