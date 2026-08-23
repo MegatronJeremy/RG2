@@ -13,11 +13,10 @@ Master rad                                          [size 16]
 Real-Time Hybrid Ray Tracing ... (working, EN)
 
 Vuk Đorđević, 2024/3102                             [size 16]
-[Mentor: <prof, TBD>]                               [size 16]
+Mentor: prof. dr Dražen Drašković                   [size 16]
 
 Beograd, 2026.                                      [size 16]
 ```
 
 EXPAND / DECIDE:
 - Final Serbian title (from glossary once the EN title is locked).
-- Mentor name once chosen (Drašković / Radivojević / Jocović). Đukić is advisor, not formal mentor.

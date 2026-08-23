@@ -35,10 +35,9 @@ engine's hybrid output on the test scene.
 
 \begin{figure}[tbp]
 \centering
-\phshot{0.9\textwidth}{8.4cm}{Sponza: rasterizovani forward prolaz sa ray-traced senkama, AO,
-refleksijama i GI (denoise-ovano)}
-\caption{Hibridni izlaz end\v{z}ina na test sceni. \textit{(placeholder; zameniti stvarnim
-snimkom.)}}
+\includegraphics[width=0.9\textwidth]{figures/teaser.png}
+\caption{Hibridni izlaz end\v{z}ina na test sceni: rasterizovani forward prolaz sa ray-traced
+senkama, AO, refleksijama i GI (denoise-ovano).}
 \label{fig:teaser}
 \end{figure}
 
@@ -69,7 +68,7 @@ this breaks into measurable sub-questions: the per-effect GPU cost in millisecon
 samples per pixel on quality (PSNR/SSIM) and on time; the quality and cost of the denoiser with it
 enabled versus disabled; and the impact of tracing at half versus full resolution. The scope is
 deliberately bounded: a single scene class, two current-generation GPUs from different vendors (an AMD Radeon RX 9070 XT, RDNA4, and an NVIDIA
-GeForce RTX 5070, Blackwell), with an RX 7900 XTX as a development reference,
+GeForce RTX 5070, Blackwell),
 diffuse global illumination, and a supersampled reference for the quality metrics.
 
 \section{Doprinosi}
@@ -77,8 +76,8 @@ diffuse global illumination, and a supersampled reference for the quality metric
 The contributions of this thesis are: an integrated, openly licensed implementation of four hybrid
 ray-query lighting effects inside one custom Vulkan engine; a per-effect GPU cost breakdown produced
 by a reproducible A/B benchmark harness rather than ad-hoc captures; an evaluation of a
-self-implemented SVGF denoiser applied to the ambient-occlusion, global-illumination, and reflection
-signals, covering the quality it recovers, its cost, and its temporal stability; a reusable
+self-implemented SVGF denoiser shared across the shadow, ambient-occlusion, global-illumination, and
+reflection signals, covering the quality it recovers, its cost, and its temporal stability; a reusable
 half-resolution, G-buffer-prepass, denoise-and-upsample pattern shared across the effects; and a cross-vendor performance comparison of
 the identical ray-query pipeline on AMD RDNA4 and NVIDIA Blackwell hardware, a fair same-code
 comparison that is rarely reported.

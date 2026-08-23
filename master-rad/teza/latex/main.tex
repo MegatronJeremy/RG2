@@ -2,10 +2,6 @@
 % Master rad, ETF Beograd, using the official etf.cls (master option).
 % Drafting language: English (translate to Serbian later); structural strings are Serbian via babel.
 % Build: pdflatex x2 (manual thebibliography, no bibtex).
-% PENDING IMPLEMENTATION (verify before submission): some described features are not yet built:
-% SSGI (Snowstorm-Engine #151; SSAO+SSR are done), shadow denoising (#150; shadows are raster-map or
-% RT-inline today, not yet denoised), runtime GPU selection (#152). Implemented: the path-traced
-% reference + FLIP/PSNR/SSIM quality gate (#153) and SSAO/SSR. Result tables/captures are placeholders.
 \documentclass[master,a4paper,12pt,oneside]{etf}
 
 \usepackage[T1]{fontenc}
@@ -18,6 +14,7 @@
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{booktabs}
+\usepackage{tabularx}
 \usepackage{xcolor}
 \usepackage{listings}
 \usepackage{tikz}
@@ -92,7 +89,7 @@
 \title{Hibridno pra\'cenje zrakova u realnom vremenu u sopstvenom Vulkan end\v{z}inu}
 \author{Vuk \DJ or\dj evi\'c}
 \indeks{2024/3102}
-\mentor{prof. (TBD)}
+\mentor{prof. dr Dra\v{z}en Dra\v{s}kovi\'c}
 \date{2026}
 
 \begin{document}
@@ -111,7 +108,11 @@ on off-screen or dynamic information; hardware ray tracing makes per-pixel scene
 The per-effect GPU cost is isolated with an A/B configuration matrix, and reconstruction quality is
 measured with FLIP, PSNR, and SSIM against a converged path-traced reference across several viewpoints. The identical
 pipeline is compared across two vendors, AMD RDNA4 and NVIDIA Blackwell, isolating the effect of
-hardware and driver on the same code. Main numerical results: TODO (fill from Chapter 4).
+hardware and driver on the same code. Reflections are the single most expensive effect on both
+GPUs (RX 9070 XT 2.80 ms, RTX 5070 2.52 ms), for a real-time total near 9.8 ms and 7.1 ms
+respectively over a baseline under 2.3 ms; enabling all four effects lifts reconstruction quality
+from FLIP 0.435 / PSNR 15.2 dB / SSIM 0.38 (raster) to FLIP 0.087 / PSNR 30.7 dB / SSIM 0.87
+against the path-traced reference.
 \end{abstract}
 
 \begin{keywords}

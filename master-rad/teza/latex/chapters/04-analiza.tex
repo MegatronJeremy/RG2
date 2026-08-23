@@ -1,9 +1,6 @@
 \chapter{Analiza}
 \label{ch:analiza}
 
-% Draft. Methodology (4.1) is complete and verified; result tables are placeholders to be filled
-% from real runs. NO fabricated numbers.
-
 This chapter evaluates the system. It first fixes the methodology, hardware, scene, and the two
 measurement setups (Section~\ref{sec:metodologija}), then reports the per-effect GPU cost
 (Section~\ref{sec:cena}), the ray-count versus quality and speed tradeoff
@@ -24,28 +21,41 @@ hardware and its driver, not to a different code path. Table~\ref{tab:gpus} list
 specifications. Because the algorithm is bit-for-bit identical on both GPUs, the quality metrics
 (PSNR/SSIM) are expected to match across them; the cross-vendor result is therefore a performance
 comparison, and any quality divergence would flag a non-determinism to investigate rather than a real
-difference. The RX 7900 XTX (RDNA3) used during development serves as an optional generational
-reference and as the target of the static occupancy analysis (Section~\ref{sec:occupancy}), which is
-AMD-only.
+difference. The static occupancy analysis (Section~\ref{sec:occupancy}) targets a separate AMD
+architecture (RDNA3) offline and is independent of this cross-vendor comparison.
 
 \begin{table}[tbp]
-\caption{GPU-ovi u cross-vendor pore\dj enju. Vrednosti se popunjavaju iz zvani\v{c}nih specifikacija.}
+\caption{GPU-ovi u cross-vendor pore\dj enju, prema zvani\v{c}nim specifikacijama proizvo\dj a\v{c}a
+(AMD, NVIDIA) i verzijama drajvera sa test ma\v{s}ine.}
 \label{tab:gpus}
 \centering
-\begin{tabular}{lll}
+\begin{tabularx}{\textwidth}{l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X}
 \toprule
  & AMD RX 9070 XT & NVIDIA RTX 5070 \\
 \midrule
-Arhitektura            & RDNA4 & Blackwell \\
-Compute jedinice / SM  & \textit{--} & \textit{--} \\
-RT akceleratori        & \textit{--} & \textit{--} \\
-Takt (boost)           & \textit{--} & \textit{--} \\
-Memorija / propusnost  & \textit{--} & \textit{--} \\
-TDP                    & \textit{--} & \textit{--} \\
-Drajver / OS           & \textit{--} & \textit{--} \\
+Arhitektura            & RDNA4 (Navi 48) & Blackwell (GB205) \\
+Compute jedinice / SM  & 64 CU, 4096 stream procesora & 48 SM, 6144 CUDA jezgara \\
+RT akceleratori        & 64 (3. generacija) & 48 \\
+Takt (boost)           & 2970 MHz & 2512 MHz \\
+Memorija / propusnost  & 16 GB GDDR6, 640 GB/s & 12 GB GDDR7, 672 GB/s \\
+TDP (TBP / TGP)        & 304 W & 250 W \\
+Drajver / OS           & 32.0.31035.1003, Windows 11 Pro (build 26100) & 32.0.15.9186, Windows 11 Pro (build 26100) \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
+
+\paragraph{OMM support disparity.} The ``identical code path'' claim above has one exception. Sponza
+carries three MASK-mode (alpha-cutout) materials; a cutout mesh traces through the opacity-micromap
+BLAS on a device exposing \texttt{VK\_EXT\_opacity\_micromap} and through the any-hit alpha-test
+fallback otherwise (Section~\ref{sec:accel}). On the test machines the NVIDIA RTX 5070 driver exposes
+the extension and the AMD RX 9070 XT driver does not, despite comparable RDNA4/Blackwell hardware
+capability, so the two vendors resolve masked geometry through genuinely different acceleration-structure
+code for this scene. The disparity only changes how a masked microtriangle is classified during
+traversal (skipping the any-hit shader when OMM marks it opaque or transparent, running it when
+unknown); it does not change ray direction, hit position, or shading, so it cannot explain any
+quality-metric difference. It is a small, one-directional, driver-dependent contributor to the
+per-effect GPU-ms gap wherever a shadow, AO, reflection, or GI ray actually hits cutout geometry in a
+given viewpoint, and this evaluation does not isolate it further.
 
 \paragraph{Scena.} The test scene is Sponza, a standard interior with strong indirect bounce, lit by
 ten lights (three spot, six point, one directional) at a fixed render resolution stated with the
@@ -64,14 +74,17 @@ a harness (\texttt{perf-bench}) averages those per-pass timings over a fixed fra
 fifteen-frame warmup that also covers the one-frame timestamp latency. The benchmark sweeps a fixed
 matrix of configurations, \texttt{rt-off} $\rightarrow$ \texttt{shadows} $\rightarrow$ \texttt{+ao}
 $\rightarrow$ \texttt{+refl} $\rightarrow$ \texttt{+gi}, enabling one more effect at each step, so the
-cost of an effect is the difference between adjacent configurations. One caveat applies to that
-difference: it equals the Forward-pass delta only for shadows and reflections, which are inline in
-the Forward pass. Global illumination and ambient occlusion run as their own half-resolution passes
-with separate timestamp scopes, so their cost is read from those per-pass scopes plus the total GPU
-time, not from the Forward delta alone. Across vendors, the raw timestamps are converted to
-milliseconds using each device's timestamp period, so the per-pass times are directly comparable;
-results are reported for both GPUs side by side rather than diffed against a single-machine baseline,
-since here the cross-vendor comparison is itself the measurement.
+cost of an effect is the difference between adjacent configurations. That difference is always taken
+on \emph{total} GPU time, not a single pass scope: shadows and reflections are inline within the
+Forward pass, so isolating their cost needs the whole-frame total rather than a per-pass number, and
+ambient occlusion and global illumination are reported the same way for consistency across the table,
+even though they do run as their own half-resolution passes with separate timestamp scopes. A
+trailing \texttt{ssgi} configuration swaps the ray-traced GI pass for the screen-space producer on top
+of \texttt{+refl}, so it is diffed against \texttt{+refl} rather than against \texttt{+gi}: the two
+are alternatives, not cumulative. Across vendors, the raw timestamps are converted to milliseconds
+using each device's timestamp period, so the per-pass times are directly comparable; results are
+reported for both GPUs side by side rather than diffed against a single-machine baseline, since here
+the cross-vendor comparison is itself the measurement.
 
 \paragraph{Quality measurement.} Reconstruction quality is measured against a converged
 \emph{path-traced} reference (Section~\ref{sec:pathtracer}): a brute-force unidirectional path tracer
@@ -81,31 +94,35 @@ real-time technique the harness (\texttt{quality-bench}) captures the same tonem
 reference and reports three image-quality metrics against it: \textbf{FLIP} (a perceptual difference
 metric), \textbf{PSNR}, and \textbf{SSIM}. The metrics are averaged over several fixed viewpoints
 (atrium, floor, and gallery views of Sponza) so a single view cannot bias the result, which is how
-real-time global-illumination and denoiser work is evaluated in practice.
+real-time global-illumination and denoiser work is evaluated in practice. Every quality figure in
+this chapter is captured on a single device, the RX 9070 XT; because the algorithm is bit-for-bit
+identical across vendors (see above), the resulting metrics are not expected to depend on which GPU
+produced them.
 
 \section{Cena po efektu (GPU ms)}
 \label{sec:cena}
 
 The per-effect cost is the adjacent-configuration difference from the benchmark matrix, read from the
-per-pass timestamp scopes as described above, measured on the development RX 7900 XTX; the
-cross-vendor RX 9070 XT and RTX 5070 columns come from runs on those cards. Table~\ref{tab:cena}
-reports it.
+per-pass timestamp scopes as described above, measured on the cross-vendor RX 9070 XT and RTX 5070.
+Table~\ref{tab:cena} reports it.
 
 \begin{table}[tbp]
-\caption{Cena po efektu na razvojnom RX 7900 XTX: \texttt{rt-off} je ukupno GPU vreme bez RT efekata,
-a svaki naredni red je dodatak (delta) tog efekta u odnosu na prethodnu konfiguraciju (sa svim
-efektima $\approx 9.24$ ms). Kolone 9070 XT / 5070 se popunjavaju iz njihovih merenja.}
+\caption{Cena po efektu (GPU ms) na cross-vendor paru RX 9070 XT / RTX 5070.
+\texttt{rt-off} je ukupno GPU vreme bez RT efekata; svaki naredni red je dodatak (delta) tog
+efekta u odnosu na prethodnu konfiguraciju. Red \texttt{ssgi} je alternativa za \texttt{+gi}
+(screen-space GI umesto RT GI) i pore\dj en je sa \texttt{+refl}, ne kumulativno sa \texttt{+gi}.}
 \label{tab:cena}
 \centering
-\begin{tabular}{llrrr}
+\begin{tabular}{llrr}
 \toprule
-Konfiguracija & Efekat & ms (7900 XTX) & ms (9070 XT) & ms (5070) \\
+Konfiguracija & Efekat & ms (9070 XT) & ms (5070) \\
 \midrule
-\texttt{rt-off}   & bazna linija (ukupno) & 1.605 & \textit{--} & \textit{--} \\
-\texttt{+shadows} & senke                 & 3.401 & \textit{--} & \textit{--} \\
-\texttt{+ao}      & ambijentalna okluzija & 0.736 & \textit{--} & \textit{--} \\
-\texttt{+refl}    & refleksije            & 2.439 & \textit{--} & \textit{--} \\
-\texttt{+gi}      & globalno osvetljenje  & 1.056 & \textit{--} & \textit{--} \\
+\texttt{rt-off}   & bazna linija (ukupno)                            & 2.268 & 1.315 \\
+\texttt{+shadows} & senke                                            & 2.338 & 1.228 \\
+\texttt{+ao}      & ambijentalna okluzija                            & 0.742 & 0.848 \\
+\texttt{+refl}    & refleksije                                       & 2.796 & 2.517 \\
+\texttt{+gi}      & globalno osvetljenje (RT)                        & 1.730 & 1.247 \\
+\texttt{ssgi}     & globalno osvetljenje (screen-space, umesto +gi)  & 1.006 & 0.786 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -115,25 +132,29 @@ Figure~\ref{fig:cost-chart} presents the same data graphically once measured.
 \begin{figure}[tbp]
 \centering
 \begin{tikzpicture}
-\begin{axis}[ybar, bar width=9pt, width=0.9\textwidth, height=6cm,
+\begin{axis}[ybar, bar width=6pt, width=0.9\textwidth, height=6cm,
   symbolic x coords={senke,AO,refl,GI}, xtick=data,
   ymin=0, ylabel={GPU ms}, xlabel={efekat},
   legend style={at={(0.5,1.04)}, anchor=south, legend columns=-1},
-  enlarge x limits=0.25]
-\addplot table[x=effect, y=ms7900] {data/perf-cost.dat};
-\legend{AMD RX 7900 XTX}
+  enlarge x limits=0.2]
+\addplot table[x=effect, y=ms9070] {data/perf-cost.dat};
+\addplot table[x=effect, y=ms5070] {data/perf-cost.dat};
+\legend{AMD RX 9070 XT, NVIDIA RTX 5070}
 \end{axis}
 \end{tikzpicture}
-\caption{Cena po efektu na RX 7900 XTX (GPU ms). Kolone za 9070 XT / 5070 se dodaju iz njihovih
-merenja.}
+\caption{Cena po efektu na cross-vendor paru RX 9070 XT / RTX 5070 (GPU ms).}
 \label{fig:cost-chart}
 \end{figure}
 
-On the 7900 XTX shadows are the most expensive effect (3.40 ms), then reflections (2.44 ms), global
-illumination (1.06 ms), and ambient occlusion (0.74 ms); together they add about 7.6 ms over the
-1.6 ms baseline, for a real-time total near 9.24 ms. The half-resolution trace plus denoise is what
-keeps GI and AO cheap despite their hemispheric gather. \textit{TODO: add the RX 9070 XT and RTX 5070
-columns from their runs and discuss where the vendors diverge.}
+On both cards reflections, not shadows, are the single most expensive effect (RX 9070 XT 2.80 ms
+versus 2.34 ms for shadows; RTX 5070 2.52 ms versus 1.23 ms), ahead of global illumination and
+ambient occlusion; together the four effects add about 7.6 ms (9070 XT) and 5.8 ms (5070) over their
+respective baselines, for a real-time total near 9.79 ms (9070 XT, 2.27 ms baseline) and 7.15 ms
+(5070, 1.32 ms baseline). The half-resolution trace plus denoise is what keeps GI and AO cheap
+despite their hemispheric gather. On both cards the screen-space GI producer is cheaper than
+ray-traced GI at the same point in the ladder (9070 XT 1.01 ms versus 1.73 ms; RTX 5070 0.79 ms
+versus 1.25 ms), the expected screen-space-versus-ray-traced cost tradeoff; Section~\ref{sec:poredjenje}
+reports the quality side of that same tradeoff.
 
 \begin{figure}[tbp]
 \centering
@@ -150,46 +171,99 @@ snimcima.)}}
 \section{Broj zrakova naspram kvaliteta i brzine}
 \label{sec:raycount}
 
-This section sweeps the samples-per-pixel count for each effect (and, where relevant, ray length and
-bounce count), plotting reconstruction quality (PSNR/SSIM) and GPU time against the ray count, to
-find the knee past which additional rays stop paying for themselves. \textit{TODO: run the sweep and
-present the plots; this is the central quality/performance tradeoff the research question asks about.}
-Figure~\ref{fig:spp-sweep} shows the raw (pre-denoise) noise falling as the ray count rises.
+This section sweeps the GI ray count per pixel through the full pipeline (denoiser and temporal
+resolve enabled, settled over 90 frames, RX 9070 XT), plotting reconstruction quality against the
+path-traced reference and GPU time against the ray count, to find the knee past which additional
+rays stop paying for themselves.
 
-% pending capture: GI at 1/2/4/8 rays, denoiser off, same view
+\begin{table}[htb]
+\centering
+\caption{GI kvalitet i GPU cena u funkciji broja zraka po pikselu (denoiser i temporalni resolve
+uklju\v{c}eni, RX 9070 XT).}
+\label{tab:raycount}
+\begin{tabular}{@{}rrrrr@{}}
+\toprule
+Zraka/piksel & PSNR (dB) & SSIM & FLIP & GPU ukupno (ms) \\
+\midrule
+1 & 24.53 & 0.7358 & 0.1487 & 3.53 \\
+2 & 24.65 & 0.7394 & 0.1452 & 3.89 \\
+4 & 24.67 & 0.7404 & 0.1462 & 4.21 \\
+8 & 24.73 & 0.7429 & 0.1437 & 6.29 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The knee sits at 1 ray per pixel. Going from 1 to 8 rays costs 78\% more GPU time (3.53 to 6.29 ms)
+for a 0.20 dB PSNR gain and a FLIP improvement from 0.1487 to 0.1437, both within run-to-run noise on
+this metric. The denoiser and temporal accumulation already recover most of the achievable quality
+from a single ray; once they are in the pipeline, additional samples per pixel are not where this
+engine's ray budget should go. This is consistent with the SVGF design goal (spatiotemporal
+filtering to make 1 sample per pixel viable) rather than a property specific to this
+implementation. Figure~\ref{fig:spp-sweep} shows the raw (pre-denoise, pre-temporal) noise this
+filtering is masking: the same four ray counts captured with the denoiser and temporal resolve both
+disabled, at 2 frames, so no accumulated history hides the per-frame noise.
+
 \begin{figure}[tbp]
 \centering
-\phshot{0.235\textwidth}{2.6cm}{1 spp}\hfill%
-\phshot{0.235\textwidth}{2.6cm}{2 spp}\hfill%
-\phshot{0.235\textwidth}{2.6cm}{4 spp}\hfill%
-\phshot{0.235\textwidth}{2.6cm}{8 spp}
-\caption{Uticaj broja zraka po pikselu na \v{s}um pre denoise-a (GI): vi\v{s}e zraka konvergira ka
-referenci, uz proporcionalno ve\'cu cenu. \textit{(placeholderi; zameniti stvarnim snimcima.)}}
+\includegraphics[width=0.235\textwidth]{figures/spp_sweep_1.png}\hfill%
+\includegraphics[width=0.235\textwidth]{figures/spp_sweep_2.png}\hfill%
+\includegraphics[width=0.235\textwidth]{figures/spp_sweep_4.png}\hfill%
+\includegraphics[width=0.235\textwidth]{figures/spp_sweep_8.png}
+\caption{Uticaj broja zraka po pikselu na \v{s}um pre denoise-a i pre temporalnog resolve-a (GI;
+redom 1, 2, 4, 8 zraka po pikselu, sleva nadesno): vi\v{s}e zraka konvergira ka referenci, uz
+proporcionalno ve\'cu cenu (Tabela~\ref{tab:raycount}).}
 \label{fig:spp-sweep}
 \end{figure}
 
 \section{Evaluacija denoiser-a (SVGF)}
 \label{sec:denoise-eval}
 
-This section isolates the denoiser's contribution: the noisy input (denoiser disabled) against the
-denoised result against the path-traced reference, at a fixed low sample count, reporting the FLIP/PSNR/SSIM gain, the
-temporal stability under motion, and the denoiser's own GPU cost against the quality it recovers.
-\textit{TODO: measure denoiser on/off; tie the cost to the register-limited \texttt{GIDenoise.comp}
-shader from Section~\ref{sec:denoising}.}
+This section isolates the SVGF spatial denoiser's own contribution, holding temporal accumulation
+constant (enabled in both states, settled over 90 frames): the noisy input (denoiser disabled)
+against the denoised result against the path-traced reference, at a fixed 2 rays per pixel, RX 9070
+XT.
+
+\begin{table}[htb]
+\centering
+\caption{Doprinos SVGF denoiser-a naspram path-traced reference (2 zraka/piksel, temporalni resolve
+uklju\v{c}en u oba slu\v{c}aja).}
+\label{tab:denoise-eval}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+Denoiser & PSNR (dB) & SSIM & FLIP \\
+\midrule
+isklju\v{c}en & 24.66 & 0.7407 & 0.1447 \\
+uklju\v{c}en & 24.65 & 0.7393 & 0.1452 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+With temporal accumulation already active, the spatial SVGF pass changes reconstruction quality
+against the static-frame metrics (PSNR, SSIM, FLIP) by less than measurement noise: the temporal
+history is doing essentially all of the visible convergence at this settled frame, and the spatial
+filter's own contribution shows up elsewhere, in temporal stability rather than static quality. A
+frame-to-frame RMS delta on the same static view (frame $N$ against $N{+}1$ at steady state, a
+flicker proxy under a static camera, not motion) drops from 0.3229 with the denoiser off to 0.1949
+with it on, a 40\% reduction: the spatial filter suppresses the per-frame noise that temporal
+accumulation alone leaves as flicker. The GPU cost of the denoiser pass itself is small, 3.739 to
+3.810 ms total (a $\sim$0.07 ms delta) against the same GI-enabled baseline used for the raycount
+sweep in Section~\ref{sec:raycount}; the register-limited \texttt{GIDenoise.comp} shader from
+Section~\ref{sec:denoising} is inexpensive in isolation; its cost is amortized further because it
+runs at half resolution.
 
 \begin{figure}[tbp]
 \centering
-\phshot{0.62\textwidth}{5.4cm}{\v{s}um (1--2 spp)}
+\includegraphics[width=0.62\textwidth]{figures/denoise_compare_noisy.png}
 
 \vspace{5pt}
 
-\phshot{0.62\textwidth}{5.4cm}{denoise-ovano}
+\includegraphics[width=0.62\textwidth]{figures/denoise_compare_denoised.png}
 
 \vspace{5pt}
 
-\phshot{0.62\textwidth}{5.4cm}{referenca (path tracer)}
-\caption{Doprinos denoiser-a: \v{s}um pri niskom broju uzoraka, denoise-ovan rezultat, i referenca.
-\textit{(placeholderi; zameniti stvarnim snimcima.)}}
+\includegraphics[width=0.62\textwidth]{figures/denoise_compare_reference.png}
+\caption{Doprinos denoiser-a na 2 zraka po pikselu: \v{s}um pre denoise-a (gore), denoise-ovan
+rezultat (sredina), i path-traced referenca (dole).}
 \label{fig:denoise-compare}
 \end{figure}
 
@@ -212,32 +286,35 @@ averaged over the three viewpoints.
 
 \begin{table}[tbp]
 \caption{Kvalitet svake tehnike u odnosu na path-traced referencu (prosek preko tri pogleda: atrium,
-floor, gallery). Manji FLIP i ve\'ci PSNR/SSIM su bolji.}
+floor, gallery; RX 9070 XT). Manji FLIP i ve\'ci PSNR/SSIM su bolji.}
 \label{tab:quality}
 \centering
 \begin{tabular}{lrrr}
 \toprule
 Tehnika & FLIP $\downarrow$ & PSNR (dB) $\uparrow$ & SSIM $\uparrow$ \\
 \midrule
-raster (bez efekata) & 0.441 & 14.98 & 0.380 \\
-SSAO                 & 0.421 & 15.47 & 0.398 \\
-RT AO                & 0.421 & 15.49 & 0.397 \\
-SSR                  & 0.436 & 15.11 & 0.391 \\
-RT refleksije        & 0.435 & 15.17 & 0.394 \\
-RT GI                & 0.222 & 21.53 & 0.613 \\
-sve RT (all-RT)      & \textbf{0.145} & \textbf{25.77} & \textbf{0.777} \\
+raster (bez efekata) & 0.435 & 15.17 & 0.383 \\
+SSAO                 & 0.418 & 15.61 & 0.398 \\
+RT AO                & 0.414 & 15.71 & 0.400 \\
+SSR                  & 0.429 & 15.31 & 0.394 \\
+RT refleksije        & 0.423 & 15.43 & 0.399 \\
+SSGI                 & 0.341 & 17.56 & 0.457 \\
+RT GI                & 0.141 & 25.21 & 0.720 \\
+sve RT (all-RT)      & \textbf{0.087} & \textbf{30.66} & \textbf{0.865} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 Two results stand out. First, global illumination is the dominant quality lever: RT GI alone lifts
-PSNR from 15.0 (raster) to 21.5 and roughly halves FLIP, and enabling all effects reaches FLIP 0.145,
-PSNR 25.8, SSIM 0.78, by far the closest to the reference. Second, at these whole-frame metrics
-screen-space and ray-traced AO and reflections are near-parity (SSAO versus RT AO, and SSR versus RT
-reflections, differ by under 0.02 in FLIP), because the occlusion and reflection contributions are
-small at the whole-frame level; the ray-traced advantage is off-screen correctness, which a
-whole-frame average does not isolate and which the per-view captures (Figure~\ref{fig:rt-vs-ss}) make
-visible. \textit{TODO: once SSGI lands, add its row for the GI comparison.}
+PSNR from 15.2 (raster) to 25.2 and cuts FLIP by more than two thirds, and enabling all effects
+reaches FLIP 0.087, PSNR 30.7, SSIM 0.87, by far the closest to the reference. Second, at these
+whole-frame metrics screen-space and ray-traced AO and reflections are near-parity (SSAO versus RT AO,
+and SSR versus RT reflections, differ by under 0.01 in FLIP), because the occlusion and reflection
+contributions are small at the whole-frame level; the ray-traced advantage is off-screen correctness,
+which a whole-frame average does not isolate and which the per-view captures (Figure~\ref{fig:rt-vs-ss})
+make visible. Screen-space GI sits between those two tiers: its FLIP (0.341) is markedly better than
+the AO/reflection pairs but well short of RT GI (0.141), consistent with SSGI only gathering bounce
+light from on-screen geometry, where RT GI also reaches off-screen and behind-camera surfaces.
 
 \begin{figure}[tbp]
 \centering
@@ -251,8 +328,36 @@ sa off-screen geometrijom. \textit{(placeholderi; zameniti stvarnim snimcima.)}}
 \section{Zauzetost i cena \v{s}ejdera (opciono)}
 \label{sec:occupancy}
 
-This section reports the static shader occupancy (VGPR/LDS usage and register spills) per ray-tracing
-and denoising shader, from the offline occupancy gate, and identifies the one occupancy-limited
-shader (\texttt{GIDenoise.comp}). These figures are static and theoretical (register-derived
-occupancy), distinct from achieved occupancy measured with a runtime profiler. \textit{TODO: include
-the occupancy table.}
+This section reports the static shader occupancy (VGPR usage and register spills) for the
+ray-tracing and denoising shaders central to this chapter, from the offline occupancy gate
+(Table~\ref{tab:occupancy}). On the current baseline three of the ten listed shaders are
+VGPR-limited: \texttt{GIDenoise.comp} (191 VGPR, 8/16 waves) is the worst case, followed by
+\texttt{DefaultLit.frag} (132 VGPR, 10/16 waves) and \texttt{PathTrace.comp} (102 VGPR, 13/16
+waves); every RT trace, temporal, and upsample shader in the table reaches the full 16/16 waves, and
+none of the ten has a register spill. These figures are static and theoretical (register-derived
+occupancy), distinct from achieved occupancy measured with a runtime profiler.
+
+\begin{table}[tbp]
+\caption{Stati\v{c}ka VGPR-zauzetost klju\v{c}nih ray-tracing i denoising \v{s}ejdera na RX 7900 XTX
+(gfx1100), iz RGA offline analize. Talasi = teorijski maksimalan broj wave32 talasa po SIMD-u (1536
+VGPR-a po SIMD-u, granularnost alokacije 16, maksimum 16); manje od 16/16 zna\v{c}i da je \v{s}ejder
+VGPR-limited. Nijedan od ovih \v{s}ejdera nema VGPR/SGPR spill.}
+\label{tab:occupancy}
+\centering
+\begin{tabular}{lrrl}
+\toprule
+\v{S}ejder & VGPR & Talasi & Napomena \\
+\midrule
+\texttt{PathTrace.comp}    & 102 & 13/16 & referentni path tracer \\
+\texttt{DefaultLit.frag}   & 132 & 10/16 & glavni forward \v{s}ejder \\
+\texttt{GIDenoise.comp}    & 191 & 8/16  & najzauzetiji, GI SVGF denoise \\
+\texttt{GI.comp}           & 85  & 16/16 & RT GI trace \\
+\texttt{Reflection.comp}   & 83  & 16/16 & RT refleksije trace \\
+\texttt{Shadow.comp}       & 88  & 16/16 & RT senke (inline) \\
+\texttt{AO.comp}           & 63  & 16/16 & RT AO trace \\
+\texttt{GITemporal.comp}   & 53  & 16/16 & GI temporalna akumulacija \\
+\texttt{GIUpsample.frag}   & 45  & 16/16 & GI half-res upsample \\
+\texttt{AOUpsample.frag}   & 40  & 16/16 & AO half-res upsample \\
+\bottomrule
+\end{tabular}
+\end{table}

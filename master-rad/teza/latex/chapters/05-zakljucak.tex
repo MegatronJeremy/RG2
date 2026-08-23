@@ -14,8 +14,13 @@ table and one reusable SVGF denoiser, and integrated into an existing rasterizin
 rather than a standalone tracer. The evaluation in Chapter~\ref{ch:analiza} isolates the per-effect
 GPU cost with an A/B benchmark and measures reconstruction quality against a supersampled reference, and compares the identical pipeline
 across two GPU vendors (AMD RDNA4 and NVIDIA Blackwell).
-\textit{TODO: state the headline numbers (per-effect cost, denoiser PSNR/SSIM gain, the ray-count
-knee) once measured; do not pre-write them.} The practical value is a demonstration that a hybrid
+On the cross-vendor pair reflections are the single most expensive effect (RX 9070 XT 2.80 ms, RTX
+5070 2.52 ms), ahead of shadows, global illumination, and ambient occlusion, for a real-time total
+near 9.8 ms (9070 XT) and 7.1 ms (5070) over a baseline under 2.3 ms. Enabling all four effects lifts
+reconstruction quality from FLIP 0.435 / PSNR 15.2 dB / SSIM 0.38 (raster) to FLIP 0.087 / PSNR 30.7
+dB / SSIM 0.87 against the path-traced reference (RX 9070 XT; Table~\ref{tab:quality}). \textit{TODO:
+the isolated denoiser on/off gain and the ray-count knee (Sections~\ref{sec:raycount},
+\ref{sec:denoise-eval}) still need their sweeps run before they can be stated here.} The practical value is a demonstration that a hybrid
 ray-query pipeline gives correct off-screen lighting at an interactive budget without a full path
 tracer, which is directly applicable to real-time engines that want physically grounded indirect
 lighting, contact shadows, and reflections.
