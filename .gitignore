@@ -2,3 +2,7 @@
 .vs/
 build/
 *.user
+
+# Python bytecode and local capture intermediates from master-rad/teza/tools
+__pycache__/
+master-rad/teza/tools/.capture-cache/

@@ -49,19 +49,32 @@ measurement granularity are one and the same. The per-effect costs in Table~\ref
 deliberately coarser, whole-frame differences rather than scope readings, for the reason given
 there: the default shadow path has no scope of its own.
 
-The per-viewport frame builds in this order:
+The per-viewport frame builds in the order below. Each ray-traced effect repeats the same four-stage
+shape, trace, accumulate over time, filter spatially, and (for the half-resolution ones) upsample,
+which is what lets one denoiser implementation serve all of them (Section~\ref{sec:denoising}).
 
-\begin{quote}
-\texttt{DepthNormal} (G-buffer: depth + geometric normal) $\rightarrow$ \texttt{Velocity} (motion
-vectors) $\rightarrow$ \texttt{GI} $\rightarrow$ \texttt{GITemporal} $\rightarrow$
-\texttt{GIDenoise} $\rightarrow$ \texttt{GIUpsample} $\rightarrow$ \texttt{AO} $\rightarrow$
-\texttt{AOTemporal} $\rightarrow$ \texttt{AODenoise} $\rightarrow$ \texttt{AOUpsample} $\rightarrow$
-\texttt{Reflection} $\rightarrow$ \texttt{ReflectionTemporal} $\rightarrow$
-\texttt{ReflectionDenoise0..2} $\rightarrow$ \texttt{Forward} (\texttt{DefaultLit}, the early-Z
-depth prepass and the sky, and the inline shadow rays) $\rightarrow$ \texttt{Upscale} $\rightarrow$
-\texttt{TemporalResolve} (TAA) $\rightarrow$ tonemap $\rightarrow$ FXAA $\rightarrow$ Sharpen
-$\rightarrow$ the comparison and metrics passes.
-\end{quote}
+\begin{center}
+\small
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{2.9cm}@{\hspace{4mm}}>{\raggedright\arraybackslash}p{9.4cm}@{}}
+\toprule
+\textbf{Faza} & \textbf{Prolazi, redom} \\
+\midrule
+G-buffer & \texttt{DepthNormal} (dubina + geometrijska normala), \texttt{Velocity} (vektori kretanja) \\
+\addlinespace[2pt]
+GI (1/2 rez.) & \texttt{GI} $\rightarrow$ \texttt{GITemporal} $\rightarrow$ \texttt{GIDenoise} $\rightarrow$ \texttt{GIUpsample} \\
+\addlinespace[2pt]
+AO (1/2 rez.) & \texttt{AO} $\rightarrow$ \texttt{AOTemporal} $\rightarrow$ \texttt{AODenoise} $\rightarrow$ \texttt{AOUpsample} \\
+\addlinespace[2pt]
+Refleksije (puna) & \texttt{Reflection} $\rightarrow$ \texttt{ReflectionTemporal} $\rightarrow$ \texttt{ReflectionDenoise0..2} \\
+\addlinespace[2pt]
+Osvetljavanje & \texttt{Forward} (\texttt{DefaultLit}): early-Z prepass, nebo, inline zraci senke, i kombinovanje sa GI/AO/refleksijama \\
+\addlinespace[2pt]
+Post & \texttt{Upscale} $\rightarrow$ \texttt{TemporalResolve} (TAA) $\rightarrow$ tonemap $\rightarrow$ FXAA $\rightarrow$ \texttt{Sharpen} \\
+\addlinespace[2pt]
+Merenje & \texttt{Compare}, \texttt{Metrics} (PSNR, SSIM) \\
+\bottomrule
+\end{tabular}
+\end{center}
 
 Figure~\ref{fig:framegraph} summarizes this flow.
 
@@ -227,7 +240,8 @@ is offset along the geometric normal and toward the light
 (\texttt{positionWS + Ng*0.02 + L*0.01}) to avoid self-intersection.
 Listing~\ref{lst:shadow} shows the inline query in HLSL.
 
-\needspace{14\baselineskip}
+
+\needspace{22\baselineskip}
 \begin{lstlisting}[caption={Inline ray-query test vidljivosti za senku (HLSL).}, label={lst:shadow}]
 RayQuery<RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> q;
 RayDesc ray;
@@ -362,7 +376,8 @@ visibility query, so it too uses \texttt{ACCEPT_FIRST_HIT_AND_END_SEARCH}. Rays 
 \texttt{1 - saturate(t / AORadius)}, so nearer occluders darken more, and the result is scaled by
 \texttt{render.ao.intensity}. Listing~\ref{lst:ao} shows the gather loop.
 
-\needspace{14\baselineskip}
+
+\needspace{17\baselineskip}
 \begin{lstlisting}[caption={AO uzorkovanje hemisfere (HLSL, karakteristi\v{c}an ise\v{c}ak).}, label={lst:ao}]
 float occlusion = 0.0;
 for (uint k = 0; k < RayCount; ++k)
@@ -605,7 +620,8 @@ across edges. The variance term can be disabled (\texttt{LumaPhi = 0}), reducing
 plain bilateral blur, which is a useful baseline in Chapter~\ref{ch:analiza}.
 Listing~\ref{lst:atrous} shows the per-tap weight.
 
-\needspace{9\baselineskip}
+
+\needspace{12\baselineskip}
 \begin{lstlisting}[caption={Edge-stopping te\v{z}ine za \`a-trous filter (SVGF jezgro, HLSL).}, label={lst:atrous}]
 float w_n = pow(saturate(dot(N, N_tap)), K_NORMAL);              // normal
 float w_z = exp(-abs(z - z_tap) / (K_DEPTH * abs(dzdx) + 1e-4)); // depth

@@ -11,7 +11,7 @@ materijala sa linkovima u [INDEX.md](INDEX.md).
 materijali/          # prezentacije, predavanja (arhiva), vezbe, seminarski, dodatni, propozicije
 domaci/<godina>/     # domaći zadaci; svaki u svom folderu (npr. domaci/2025/dz1/)
 master-rad/          # Vukov master rad
-  teza/              #   tekst rada: markdown radne verzije + teza/latex/ (izvor teze, vidi ispod)
+  teza/              #   tekst rada: teza/latex/ (izvor), teza/tools/ (generisanje slika), radne beleske
   Snowstorm-Engine/  #   render engine (ugnježdeni git submodule), evaluaciona platforma za rad
 ```
 
@@ -75,9 +75,15 @@ master-rad/          # Vukov master rad
 
 LaTeX izvor teze (`etf.cls`, ETF-ov template). `main.tex` je glavni fajl (naslov, autor, mentor,
 apstrakt, `\input` poglavlja); poglavlja su u `chapters/*.tex`; slike u `figures/`; tabele/podaci
-merenja u `data/`; literatura u `references.bib` (BibTeX). Markdown radne verzije istih poglavlja
-(`master-rad/teza/*.md`, van `latex/`) su stariji radni materijal — **LaTeX u `latex/` je izvor
-istine** za predaju; ne sinhronizuj automatski nazad u markdown bez razloga.
+merenja u `data/`; literatura u `references.bib` (BibTeX). **LaTeX u `latex/` je jedini izvor
+istine** za predaju: paralelne markdown verzije poglavlja su obrisane jer su zastarevale i pravile
+drugo mesto koje neko moze slucajno da izmeni. U `teza/` ostaju samo radne beleske koje nemaju
+parnjaka u tezi (`glossary.md`, `notes-implementation.md`, `literatura.md`, `README.md`).
+
+**Slike i brojevi se generisu, ne crtaju.** `teza/tools/` drzi skripte koje proizvode svaku
+renderovanu sliku u `latex/figures/` i tabele 4.3 i 4.4; vidi [tools/README.md](master-rad/teza/tools/README.md)
+za spisak sta koja skripta pravi. Zavisnost ide samo nadole (teza uvozi `Scripts/*.py` iz
+Snowstorm-Engine submodule-a, nikad obrnuto), pa endzin ostaje samostalan projekat.
 
 **Kompajliranje** (MiKTeX, `pdflatex`/`bibtex` u PATH-u):
 ```

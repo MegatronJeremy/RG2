@@ -6,7 +6,7 @@ Inline Ray-Query Shadows, Ambient Occlusion, Reflections and Global Illumination
 **Radni naslov (SR):** *(prevod na kraju; vidi [glossary.md](glossary.md))*
 
 **Candidate:** Vuk Đorđević, 2024/3102 · Master, ETF, Univerzitet u Beogradu
-**Mentor:** TBD (Đukić ne može formalno; kandidati: Drašković / Radivojević / Jocović)
+**Mentor:** prof. dr Dražen Drašković
 **Advisor (RG2):** doc. dr Jovan Đukić
 
 > Topic is settled: **hybrid ray tracing** (the Aug 2 email Đukić approved). The neural
@@ -17,8 +17,12 @@ Inline Ray-Query Shadows, Ambient Occlusion, Reflections and Global Illumination
 
 - **Draft in English, submit in Serbian.** Translate per-chapter as each is finalized, not in one
   end pass. Keep terminology consistent via [glossary.md](glossary.md).
-- **Short-form now, expand later.** Each section holds 1-3 real sentences plus `EXPAND:` bullets
-  marking what to flesh out. This is a skeleton, not a first full draft.
+- **`latex/` is the only source of truth.** The per-chapter markdown drafts this file once described
+  are gone: they went stale against the LaTeX and gave a second place to edit by mistake. What
+  remains here is working notes with no counterpart in the thesis itself.
+- **Figures and measured numbers are generated, never hand-made.** `tools/` produces every rendered
+  figure in `latex/figures/` and the raycount and denoiser tables; see
+  [tools/README.md](tools/README.md).
 - **Writing rules (global AGENTS.md):** maximal info / minimal text; no em-dashes anywhere; no
   "not just X but Y"; no rule-of-three padding; keep Vuk's voice. Every measured number must be
   produced, never estimated and stated as fact (mark assumptions).
