@@ -701,9 +701,11 @@ the velocity buffer itself.
 \caption{Bafer vektora kretanja (\texttt{render.debugview} 1) tokom determinis\-ti\v{c}ke orbite
 kamere. Crveno je vodoravna, zeleno uspravna komponenta pomeraja piksela izme\dj u dva uzastopna
 kadra; prikaz uzima apsolutnu vrednost i mno\v{z}i je sa 40, pa se vidi \emph{koliko} se piksel
-pomera i po kojoj osi, ali ne i u kom smeru. Kraj arkade u sredini kadra, ka kome se kamera kre\'ce,
-pomera se najmanje (prosek 149 od 510 naspram 162 i 184 na bo\v{c}nim tre\'cinama), jer je to
-\v{z}i\v{z}a \v{s}irenja optickog toka; pri nepomi\v{c}noj kameri ceo bafer je crn.}
+pomera i po kojoj osi, ali ne i u kom smeru. Crno je izostanak pomeraja, ali i nebo, koje kroz ovaj
+prolaz uop\v{s}te ne upisuje vektore. Prikaz nije kalibrisan: kanali su normirani po \v{s}irini
+odnosno visini, pa im osvetljenost nije na istoj skali, a izlaz je jo\v{s} i sRGB kodiran. Kada se
+to poni\v{s}ti, prose\v{c}an pomeraj u ovom kadru je oko $0{,}6\%$ dijagonale ekrana po kadru,
+najvi\v{s}e $1{,}6\%$, i nijedan uzorak nije zasi\'cen.}
 \label{fig:motion}
 \end{figure}
 
