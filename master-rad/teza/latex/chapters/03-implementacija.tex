@@ -39,19 +39,34 @@ binary runs on either GPU; the cross-vendor evaluation of Chapter~\ref{ch:analiz
 \section{Render graf i struktura frejma}
 \label{sec:rendergraph}
 
-The renderer is organized as a \texttt{RenderGraph}: a flat, insertion-ordered list of passes, each
-declaring the resources it reads and writes so the graph can insert the Vulkan layout barriers
-between them. There is no dependency solver and no automatic reordering; execution order is exactly
-the order in which passes are appended (\texttt{RenderGraph::Execute}). Each pass is wrapped in a
-named GPU timestamp scope (\texttt{BeginGpuScope}), and those names are the rows of
+The renderer is organized as a \texttt{RenderGraph}: passes are appended in order, each declaring the
+textures it reads and writes, and the graph derives from those declarations both the Vulkan layout
+barriers between them and a dependency DAG (\texttt{BuildDependencies}). Declaration order is a valid
+topological order by construction, so the derived edges do not change what is correct, only what is
+free to move: \texttt{BuildSchedule} topologically sorts the graph and pulls compute passes as early
+as their edges allow, which gathers the ray-traced chains into one contiguous run instead of leaving
+them split by the raster upsamples that happen to sit between them. That contiguity is what makes
+async compute worthwhile, since otherwise each chain would pay its own fork and join.
+
+Two ordering constraints are derived rather than declared, because no texture edge expresses them.
+Graphics passes keep their relative order, since they submit draws through a shared instance buffer at
+a running cursor, so only compute passes are free to move. And a pass that writes the swapchain is
+terminal, because the editor samples the viewport through ImGui bindings the graph cannot see. The
+honest limitation is that the DAG is only as complete as the declarations: a pass touching an
+acceleration structure, a bindless table, or a buffer carries a real ordering requirement that no edge
+records, since only textures are tracked. The \texttt{render.graph.dumpdeps} CVar exists for exactly
+that reason, reporting which passes look unconstrained so the gap is visible rather than latent.
+
+Each pass is wrapped in a named GPU timestamp scope (\texttt{BeginGpuScope}), and those names are the rows of
 Table~\ref{tab:pass-cost} in Chapter~\ref{ch:analiza}, so the graph structure and the finest available
 measurement granularity are one and the same. The per-effect costs in Table~\ref{tab:cena} are
 deliberately coarser, whole-frame differences rather than scope readings, for the reason given
 there: the default shadow path has no scope of its own.
 
-The per-viewport frame builds in the order below. Each ray-traced effect repeats the same four-stage
-shape, trace, accumulate over time, filter spatially, and (for the half-resolution ones) upsample,
-which is what lets one denoiser implementation serve all of them (Section~\ref{sec:denoising}).
+The per-viewport frame is declared in the order below; the scheduler may hoist compute passes earlier
+within it, but not past a producer. Each ray-traced effect repeats the same four-stage shape, trace,
+accumulate over time, filter spatially, and (for the half-resolution ones) upsample, which is what
+lets one denoiser implementation serve all of them (Section~\ref{sec:denoising}).
 
 \begin{center}
 \small
