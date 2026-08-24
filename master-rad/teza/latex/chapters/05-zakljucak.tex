@@ -12,7 +12,8 @@ Vulkan engine, and to characterize the cost and quality of each. All four effect
 described in Chapter~\ref{ch:implementacija}, sharing one hit-shading routine over a bindless geometry
 table and one reusable SVGF denoiser, and integrated into an existing rasterizing forward renderer
 rather than a standalone tracer. The evaluation in Chapter~\ref{ch:analiza} isolates the per-effect
-GPU cost with an A/B benchmark and measures reconstruction quality against a supersampled reference, and compares the identical pipeline
+GPU cost with an A/B benchmark and measures reconstruction quality against a converged path-traced
+reference, and compares the identical pipeline
 across two GPU vendors (AMD RDNA4 and NVIDIA Blackwell).
 On the cross-vendor pair reflections are the single most expensive effect (RX 9070 XT 2.87 ms, RTX
 5070 2.44 ms), ahead of shadows, global illumination, and ambient occlusion, for a measured real-time

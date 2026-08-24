@@ -18,10 +18,11 @@ GeForce RTX 5070 (Blackwell). Both run the same engine binary, the same HLSL-com
 the same render graph, and the same scene and settings; the only variable is the selected physical
 device. That identity is the fairness basis of the comparison: any difference in timing is due to the
 hardware and its driver, not to a different code path. Table~\ref{tab:gpus} lists the relevant
-specifications. Because the algorithm is bit-for-bit identical on both GPUs, the quality metrics
-(PSNR/SSIM) are expected to match across them; the cross-vendor result is therefore a performance
-comparison, and any quality divergence would flag a non-determinism to investigate rather than a real
-difference. The static occupancy analysis (Section~\ref{sec:occupancy}) targets a separate AMD
+specifications. Because both devices run identical shaders and an identical render graph, the quality
+metrics are not expected to differ materially across them; the cross-vendor result is therefore a
+performance comparison, and a quality divergence would point at a non-determinism worth investigating
+rather than at a real difference. The one documented exception to the identical-code-path claim is
+opacity micromap support, discussed next. The static occupancy analysis (Section~\ref{sec:occupancy}) targets a separate AMD
 architecture (RDNA3) offline and is independent of this cross-vendor comparison.
 
 \begin{table}[tbp]
@@ -363,8 +364,8 @@ FLIP                   & 0.1425 & 0.1423 & $-0.0002$ \\
 
 Full-resolution tracing costs 5.49 ms more per frame, a 54\% increase on a budget that was already
 approaching ten milliseconds, and returns 0.02 dB of PSNR. All three metrics move by less than the
-run-to-run spread, so the correct reading is not "full resolution is slightly better" but "the
-measurement cannot distinguish them at all".
+run-to-run spread, so the correct reading is not \rqt{full resolution is slightly better} but
+\rqt{the measurement cannot distinguish them at all}.
 
 The reason is that the denoiser is the binding constraint, not the sample grid. Both configurations
 feed the same à-trous filter, whose edge-stopping kernel already blurs over a neighbourhood wider than

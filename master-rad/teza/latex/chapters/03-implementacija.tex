@@ -296,7 +296,7 @@ spreading the two-sample penumbra across frames for the denoiser and temporal ac
 spot loops; the sun uses an effectively infinite \texttt{tMax}, local lights clamp \texttt{tMax} just
 short of the light. With ray-traced shadows disabled the shader falls back to raster shadow maps.
 
-Figure~\ref{fig:shadow} shows the soft-shadow disk sampling.
+Figure~\ref{fig:shadow} shows the soft-shadow cone sampling.
 
 \begin{figure}[tbp]
 \centering
@@ -312,10 +312,13 @@ Figure~\ref{fig:shadow} shows the soft-shadow disk sampling.
   \draw[->, black!65] (0,0) -- (2.72,2.83);
   \draw[->, black!65] (0,0) -- (3.08,2.22);
   \draw[->, black!65] (0,0) -- (2.36,2.06);
+  \draw[<->, black!45] (2.62,2.72) arc (46:38:3.6);
+  \node[font=\scriptsize, black!55] at (3.02,2.52) {$\theta/2$};
   \fill (0,0) circle (1.7pt) node[below=3pt] {$P$};
 \end{tikzpicture}
-\caption{Meke senke: iz ta\v{c}ke $P$ se baca vi\v{s}e zraka ka disku \v{c}iji polupre\v{c}nik
-odgovara uglovnoj veli\v{c}ini izvora oko pravca $L$; udeo neblokiranih zraka daje penumbru.}
+\caption{Meke senke: iz ta\v{c}ke $P$ se zraci uzorkuju ravnomerno po prostornom uglu unutar konusa
+koji izvor zaklapa oko pravca $L$, sa polovinom ugla $\theta/2$ odre\dj enom polupre\v{c}nikom
+izvora $r$ i rastojanjem; udeo neblokiranih zraka daje penumbru.}
 \label{fig:shadow}
 \end{figure}
 
@@ -398,10 +401,10 @@ float occlusion = 0.0;
 for (uint k = 0; k < RayCount; ++k)
 {
     float3 dir = CosineHemisphere(k, RayCount, ign, N); // cosine-weighted, IGN-rotated around N
-    RayQuery<RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_CULL_NON_OPAQUE> q;
+    RayQuery<RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> q;
     RayDesc ray = MakeRay(positionWS + N * 0.02, dir, 0.0, AORadius);
     q.TraceRayInline(SceneTLAS, RAY_FLAG_NONE, 0xFF, ray);
-    q.Proceed();
+    while (q.Proceed()) { /* alpha-test cutout candidates, as in Listing 3.1 */ }
     if (q.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
         occlusion += 1.0 - saturate(q.CommittedRayT() / AORadius);
 }
@@ -441,8 +444,9 @@ ray-traced effect not traced at half res, since reflection detail is view-depend
 tolerate the blur that half-res tracing plus upsampling introduces. For each pixel the pass
 reconstructs world position and reflects the view vector about the normal-mapped shading normal (read
 from a separate shading-normal G-buffer, not the geometric normal, so normal maps are mirrored
-correctly). It needs the closest hit rather than any hit, so it uses
-\texttt{RayQuery<CULL_NON_OPAQUE>} without early termination.
+correctly). It needs the closest hit rather than any hit, so unlike the visibility queries it uses a
+plain \texttt{RayQuery<RAY_FLAG_NONE>} and runs traversal to completion instead of stopping at the
+first hit.
 
 Glossy reflections are approximated by jittering each ray inside a cone whose half-angle scales with
 surface roughness (\texttt{roughness * ReflConeScale}), averaged over \texttt{render.reflections.rays}
@@ -743,10 +747,11 @@ simplification of the full problem, not a factor that distorts the relative meas
     upsampled; reflections are traced at full resolution.
   \item \textbf{Low sample counts with reconstruction.} Effects use one or two rays per pixel and
     depend on the SVGF denoiser (GI, AO, reflections) and temporal accumulation for a usable image.
-  \item \textbf{Approximate soft shadows.} Ray-traced shadows use one hard or two soft rays per
-    light, denoised via the shared denoiser; this is a stochastic approximation of area-light
-    penumbrae, not a fully converged soft shadow. A dedicated, penumbra-aware shadow denoiser is
-    future work (Chapter~\ref{ch:zakljucak}).
+  \item \textbf{Approximate soft shadows.} In the default path ray-traced shadows use one hard or two
+    soft rays per light, traced inline and applied directly with no denoiser, so the penumbra is a
+    two-sample approximation of an area light cleaned up only by the temporal resolve, not a
+    converged soft shadow. The opt-in stochastic path does reconstruct its aggregate visibility
+    through the shared denoiser, at the cost of resolving only one light per pixel per frame.
   \item \textbf{Inline ray queries only.} No ray-tracing pipeline, shader binding table, or
     recursion; all hit lighting is a single bounce evaluated in \texttt{ShadeSurfaceHit}.
   \item \textbf{Single-sample local-light NEE, GI only.} A GI secondary hit adds at most one of the
