@@ -11,6 +11,7 @@ materijala sa linkovima u [INDEX.md](INDEX.md).
 materijali/          # prezentacije, predavanja (arhiva), vezbe, seminarski, dodatni, propozicije
 domaci/<godina>/     # domaći zadaci; svaki u svom folderu (npr. domaci/2025/dz1/)
 master-rad/          # Vukov master rad
+  prijava/           #   prijava teme: formular, uputstvo, pravilnik, skripta koja popunjava formular
   teza/              #   tekst rada: teza/latex/ (izvor), teza/tools/ (generisanje slika), radne beleske
   Snowstorm-Engine/  #   render engine (ugnježdeni git submodule), evaluaciona platforma za rad
 ```
@@ -54,7 +55,7 @@ master-rad/          # Vukov master rad
    GPU/displej i NEWT prozor. Tvrdnju „radi/izgleda ispravno" donosi tek nakon pokretanja i
    screenshot-a; inače jasno reci da nije vizuelno potvrđeno.
 7. **Jezik:** kod, komentari i identifikatori na **engleskom**; komunikacija sa Vukom na srpskom;
-   `master-rad/obrazlozenje_teme.md` i slični administrativni ETF dokumenti isključivo na
+   `master-rad/prijava/` i slični administrativni ETF dokumenti isključivo na
    srpskoj ćirilici (osim ustaljenih tehničkih termina — `VK_KHR_ray_query`, SVGF, PSNR/SSIM i
    sl. — koji ostaju u originalu, kako je uobičajeno u domaćoj literaturi).
 8. **Pisanje: maksimum informacije, minimum teksta** — važi za tezu, commit poruke, README/INDEX,

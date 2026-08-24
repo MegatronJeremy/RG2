@@ -6,3 +6,7 @@ build/
 # Python bytecode and local capture intermediates from master-rad/teza/tools
 __pycache__/
 master-rad/teza/tools/.capture-cache/
+
+# Popunjena prijava se generise iz prijava/formular.docx skriptom fill_prijava.py
+master-rad/prijava/Obrazlozenje_teme_*.docx
+master-rad/prijava/.build/
