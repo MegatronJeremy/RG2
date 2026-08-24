@@ -106,7 +106,20 @@ SHOTS = [
                         "SS_RENDER_GI_MODE": "1"}, False),
     ("rt_all", ATRIUM, {**BASE_ENV, "SS_RENDER_AO_MODE": "2", "SS_RENDER_REFLECTIONS_MODE": "2",
                         "SS_RENDER_GI_MODE": "2"}, False),
+
+    # Debug view 1 is identically black under a pinned camera, since nothing moves, so this is the one
+    # shot that needs camera.path (a deterministic orbit) instead of a fixed pose. pose=None leaves
+    # SS_CAMERA_OVERRIDE unset so the orbit is not fighting a pinned pose. camera.path.fixed steps at a
+    # fixed 60 Hz, so frame N is the same pose and the same velocity magnitude on every run, and the
+    # hard 60-frame cap below picks a point where the orbit faces down the arcade rather than a wall.
+    ("dbg_motion", None, {**BASE_ENV, "SS_CAMERA_PATH": "1", "SS_CAMERA_PATH_FIXED": "1",
+                          "SS_RENDER_DEBUGVIEW": "1"}, False),
 ]
+
+# Shots whose capture must be cut off at a chosen frame rather than allowed to settle. A moving camera
+# never converges, so without a cap the run burns to the engine's 3000-frame safety limit and lands on
+# an arbitrary pose.
+MAXFRAMES_OVERRIDE = {"dbg_motion": 60}
 
 
 def save_png(img: np.ndarray, path: Path):
@@ -127,6 +140,8 @@ def main() -> int:
         env_full = {**env, **camera_env(pose)}
         frames = REF_FRAMES if is_ref else TECH_FRAMES
         max_frames = 0 if is_ref else TECH_MAXFRAMES
+        if name in MAXFRAMES_OVERRIDE:
+            frames, max_frames = 2, MAXFRAMES_OVERRIDE[name]
         img, device = run_capture(env_full, tmp / name, frames, EXE, REPO_ROOT,
                                    180, LAYER_PATH, SCENE, max_frames=max_frames)
         if img is None:

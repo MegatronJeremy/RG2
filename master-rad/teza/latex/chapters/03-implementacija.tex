@@ -680,6 +680,33 @@ perceptual or display-space operation (sharpening, contrast) is kept out of this
 after tonemap, since a per-channel curve applied before tonemap turns an accumulation overshoot into
 a hue shift. Sharpening therefore lives in a separate post-tonemap pass, not here.
 
+Motion vectors are the shared prerequisite for all of this, and they are worth making concrete
+because three separate consumers depend on them: the SVGF temporal pass, the TAA resolve, and the
+screen-space effects that gather last frame's colour. The velocity pass renders the scene a second
+time and writes, per pixel, the difference between where a surface point lands on screen this frame
+and where the same point landed last frame, computed from the current and previous view-projection
+matrices. That vector is what lets a later pass ask "where was this pixel before", which is the only
+reason a temporal filter can reuse work instead of recomputing it.
+
+The failure mode this exposes is disocclusion. A pixel revealed from behind an occluder this frame
+has no previous position to point at, so its history is meaningless and reusing it would smear the
+occluder's colour across the newly visible surface. Every temporal stage in the engine therefore
+pairs the reprojection with a rejection test on depth and normal, and where that test fires the pixel
+falls back to the current frame alone, which is noisier but correct. Figure~\ref{fig:motion} shows
+the velocity buffer itself.
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=0.8\textwidth]{figures/dbg_motion.png}
+\caption{Bafer vektora kretanja (\texttt{render.debugview} 1) tokom determinis\-ti\v{c}ke orbite
+kamere. Crveno je vodoravna, zeleno uspravna komponenta pomeraja piksela izme\dj u dva uzastopna
+kadra; prikaz uzima apsolutnu vrednost i mno\v{z}i je sa 40, pa se vidi \emph{koliko} se piksel
+pomera i po kojoj osi, ali ne i u kom smeru. Kraj arkade u sredini kadra, ka kome se kamera kre\'ce,
+pomera se najmanje (prosek 149 od 510 naspram 162 i 184 na bo\v{c}nim tre\'cinama), jer je to
+\v{z}i\v{z}a \v{s}irenja optickog toka; pri nepomi\v{c}noj kameri ceo bafer je crn.}
+\label{fig:motion}
+\end{figure}
+
 \section{Reproducibilnost i alati}
 \label{sec:alati}
 
