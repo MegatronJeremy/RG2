@@ -45,7 +45,7 @@ master-rad/          # Vukov master rad
    kaže, izmišljen broj je gori od "još nisam izmerio".
    - **Izmena izvora ≠ regenerisan artefakt.** Menjanje `.tex`/`.md`/koda ne znači da je PDF/build
      ažuran. Nakon svake izmene LaTeX izvora u `master-rad/teza/latex/`, ponovo kompajliraj
-     (`pdflatex` dvaput radi unakrsnih referenci, `bibtex` ako su menjane reference) i proveri
+     (`pdflatex` dvaput, radi unakrsnih referenci) i proveri
      **exit kod** komande (ne grepovan log — može promaći pravu grešku) i da je `main.pdf` **noviji**
      od svih izmenjenih `.tex` fajlova pre nego što tvrdiš da je teza ažurirana. Isto važi za svaki
      drugi generisani artefakt (kompajliran kod, build izlaz): proveri da je stvarno rebuild-ovan
@@ -75,7 +75,8 @@ master-rad/          # Vukov master rad
 
 LaTeX izvor teze (`etf.cls`, ETF-ov template). `main.tex` je glavni fajl (naslov, autor, mentor,
 apstrakt, `\input` poglavlja); poglavlja su u `chapters/*.tex`; slike u `figures/`; tabele/podaci
-merenja u `data/`; literatura u `references.bib` (BibTeX). **LaTeX u `latex/` je jedini izvor
+merenja u `data/`; literatura je rucno slozena `thebibliography` u `chapters/99-literatura.tex`
+(nema BibTeX koraka, pa nema ni `.bib` fajla koji bi mogao da se razidje sa njom). **LaTeX u `latex/` je jedini izvor
 istine** za predaju: paralelne markdown verzije poglavlja su obrisane jer su zastarevale i pravile
 drugo mesto koje neko moze slucajno da izmeni. U `teza/` ostaju samo radne beleske koje nemaju
 parnjaka u tezi (`glossary.md`, `notes-implementation.md`, `literatura.md`, `README.md`).
@@ -85,12 +86,11 @@ renderovanu sliku u `latex/figures/` i tabele 4.3 i 4.4; vidi [tools/README.md](
 za spisak sta koja skripta pravi. Zavisnost ide samo nadole (teza uvozi `Scripts/*.py` iz
 Snowstorm-Engine submodule-a, nikad obrnuto), pa endzin ostaje samostalan projekat.
 
-**Kompajliranje** (MiKTeX, `pdflatex`/`bibtex` u PATH-u):
+**Kompajliranje** (MiKTeX, `pdflatex` u PATH-u):
 ```
 cd master-rad/teza/latex
 pdflatex -interaction=nonstopmode -halt-on-error main.tex
-bibtex main            # samo ako su menjane reference.bib ili citati
-pdflatex -interaction=nonstopmode -halt-on-error main.tex   # 2x ukupno, radi TOC/referenci
+pdflatex -interaction=nonstopmode -halt-on-error main.tex   # 2x, radi TOC-a i unakrsnih referenci
 ```
 `-halt-on-error` čini da neuspeh vrati **ne-nulti exit kod** umesto da nastavi i proizvede
 nepotpun PDF; proveri taj exit kod, i pregledaj `main.log` za `! ` greške i `Undefined
