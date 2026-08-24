@@ -43,9 +43,11 @@ The renderer is organized as a \texttt{RenderGraph}: a flat, insertion-ordered l
 declaring the resources it reads and writes so the graph can insert the Vulkan layout barriers
 between them. There is no dependency solver and no automatic reordering; execution order is exactly
 the order in which passes are appended (\texttt{RenderGraph::Execute}). Each pass is wrapped in a
-named GPU timestamp scope (\texttt{BeginGpuScope}), and those names are the per-pass rows in every
-performance table in Chapter~\ref{ch:analiza}, so the graph structure and the measurement
-granularity are one and the same.
+named GPU timestamp scope (\texttt{BeginGpuScope}), and those names are the rows of
+Table~\ref{tab:pass-cost} in Chapter~\ref{ch:analiza}, so the graph structure and the finest available
+measurement granularity are one and the same. The per-effect costs in Table~\ref{tab:cena} are
+deliberately coarser, whole-frame differences rather than scope readings, for the reason given
+there: the default shadow path has no scope of its own.
 
 The per-viewport frame builds in this order:
 
@@ -55,9 +57,8 @@ vectors) $\rightarrow$ \texttt{GI} $\rightarrow$ \texttt{GITemporal} $\rightarro
 \texttt{GIDenoise} $\rightarrow$ \texttt{GIUpsample} $\rightarrow$ \texttt{AO} $\rightarrow$
 \texttt{AOTemporal} $\rightarrow$ \texttt{AODenoise} $\rightarrow$ \texttt{AOUpsample} $\rightarrow$
 \texttt{Reflection} $\rightarrow$ \texttt{ReflectionTemporal} $\rightarrow$
-\texttt{ReflectionDenoise} $\rightarrow$ \texttt{Shadow} $\rightarrow$ \texttt{ShadowTemporal}
-$\rightarrow$ \texttt{ShadowDenoise} $\rightarrow$ \texttt{Forward} (\texttt{DefaultLit}, the early-Z
-depth prepass and the sky) $\rightarrow$ \texttt{Upscale} $\rightarrow$
+\texttt{ReflectionDenoise0..2} $\rightarrow$ \texttt{Forward} (\texttt{DefaultLit}, the early-Z
+depth prepass and the sky, and the inline shadow rays) $\rightarrow$ \texttt{Upscale} $\rightarrow$
 \texttt{TemporalResolve} (TAA) $\rightarrow$ tonemap $\rightarrow$ FXAA $\rightarrow$ Sharpen
 $\rightarrow$ the comparison and metrics passes.
 \end{quote}
@@ -69,31 +70,37 @@ Figure~\ref{fig:framegraph} summarizes this flow.
 \begin{tikzpicture}[node distance=5mm, >={Stealth[]},
   box/.style={draw, rounded corners, align=center, text width=10.4cm, inner sep=4pt, font=\small}]
   \node[box] (gb)   {G-buffer: \texttt{DepthNormal} (depth + geometric normal), \texttt{Velocity}};
-  \node[box, below=of gb]   (rt)  {RT effects, traced before Forward: shadows (per-light visibility)
-    and GI/AO at half resolution, reflections at full resolution; each trace followed by
-    \texttt{Temporal} and \texttt{Denoise}, with \texttt{Upsample} for the half-res signals};
+  \node[box, below=of gb]   (rt)  {RT effects traced before Forward: GI and AO at half resolution,
+    reflections at full; each trace followed by \texttt{Temporal} and \texttt{Denoise}, with
+    \texttt{Upsample} for the half-res signals};
   \node[box, below=of rt]   (fw)  {\texttt{Forward} (\texttt{DefaultLit}): early-Z prepass, sky;
-    combines direct lighting with the sampled shadows, GI, AO, and reflections};
+    traces shadow rays inline, per light, and combines them with the sampled GI, AO, and reflections};
   \node[box, below=of fw]   (taa) {\texttt{TemporalResolve} (TAA)};
   \node[box, below=of taa]  (post){Post: tonemap $\rightarrow$ FXAA $\rightarrow$ Sharpen};
   \node[box, below=of post] (cmp) {Compare / Metrics (PSNR, SSIM)};
   \draw[->] (gb) -- (rt); \draw[->] (rt) -- (fw); \draw[->] (fw) -- (taa);
   \draw[->] (taa) -- (post); \draw[->] (post) -- (cmp);
 \end{tikzpicture}
-\caption{Redosled prolaza po frejmu: senke, GI, AO i refleksije se denoise-uju pre Forward prolaza,
-koji uzorkuje njihove rezultate.}
+\caption{Redosled prolaza po frejmu: GI, AO i refleksije se denoise-uju pre Forward prolaza, koji ih
+uzorkuje i pri tome sam trasira zrake senke, inline, po svetlu.}
 \label{fig:framegraph}
 \end{figure}
 
-All four effects run as compute passes \emph{before} the forward pass, each writing a denoised texture
-that the forward shader then samples. They need the depth+normal G-buffer as their starting surface,
-so they follow \texttt{DepthNormal} but precede shading; running them ahead of forward lets it do a
-single lit combine (direct lighting plus the sampled shadows, indirect, AO, and reflection) instead
-of interleaving trace and shade. Shadows in particular produce a per-light visibility signal that is
-denoised like the other effects rather than applied inline, so the noisy low-sample soft penumbra can
-be reconstructed before it is used. This split, screen-space compute effects feeding a forward
-combine, follows how hybrid renderers such as Unreal's Lumen separate their screen passes from hit
-lighting.
+Three of the four effects run as compute passes \emph{before} the forward pass, each writing a
+denoised texture that the forward shader then samples. They need the depth+normal G-buffer as their
+starting surface, so they follow \texttt{DepthNormal} but precede shading; running them ahead of
+forward lets it do a single lit combine (direct lighting plus the sampled indirect, AO, and
+reflection) instead of interleaving trace and shade. This split, screen-space compute effects feeding
+a forward combine, follows how hybrid renderers such as Unreal's Lumen separate their screen passes
+from hit lighting.
+
+Shadows are the exception, and the asymmetry is deliberate. In the default configuration the shadow
+ray is traced \emph{inline}, inside the forward shader, once per light per pixel, at full resolution
+and with no denoiser in between (Section~\ref{sec:senke}). A visibility test is a single bit of
+information that is cheap to compute exactly and expensive to reconstruct approximately, so for a
+handful of lights it is cheaper to answer it in place than to write a buffer, filter it, and read it
+back. The cost of that choice is that it scales linearly with light count, which is what the
+alternative stochastic path in Section~\ref{sec:senke} exists to address.
 
 GI and AO are traced at half resolution (\texttt{render.gi.scale}, \texttt{render.ao.scale}, both
 0.5 by default) and bilaterally upsampled to full resolution before the forward pass samples them;
@@ -101,6 +108,18 @@ reflections are traced at full resolution. Half-res tracing is the single bigges
 two hemispheric gather effects, since it quarters the ray count, and the denoiser plus the
 depth/normal-aware upsample are what keep the half-res result usable. Section~\ref{sec:cena}
 quantifies what this buys.
+
+Which effects tolerate that treatment is not arbitrary, and the rule is worth stating plainly because
+it recurs throughout the chapter. Tracing at half resolution means computing the signal for one pixel
+in four and reconstructing the other three from their neighbours, which is only safe when the signal
+varies slowly across the surface. Ambient occlusion and diffuse global illumination qualify: both are
+broad hemispherical averages, so adjacent pixels on the same wall genuinely do receive almost the same
+answer, and the error introduced by interpolating between them is smaller than the noise already
+present. Shadows and reflections do not. A shadow boundary is a step function, and a reflection is
+view-dependent, so a neighbouring pixel can legitimately see something completely different; halving
+the resolution there does not blur noise, it destroys the detail that made the effect worth tracing.
+That is why the two gather effects run at half resolution and are upsampled, while shadows are traced
+inline at full resolution and reflections get their own full-resolution pass.
 
 \section{Izgradnja struktura ubrzanja (BLAS/TLAS)}
 \label{sec:accel}
@@ -164,11 +183,20 @@ how many are cast, what a hit returns, and whether the query needs the closest h
 The effects that shade their hits (reflections and GI, plus the secondary lighting they evaluate)
 share one routine, \texttt{ShadeSurfaceHit} in \texttt{RTHitShading.hlsli}, which resolves the hit
 triangle through the bindless geometry table and evaluates a single bounce of lighting. Shadows and
-AO need only a visibility answer and use the cheaper any-hit traversal. The shading itself, both in the
-forward pass and inside \texttt{ShadeSurfaceHit}, is a metallic-roughness Cook-Torrance model: a GGX
-(Trowbridge-Reitz) normal distribution, Smith geometry with the Schlick-GGX approximation, and a
-Schlick Fresnel term, over a Lambertian diffuse term; the ambient term uses a prefiltered environment
-cube and a precomputed BRDF lookup table.
+AO need only a visibility answer and use the cheaper any-hit traversal. Primary shading in the forward
+pass is a metallic-roughness Cook-Torrance model: a GGX (Trowbridge-Reitz) normal distribution, Smith
+geometry with the Schlick-GGX approximation, and a Schlick Fresnel term, over a Lambertian diffuse
+term; the ambient term uses a prefiltered environment cube and a precomputed BRDF lookup table.
+
+Secondary hits are shaded more cheaply, and the simplification is deliberate.
+\texttt{ShadeSurfaceHit} evaluates a Lambertian diffuse term scaled by $(1 - \text{metallic})$, plus
+the surface's emissive term and an image-based ambient fill, with no specular lobe at all. A conductor
+seen in a reflection or through a GI bounce therefore returns black rather than a mirrored highlight.
+The justification is that a second-bounce specular highlight is both rare and low-contrast once it has
+been convolved by the denoiser, while a full BRDF evaluation at every hit would roughly double the
+cost of the hit-shading path; the cost of the approximation is that metal-on-metal interreflection is
+absent, which the path-traced reference in Section~\ref{sec:pathtracer} does reproduce and which
+therefore shows up as a small systematic difference in the reflection metrics.
 
 For the evaluation in Chapter~\ref{ch:analiza}, ambient occlusion, reflections, and global
 illumination can each also be produced by a screen-space approximation, selected through a mode
@@ -184,36 +212,56 @@ own gather has no device-support check and runs on any GPU, while ray-traced GI 
 that degrades to off on a device without ray-tracing support.
 
 \subsection{Senke (RT shadows)}
+\label{sec:senke}
 
-Shadows are traced per light into a visibility signal that the shared denoiser reconstructs before the
-forward pass applies it (the shadow query and shading live in \texttt{DefaultLit.frag.hlsl} and the
+Shadows are traced inline in the forward pass, once per light per pixel, at full resolution and
+without an intervening denoiser (the shadow query and shading live in \texttt{DefaultLit.frag.hlsl} and the
 shared RT includes, in the \texttt{SS_RAYTRACING} permutation). A shadow ray is a pure visibility
-test, so it uses the cheapest traversal:
-\texttt{RayQuery} with \texttt{ACCEPT_FIRST_HIT_AND_END_SEARCH | CULL_NON_OPAQUE}, which stops at the
-first opaque hit rather than searching for the closest. Any committed hit between the surface and the
-light marks the surface as shadowed. The ray origin is offset along the geometric normal and toward
-the light (\texttt{positionWS + Ng*0.02 + L*0.01}) to avoid self-intersection. Listing~\ref{lst:shadow} shows the inline query in HLSL.
+test, so it uses the cheapest traversal: \texttt{RayQuery} parameterised with
+\texttt{ACCEPT_FIRST_HIT_AND_END_SEARCH}, which lets traversal stop at the first surviving hit instead
+of searching for the closest one. The traversal is not fully fixed-function, because cutout geometry
+has to be resolved on the CPU side of the query: candidate hits on non-opaque triangles come back to
+the shader through \texttt{q.Proceed()}, where the material's alpha is tested and the hit is committed
+only if it passes. The first hit that survives that test marks the surface as shadowed. The ray origin
+is offset along the geometric normal and toward the light
+(\texttt{positionWS + Ng*0.02 + L*0.01}) to avoid self-intersection.
+Listing~\ref{lst:shadow} shows the inline query in HLSL.
 
-\needspace{12\baselineskip}
+\needspace{14\baselineskip}
 \begin{lstlisting}[caption={Inline ray-query test vidljivosti za senku (HLSL).}, label={lst:shadow}]
-RayQuery<RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_CULL_NON_OPAQUE> q;
+RayQuery<RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> q;
 RayDesc ray;
 ray.Origin    = positionWS + Ng * 0.02 + L * 0.01;
 ray.Direction = L;
 ray.TMin      = 0.0;
 ray.TMax      = distanceToLight - 0.05;   // sun: effectively infinite
 q.TraceRayInline(SceneTLAS, RAY_FLAG_NONE, 0xFF, ray);
-q.Proceed();
+while (q.Proceed())                       // alpha-test cutout candidates
+{
+    if (q.CandidateType() == CANDIDATE_NON_OPAQUE_TRIANGLE &&
+        RTCommitCandidate(tableAddr, q.CandidateInstanceID(),
+                          q.CandidatePrimitiveIndex(),
+                          q.CandidateTriangleBarycentrics(), LinearSampler))
+    {
+        q.CommitNonOpaqueTriangleHit();
+    }
+}
 bool shadowed = (q.CommittedStatus() == COMMITTED_TRIANGLE_HIT);
 \end{lstlisting}
 
-Two quality levels are exposed through the \texttt{render.shadows.soft} CVar. The hard path casts one
+Two quality levels are exposed through the \texttt{render.shadow.soft} CVar. The hard path casts one
 ray straight at the light. The soft path casts \texttt{SHADOW_RAY_COUNT = 2} rays whose directions
-are jittered inside a disk perpendicular to the light direction, and averages the hits into a
-penumbra factor in $[0,1]$. The disk radius encodes the light's angular size: the sun uses
-\texttt{tan(SunAngularRadius)}, while point and spot lights use
-\texttt{LightSourceRadius / distanceToLight}, so a physically larger or nearer source gives a softer
-edge. Directions are decorrelated per pixel and per frame with an interleaved-gradient-noise hash,
+sample, uniformly by solid angle, the cone that the source subtends at the shaded point, and averages
+the hits into a penumbra factor in $[0,1]$. The cone is parameterised by the cosine of its half-angle:
+$\cos(\tfrac{1}{2}\,\texttt{render.shadow.sun\_angle\_deg})$ for the sun, and
+$\sqrt{1 - (r/d)^2}$ for a local light of radius \texttt{render.shadow.source\_radius} at distance
+$d$, so a physically larger or nearer source gives a softer edge. Sampling the solid angle rather
+than a tangent-plane disk matters beyond tidiness: it is what makes the real-time penumbra agree with
+the path tracer's next-event estimation at any cone width, instead of only in the small-angle limit
+where the two parameterisations coincide. Note that \texttt{SHADOW_RAY_COUNT} is a compile-time
+constant in the shader, a cost class rather than a live knob; the \texttt{render.shadows.rays} CVar
+applies to the stochastic path described below, not to this one.
+Directions are decorrelated per pixel and per frame with an interleaved-gradient-noise hash,
 spreading the two-sample penumbra across frames for the denoiser and temporal accumulator to resolve
 (Sections~\ref{sec:denoising} and \ref{sec:taa}). Each light traces its own ray or rays inside the directional, point, and
 spot loops; the sun uses an effectively infinite \texttt{tMax}, local lights clamp \texttt{tMax} just
@@ -272,6 +320,33 @@ onoga \v{s}to se vidi u \v{s}tampi.}
 \label{fig:shadow-hs}
 \end{figure}
 
+\paragraph{Stohasti\v{c}ka alternativa.} Tracing one ray per light per pixel is exact but scales
+linearly with light count, which does not survive a scene lit by hundreds of sources. The engine
+therefore implements a second strategy, enabled by \texttt{render.shadows.stochastic} and off by
+default, that follows the MegaLights approach: instead of visiting every light, each pixel uses
+resampled importance sampling to pick \emph{one} light with probability proportional to its
+unshadowed contribution, traces \texttt{render.shadows.rays} rays at that light alone, and writes a
+single aggregate visibility ratio. The estimate is unbiased but extremely noisy, since one pixel's
+sample says nothing about which light its neighbour chose, so this path necessarily runs as its own
+half-resolution pass chain, \texttt{RTShadow} $\rightarrow$ \texttt{ShadowTemporal} $\rightarrow$
+\texttt{ShadowDenoise0..2} $\rightarrow$ \texttt{ShadowUpsample}, reusing the shared denoiser, with a
+parallel demodulated-specular chain for the specular occlusion term. Its cost is constant in light
+count, which is the whole point: the inline path wins for a handful of lights and loses for many.
+Section~\ref{sec:analiza-shadow-strategy} measures the crossover on this scene.
+
+Figure~\ref{fig:shadow-denoise-ab} shows why the stochastic path cannot skip reconstruction. The
+engine's debug views expose the aggregate visibility buffer both before and after filtering.
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=0.48\textwidth]{figures/dbg_shadow_raw.png}\hfill%
+\includegraphics[width=0.48\textwidth]{figures/dbg_shadow_denoised.png}
+\caption{Stohasti\v{c}ki agregatni odnos vidljivosti pre (levo) i posle (desno) temporalne
+akumulacije i a-trous filtra (\texttt{render.debugview} 8 i 9). Belo je potpuno osvetljeno, crno
+potpuno u senci; levo se vidi da jedan uzorak po pikselu daje skoro binarni \v{s}um.}
+\label{fig:shadow-denoise-ab}
+\end{figure}
+
 Because the visibility signal is denoised before use, shadow tracing runs as its own passes with their
 own GPU timestamp scopes (\texttt{Shadow}, \texttt{ShadowTemporal}, \texttt{ShadowDenoise}), which
 Section~\ref{sec:cena} accounts for separately from the forward pass.
@@ -304,9 +379,11 @@ occlusion = 1.0 - occlusion / RayCount;
 \end{lstlisting}
 
 The pass writes \texttt{float4(ao, ao, ao, meanHitT)}: the occlusion value, and in alpha the mean
-distance to the occluders. That hit distance is not cosmetic; it drives a hit-distance-guided term in
-the denoiser (Section~\ref{sec:denoising}), the same idea NVIDIA's ReBLUR denoiser \cite{nvidia_nrd} uses to scale the spatial
-filter by how far the occluder was. The half-resolution result is denoised and bilaterally upsampled
+distance to the occluders. That alpha channel feeds a hit-distance-guided edge-stopping term in the
+denoiser (Section~\ref{sec:denoising}), the same idea NVIDIA's ReBLUR denoiser \cite{nvidia_nrd} uses
+to scale the spatial filter by how far the occluder was. The term is implemented but disabled by
+default on every signal, AO included: at two rays per pixel the hit distance is itself too noisy to
+steer the filter, and a wrong steer is worse than none. The half-resolution result is denoised and bilaterally upsampled
 before the forward pass multiplies it into the ambient term. Figure~\ref{fig:ao} illustrates the
 hemisphere sampling.
 
@@ -441,10 +518,24 @@ prelivanje boja i popunu u senkama.}
 \section{Denoising (SVGF)}
 \label{sec:denoising}
 
-The ray-traced effects are sampled at one or two rays per pixel, which is far too noisy to display,
-so a denoiser is not optional; it is what turns the noisy estimates into usable images. Snowstorm
-implements a variant of Spatiotemporal Variance-Guided Filtering (SVGF) \cite{schied2017svgf}, the standard real-time
-reconstruction filter for path-traced effects, as a single reusable component.
+Every effect in this chapter answers a question by averaging: how much of the hemisphere is blocked,
+how much light arrives from the surroundings. The honest answer is an integral over every incoming
+direction, and a ray is one sample of it. With one or two rays per pixel the estimate is correct
+\emph{on average} but wrong in any individual pixel, and neighbouring pixels are wrong independently,
+which is what noise is. Doubling the rays only shrinks the error by $\sqrt{2}$, so buying a clean
+image with samples alone is hopeless inside a frame budget.
+
+The way out is to notice that the missing samples exist, just not in this pixel and this frame.
+Neighbouring pixels usually look at nearly the same surface, and the previous frame usually contains
+the same surface one small camera motion away. A denoiser is the machinery for borrowing those
+samples: spatially from the neighbourhood, temporally from the history, while refusing to borrow
+across a real edge, where the neighbour is a different surface and averaging would smear the image
+instead of cleaning it. Deciding what counts as "the same surface" is the entire difficulty, and it is
+why a denoiser needs the G-buffer's depth and normals rather than just the colour.
+
+Snowstorm implements a variant of Spatiotemporal Variance-Guided Filtering (SVGF)
+\cite{schied2017svgf}, the standard real-time reconstruction filter for path-traced effects, as a
+single reusable component.
 
 The denoiser is signal-agnostic. One \texttt{Denoiser} class (\texttt{Render/Denoiser.\{hpp,cpp\}})
 drives two passes, a temporal accumulation (\texttt{Temporal}) and a spatial \`a-trous filter
@@ -453,8 +544,10 @@ lives in a \texttt{DenoiserInstance} component the caller owns. The same denoise
 four times, for shadows, GI, AO, and reflections; each signal gets its own instance and configuration
 but runs identical code. This reuse is a deliberate design choice: the noisy estimate, its variance
 inputs, and the depth/normal G-buffer are the only signal-specific data, and everything else is
-shared. AO and shadows enable the hit-distance guide (occluder distance for AO, penumbra scale for shadows);
-GI and reflections pass a zero weight there, making that term a no-op. Reflections reuse GI's temporal shader, a
+shared. The hit-distance edge-stopping weight is wired up for every signal but left at zero by
+default, so that term is a no-op in the measured configuration; the stochastic shadow path instead
+sizes its kernel by occluder distance directly, in the NRD SIGMA style, through
+\texttt{render.shadows.denoise.penumbra}. Reflections reuse GI's temporal shader, a
 limitation since a reflection history has view-dependent content that a diffuse-tuned
 reprojection does not perfectly handle. Figure~\ref{fig:svgf} shows the two-stage flow.
 
@@ -462,11 +555,11 @@ reprojection does not perfectly handle. Figure~\ref{fig:svgf} shows the two-stag
 \centering
 \begin{tikzpicture}[>={Stealth[]}, node distance=5mm,
   box/.style={draw, rounded corners, align=center, text width=10.6cm, inner sep=4pt, font=\small}]
-  \node[box] (in)  {Noisy input (half-resolution GI / AO / reflections)};
+  \node[box] (in)  {Noisy input (GI and AO at half resolution, reflections at full)};
   \node[box, below=of in]  (tp) {\textbf{Temporal:} reproject by motion vectors, accumulate history
     (up to 32 frames), estimate per-pixel variance};
-  \node[box, below=of tp]  (at) {\textbf{\`A-trous spatial filter:} 5 iterations, stride $1, 2, 4,
-    \dots$; edge-stopping on normal, depth, and variance};
+  \node[box, below=of tp]  (at) {\textbf{\`A-trous spatial filter:} 3 iterations by default (up to 5),
+    stride $1, 2, 4, \dots$; edge-stopping on normal, depth, and variance};
   \node[box, below=of at]  (out){Denoised, then upsampled, into the Forward pass};
   \draw[->] (in) -- (tp); \draw[->] (tp) -- (at); \draw[->] (at) -- (out);
 \end{tikzpicture}
@@ -577,8 +670,12 @@ combines these into the evaluation methodology.
 
 The correctness of the real-time effects is judged against a reference produced by a brute-force path
 tracer built into the engine (\texttt{PathTrace.comp.hlsl}). It is a unidirectional path tracer with
-next-event estimation to the sun (a delta directional light sampled exactly by a shadow ray at every
-hit, so the sky on a ray miss is added without the sun disk to avoid double-counting), the same
+next-event estimation to the sun, which is sampled as a finite disk through the same
+\texttt{SampleCone} routine and the same \texttt{render.shadow.sun\_angle\_deg} half-angle that the
+real-time soft-shadow path uses, so the reference and the technique under test agree on the geometry
+of the light source and any penumbra difference between them is attributable to sampling and
+reconstruction rather than to a different light model (the sky on a ray miss is added without the sun
+disk, to avoid double-counting), the same
 metallic-roughness microfacet BSDF as the forward shading (GGX specular over Lambertian diffuse),
 multi-bounce indirect with Russian-roulette termination, and progressive accumulation into a
 persistent HDR buffer while the camera is static. Because shadows, ambient occlusion, reflections, and

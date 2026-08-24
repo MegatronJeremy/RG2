@@ -14,13 +14,22 @@ table and one reusable SVGF denoiser, and integrated into an existing rasterizin
 rather than a standalone tracer. The evaluation in Chapter~\ref{ch:analiza} isolates the per-effect
 GPU cost with an A/B benchmark and measures reconstruction quality against a supersampled reference, and compares the identical pipeline
 across two GPU vendors (AMD RDNA4 and NVIDIA Blackwell).
-On the cross-vendor pair reflections are the single most expensive effect (RX 9070 XT 2.80 ms, RTX
-5070 2.52 ms), ahead of shadows, global illumination, and ambient occlusion, for a real-time total
-near 9.8 ms (9070 XT) and 7.1 ms (5070) over a baseline under 2.3 ms. Enabling all four effects lifts
-reconstruction quality from FLIP 0.435 / PSNR 15.2 dB / SSIM 0.38 (raster) to FLIP 0.087 / PSNR 30.7
-dB / SSIM 0.87 against the path-traced reference (RX 9070 XT; Table~\ref{tab:quality}). \textit{TODO:
-the isolated denoiser on/off gain and the ray-count knee (Sections~\ref{sec:raycount},
-\ref{sec:denoise-eval}) still need their sweeps run before they can be stated here.} The practical value is a demonstration that a hybrid
+On the cross-vendor pair reflections are the single most expensive effect (RX 9070 XT 2.87 ms, RTX
+5070 2.44 ms), ahead of shadows, global illumination, and ambient occlusion, for a measured real-time
+total of 9.97 ms (9070 XT) and 7.24 ms (5070) over a baseline under 2.3 ms. Enabling all four effects
+lifts reconstruction quality from FLIP 0.435 / PSNR 15.2 dB / SSIM 0.38 (raster) to FLIP 0.087 /
+PSNR 30.7 dB / SSIM 0.87 against the path-traced reference (RX 9070 XT; Table~\ref{tab:quality}).
+
+Two of the sweeps sharpen that picture. The ray-count knee sits at one ray per pixel: going from one
+to eight rays costs 78\% more GPU time for a 0.20 dB PSNR gain, because the denoiser and temporal
+accumulation already recover most of the achievable quality from a single sample
+(Section~\ref{sec:raycount}). The spatial denoiser's own contribution is likewise not where a static
+metric can see it: it moves PSNR, SSIM and FLIP by less than run-to-run noise, while cutting
+frame-to-frame RMS on a static view from 0.3229 to 0.1949, a 40\% reduction in flicker, for 0.33 ms
+(Section~\ref{sec:denoise-eval}). The honest reading is that at this sample count the temporal history
+does the reconstruction and the spatial filter buys stability rather than static fidelity.
+
+The practical value is a demonstration that a hybrid
 ray-query pipeline gives correct off-screen lighting at an interactive budget without a full path
 tracer, which is directly applicable to real-time engines that want physically grounded indirect
 lighting, contact shadows, and reflections.

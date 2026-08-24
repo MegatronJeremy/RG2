@@ -73,8 +73,14 @@ whose traversal descends only into boxes a ray actually enters, reducing the exp
 roughly logarithmic in the triangle count. Build quality is governed by a cost heuristic, most
 commonly the surface area heuristic (SAH), which prefers splits that minimize the probability-weighted
 surface area of the child nodes and thus the expected number of node and triangle tests per ray. On
-current GPUs the traversal and the ray-triangle intersection are executed by dedicated
-fixed-function units, which is what makes casting a ray per pixel affordable in real time. Vulkan exposes a two-level structure. A bottom-level
+current GPUs the ray-box and ray-triangle intersection tests are executed by dedicated fixed-function
+units, which is what makes casting a ray per pixel affordable in real time. How much of the
+\emph{traversal} around those tests is also fixed-function differs by vendor, and the two GPUs
+evaluated in Chapter~\ref{ch:analiza} sit on opposite sides of that line: NVIDIA's RT cores walk the
+hierarchy in hardware, while on AMD's RDNA architectures the traversal loop is driven by shader
+instructions that issue hardware intersection tests, so traversal competes with shading for the same
+execution resources. This is one structural reason to expect the same shader to have a different cost
+profile on the two vendors, which Section~\ref{sec:cena} measures. Vulkan exposes a two-level structure. A bottom-level
 acceleration structure (BLAS) stores a mesh's triangle geometry in object space; a top-level
 acceleration structure (TLAS) stores instances, each a transform referencing a BLAS. The split lets
 many instances share one BLAS and lets the TLAS, which changes as objects move, be rebuilt per frame
@@ -142,8 +148,11 @@ Pogodno za          & pun path tracer & ograni\v{c}eni efekti na rasteru \\
 \section{Postoje\'ca real-time re\v{s}enja za GI i RT efekte}
 \label{sec:postojeca}
 
-The effects implemented here have a long line of real-time approximations, which form the comparison
-set for Chapter~\ref{ch:analiza}.
+The effects implemented here have a long line of real-time approximations. Two tiers of them appear
+below, and they play different roles in this thesis: the screen-space family is implemented in this
+engine and measured head to head against the ray-traced path in Chapter~\ref{ch:analiza}, while the
+voxel, probe, and reservoir methods are surveyed for positioning only. They are neither implemented
+nor measured here, and no quantitative claim is made about them.
 
 \emph{Screen-space} methods work entirely from the G-buffer. Screen-space ambient occlusion samples
 the depth buffer in a kernel around each pixel and compares the sampled depths against the pixel's own

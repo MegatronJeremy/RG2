@@ -58,8 +58,10 @@ per-effect GPU-ms gap wherever a shadow, AO, reflection, or GI ray actually hits
 given viewpoint, and this evaluation does not isolate it further.
 
 \paragraph{Scena.} The test scene is Sponza, a standard interior with strong indirect bounce, lit by
-ten lights (three spot, six point, one directional) at a fixed render resolution stated with the
-results. A code-generated stress scene (a grid of meshes) is available for scaling tests.
+five enabled lights: four point torches and one directional sun. Three spot lights and two further
+point lights are authored in the scene but disabled, and the distinction matters because the default
+shadow path costs one ray per light per pixel. Every measurement in this chapter renders at
+$1915 \times 1064$. A code-generated stress scene (a grid of meshes) is available for scaling tests.
 
 \paragraph{Controls for fair comparison.} Several controls keep the measurements honest and
 reproducible. The camera is held static for every A/B comparison: a moving camera desynchronizes the
@@ -74,11 +76,18 @@ a harness (\texttt{perf-bench}) averages those per-pass timings over a fixed fra
 fifteen-frame warmup that also covers the one-frame timestamp latency. The benchmark sweeps a fixed
 matrix of configurations, \texttt{rt-off} $\rightarrow$ \texttt{shadows} $\rightarrow$ \texttt{+ao}
 $\rightarrow$ \texttt{+refl} $\rightarrow$ \texttt{+gi}, enabling one more effect at each step, so the
-cost of an effect is the difference between adjacent configurations. That difference is always taken
-on \emph{total} GPU time, not a single pass scope: shadows and reflections are inline within the
-Forward pass, so isolating their cost needs the whole-frame total rather than a per-pass number, and
-ambient occlusion and global illumination are reported the same way for consistency across the table,
-even though they do run as their own half-resolution passes with separate timestamp scopes. A
+cost of an effect is the difference between adjacent configurations. The reason to measure cost as a
+difference rather than in isolation is that effects share fixed work: the acceleration structure is
+built once, the G-buffer is filled once, and the tonemap runs once no matter how many effects are
+enabled. Timing an effect on its own would charge it for all of that shared setup, and the four
+figures would then sum to considerably more than the frame actually costs. A difference between two
+runs that share everything except one flag charges each effect only for what it adds. That difference is always taken
+on \emph{total} GPU time, not a single pass scope. Shadows are the reason: in the default
+configuration they are traced inline inside the Forward pass, so they have no scope of their own and
+the whole-frame total is the only way to isolate them. Ambient occlusion, global illumination, and
+reflections do each run as their own passes with separate timestamp scopes (the first two at half
+resolution, reflections at full), and are reported as whole-frame deltas anyway, for consistency
+across the table. Table~\ref{tab:pass-cost} gives the per-pass breakdown those scopes provide. A
 trailing \texttt{ssgi} configuration swaps the ray-traced GI pass for the screen-space producer on top
 of \texttt{+refl}, so it is diffed against \texttt{+refl} rather than against \texttt{+gi}: the two
 are alternatives, not cumulative. Across vendors, the raw timestamps are converted to milliseconds
@@ -92,12 +101,19 @@ with next-event estimation, accumulated over many frames on a static view, which
 anchor for every effect at once (shadows, ambient occlusion, reflections, and indirect). For each
 real-time technique the harness (\texttt{quality-bench}) captures the same tonemapped present as the
 reference and reports three image-quality metrics against it: \textbf{FLIP} (a perceptual difference
-metric), \textbf{PSNR}, and \textbf{SSIM}. The metrics are averaged over several fixed viewpoints
-(atrium, floor, and gallery views of Sponza) so a single view cannot bias the result, which is how
-real-time global-illumination and denoiser work is evaluated in practice. Every quality figure in
-this chapter is captured on a single device, the RX 9070 XT; because the algorithm is bit-for-bit
-identical across vendors (see above), the resulting metrics are not expected to depend on which GPU
-produced them.
+metric), \textbf{PSNR}, and \textbf{SSIM}. FLIP is the primary metric because it models what a human
+observer notices rather than raw per-pixel error; PSNR reports mean squared error on a logarithmic
+scale and structurally favours a blurrier image, and SSIM compares local structure rather than
+absolute values. All three are reported so that no single metric's bias decides a conclusion.
+
+The metrics are averaged over three fixed orientations from one interior position (down the nave,
+tilted to the floor, and tilted to the upper gallery), chosen to stress ambient occlusion, global
+illumination, and reflections differently, so a single framing cannot bias the result. Each capture is
+bilinearly resampled to a canonical $1024 \times 576$ before any metric is computed, so a window-size
+difference between runs cannot silently change a score. Every quality figure in this chapter is
+captured on a single device, the RX 9070 XT: both devices run identical shaders and an identical
+render graph, so the metrics are not expected to differ materially across vendors, although they were
+in fact measured on only one.
 
 \section{Cena po efektu (GPU ms)}
 \label{sec:cena}
@@ -107,27 +123,59 @@ per-pass timestamp scopes as described above, measured on the cross-vendor RX 90
 Table~\ref{tab:cena} reports it.
 
 \begin{table}[tbp]
-\caption{Cena po efektu (GPU ms) na cross-vendor paru RX 9070 XT / RTX 5070.
-\texttt{rt-off} je ukupno GPU vreme bez RT efekata; svaki naredni red je dodatak (delta) tog
-efekta u odnosu na prethodnu konfiguraciju. Red \texttt{ssgi} je alternativa za \texttt{+gi}
-(screen-space GI umesto RT GI) i pore\dj en je sa \texttt{+refl}, ne kumulativno sa \texttt{+gi}.}
+\caption{Cena po efektu (GPU ms) na cross-vendor paru RX 9070 XT / RTX 5070, pri rezoluciji
+$1915 \times 1064$ i fiksiranoj pozi kamere, prosek preko 300 frejmova. \texttt{rt-off} je ukupno GPU
+vreme bez RT efekata; svaki naredni red je dodatak (delta) tog efekta u odnosu na prethodnu
+konfiguraciju. Red \texttt{ssgi} je alternativa za \texttt{+gi} (screen-space GI umesto RT GI) i
+pore\dj en je sa \texttt{+refl}, ne kumulativno sa \texttt{+gi}.}
 \label{tab:cena}
 \centering
 \begin{tabular}{llrr}
 \toprule
 Konfiguracija & Efekat & ms (9070 XT) & ms (5070) \\
 \midrule
-\texttt{rt-off}   & bazna linija (ukupno)                            & 2.268 & 1.315 \\
-\texttt{+shadows} & senke                                            & 2.338 & 1.228 \\
-\texttt{+ao}      & ambijentalna okluzija                            & 0.742 & 0.848 \\
-\texttt{+refl}    & refleksije                                       & 2.796 & 2.517 \\
-\texttt{+gi}      & globalno osvetljenje (RT)                        & 1.730 & 1.247 \\
-\texttt{ssgi}     & globalno osvetljenje (screen-space, umesto +gi)  & 1.006 & 0.786 \\
+\texttt{rt-off}   & bazna linija (ukupno)                            & 2.244 & 1.329 \\
+\texttt{+shadows} & senke                                            & 2.388 & 1.428 \\
+\texttt{+ao}      & ambijentalna okluzija                            & 0.772 & 0.789 \\
+\texttt{+refl}    & refleksije                                       & 2.869 & 2.438 \\
+\texttt{+gi}      & globalno osvetljenje (RT)                        & 1.694 & 1.258 \\
+\midrule
+\texttt{+gi}      & \textbf{ukupno, svi efekti}                      & \textbf{9.967} & \textbf{7.243} \\
+\midrule
+\texttt{ssgi}     & globalno osvetljenje (screen-space, umesto +gi)  & 0.752 & 0.790 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Figure~\ref{fig:cost-chart} presents the same data graphically once measured.
+The per-effect rows are differences, but the total is the measured whole-frame time of the
+\texttt{+gi} configuration, not their sum, so rounding cannot accumulate. Because shadows have no
+timestamp scope of their own, Table~\ref{tab:pass-cost} breaks the same \texttt{+gi} frame down by
+pass, which is where the remaining time actually sits.
+
+\begin{table}[tbp]
+\caption{Najskuplji prolazi u \texttt{+gi} konfiguraciji (GPU ms, prosek preko 300 frejmova).
+\texttt{Forward} sadr\v{z}i i inline RT senke, pa nema zaseban scope. Denoise-ovanje refleksija su
+tri a-trous iteracije u punoj rezoluciji, dok GI i AO filtriraju u polovi\v{c}noj.}
+\label{tab:pass-cost}
+\centering
+\begin{tabular}{lrr}
+\toprule
+Prolaz & ms (9070 XT) & ms (5070) \\
+\midrule
+\texttt{Forward} (uklju\v{c}uje inline senke) & 4.439 & 2.322 \\
+\texttt{Reflection}                            & 1.487 & 1.035 \\
+\texttt{ReflectionDenoise0..2}                 & 1.123 & 1.049 \\
+\texttt{GI}                                    & 1.083 & 0.721 \\
+\texttt{GIDenoise0..2}                         & 0.332 & 0.452 \\
+\texttt{AODenoise0..2}                         & 0.333 & 0.539 \\
+\texttt{AO}                                    & 0.169 & 0.200 \\
+\texttt{DepthNormal}                           & 0.143 & 0.253 \\
+\texttt{TemporalResolve} (TAA)                 & 0.179 & 0.081 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Figure~\ref{fig:cost-chart} presents the same data graphically.
 
 \begin{figure}[tbp]
 \centering
@@ -146,27 +194,85 @@ Figure~\ref{fig:cost-chart} presents the same data graphically once measured.
 \label{fig:cost-chart}
 \end{figure}
 
-On both cards reflections, not shadows, are the single most expensive effect (RX 9070 XT 2.80 ms
-versus 2.34 ms for shadows; RTX 5070 2.52 ms versus 1.23 ms), ahead of global illumination and
-ambient occlusion; together the four effects add about 7.6 ms (9070 XT) and 5.8 ms (5070) over their
-respective baselines, for a real-time total near 9.79 ms (9070 XT, 2.27 ms baseline) and 7.15 ms
-(5070, 1.32 ms baseline). The half-resolution trace plus denoise is what keeps GI and AO cheap
+On both cards reflections, not shadows, are the single most expensive effect (RX 9070 XT 2.87 ms
+versus 2.39 ms for shadows; RTX 5070 2.44 ms versus 1.43 ms), ahead of global illumination and
+ambient occlusion. Together the four effects add 7.72 ms (9070 XT) and 5.91 ms (5070) over their
+respective baselines, for a measured real-time total of 9.97 ms (9070 XT, 2.24 ms baseline) and
+7.24 ms (5070, 1.33 ms baseline). The half-resolution trace plus denoise is what keeps GI and AO cheap
 despite their hemispheric gather. On both cards the screen-space GI producer is cheaper than
-ray-traced GI at the same point in the ladder (9070 XT 1.01 ms versus 1.73 ms; RTX 5070 0.79 ms
-versus 1.25 ms), the expected screen-space-versus-ray-traced cost tradeoff; Section~\ref{sec:poredjenje}
+ray-traced GI at the same point in the ladder (9070 XT 0.75 ms versus 1.69 ms; RTX 5070 0.79 ms
+versus 1.26 ms), the expected screen-space-versus-ray-traced cost tradeoff; Section~\ref{sec:poredjenje}
 reports the quality side of that same tradeoff.
+
+Reflections are expensive for a structural reason the per-pass table makes visible: they are the only
+effect that traces at full resolution, so both the trace and its three à-trous iterations pay four
+times the pixel count that GI and AO pay. Ambient occlusion costs about a fifth of reflections despite
+casting more rays per pixel, because those rays are short (bounded by \texttt{render.ao.radius}) and
+terminate on the first hit, while a reflection ray can traverse the whole scene and then shade what it
+finds.
 
 \begin{figure}[tbp]
 \centering
-\phshot{0.48\textwidth}{4.6cm}{senke}\hfill\phshot{0.48\textwidth}{4.6cm}{ambijentalna okluzija}
+\includegraphics[width=0.48\textwidth]{figures/dbg_ao.png}\hfill%
+\includegraphics[width=0.48\textwidth]{figures/dbg_refl.png}
 
 \vspace{5pt}
 
-\phshot{0.48\textwidth}{4.6cm}{refleksije}\hfill\phshot{0.48\textwidth}{4.6cm}{globalno osvetljenje}
-\caption{Pojedina\v{c}ni efekti izolovani na sceni Sponza. \textit{(placeholderi; zameniti stvarnim
-snimcima.)}}
+\includegraphics[width=0.48\textwidth]{figures/dbg_gi.png}\hfill%
+\includegraphics[width=0.48\textwidth]{figures/dbg_normals.png}
+\caption{Pojedina\v{c}ni signali izolovani preko \texttt{render.debugview}, ista scena i kamera:
+ambijentalna okluzija (gore levo), reflektovana radijansa (gore desno), indirektni GI \v{c}lan
+(dole levo) i normale iz G-buffer-a (dole desno). Prikazani su sirovi me\dj urezultati pre
+kombinovanja u forward prolazu, a ne gotova slika.}
 \label{fig:effect-gallery}
 \end{figure}
+
+Isolating the signals this way explains a result that the composited frames hide. Toggling shadows,
+ambient occlusion, or reflections individually moves the final image by a mean of only 2.1 to 2.5
+levels out of 255 at this viewpoint, while global illumination moves it by 23.9, an order of magnitude
+more. The ambient-occlusion buffer is close to white over most of the frame because Sponza's atrium is
+open, so occlusion is confined to the arcade vaults and the column bases; the raw GI term is dim in
+absolute terms yet carries the colour bleeding, the red and green drapes tinting the stone beside them,
+which is the contribution a constant ambient cannot reproduce.
+
+\section{Dve strategije za senke: inline naspram stohasti\v{c}ke}
+\label{sec:analiza-shadow-strategy}
+
+Section~\ref{sec:senke} describes two structurally different ways to shadow a scene: the default
+inline path, which traces one ray per light per pixel inside the forward shader, and the stochastic
+path, which picks one light per pixel by resampled importance sampling and reconstructs the result
+with the shared denoiser. Their cost curves have different shapes, so which one wins is a property of
+the scene rather than of the implementation.
+
+\begin{table}[tbp]
+\caption{Dve strategije za senke na istoj sceni sa pet upaljenih svetala (GPU ms, dodatak u odnosu na
+\texttt{rt-off}).}
+\label{tab:shadow-strategy}
+\centering
+\begin{tabular}{lrr}
+\toprule
+Strategija & ms (9070 XT) & ms (5070) \\
+\midrule
+inline, po svetlu (podrazumevano) & 2.388 & 1.428 \\
+stohasti\v{c}ka, RIS + denoiser   & 2.758 & 3.510 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+At five lights the inline path is cheaper on both cards, by 0.37 ms on the 9070 XT and by 2.08 ms on
+the 5070. That is the expected result and not a criticism of the stochastic path: its cost is almost
+entirely fixed overhead, one trace plus a temporal pass plus three à-trous iterations plus an upsample,
+and it buys independence from the light count. The inline path pays roughly one ray per light, so its
+line has a slope while the stochastic line is nearly flat. Extrapolating the inline slope from the
+measured five-light figure puts the crossover in the low tens of lights on the 9070 XT and
+considerably higher on the 5070, whose denoiser chain is the more expensive of the two.
+
+The asymmetry between the vendors is itself informative: the 5070 traces the inline rays faster than
+the 9070 XT (1.43 ms against 2.39 ms) but runs the denoiser chain slower, which is consistent with the
+per-pass breakdown in Table~\ref{tab:pass-cost}, where the 5070's \texttt{AODenoise} and
+\texttt{GIDenoise} iterations also cost more than the AMD card's despite its faster tracing. A
+technique choice that looks obvious on one vendor is therefore not automatically right on the other,
+which is the practical argument for measuring both.
 
 \section{Broj zrakova naspram kvaliteta i brzine}
 \label{sec:raycount}
@@ -200,11 +306,20 @@ from a single ray; once they are in the pipeline, additional samples per pixel a
 engine's ray budget should go. This is consistent with the SVGF design goal (spatiotemporal
 filtering to make 1 sample per pixel viable) rather than a property specific to this
 implementation. Figure~\ref{fig:spp-sweep} shows the raw noise this filtering is masking, at the two
-extremes of the sweep. The capture disables the denoiser, the temporal resolve, and TAA, and is cut
+extremes of the sweep. The capture disables the GI spatial denoiser, the GI temporal accumulation, and
+TAA, and is cut
 off at a fixed 30-frame cap. Disabling TAA is what makes the figure honest: TAA is itself a temporal
-accumulator, so with it enabled the capture settles to the same high-frequency energy as the denoised
-image (5.9 in both cases) and the ray count appears to make no difference. With it off the ray count
-separates cleanly, from 10.8 at one ray per pixel to 7.3 at eight.
+accumulator, so with it enabled the capture settles into the same smoothness as the denoised image and
+the ray count appears to make no difference at all.
+
+Quantifying that needs a measure of per-pixel roughness. Define the \emph{high-frequency energy} of an
+image as the mean absolute difference between vertically adjacent pixels of its grayscale channel,
+$\frac{1}{(H-1)W}\sum_{y,x} |g_{y+1,x} - g_{y,x}|$, computed on the 8-bit tonemapped capture; noise
+raises it, blur lowers it, and it can be recomputed from the committed figures. With TAA enabled, one
+ray per pixel and the fully denoised image both score 5.9, which is the measurement saying the figure
+would show nothing. With TAA disabled the ray count separates cleanly: 10.8, 9.1, 8.1, and 7.3 for
+one, two, four, and eight rays per pixel, monotonically approaching the reference as the sample count
+rises.
 
 \begin{figure}[tbp]
 \centering
@@ -215,6 +330,55 @@ separates cleanly, from 10.8 at one ray per pixel to 7.3 at eight.
 proporcionalno ve\'cu cenu (Tabela~\ref{tab:raycount}).}
 \label{fig:spp-sweep}
 \end{figure}
+
+\section{Polovi\v{c}na naspram pune rezolucije}
+\label{sec:halfres}
+
+Tracing the two hemispheric gather effects at half resolution is the single largest cost decision in
+the renderer (Section~\ref{sec:rendergraph}), and it is the one sub-question of
+Chapter~\ref{ch:uvod} that the preceding sections do not answer. Setting
+\texttt{render.gi.scale} and \texttt{render.ao.scale} to 1.0 turns it off, changing nothing else, so
+the two configurations differ in exactly one variable.
+
+\begin{table}[tbp]
+\caption{Polovi\v{c}na naspram pune rezolucije za GI i AO trasiranje (RX 9070 XT). Vreme je ukupno GPU
+vreme \texttt{+gi} konfiguracije; kvalitet je meren iz atrijumskog pogleda naspram konvergirane
+path-traced reference.}
+\label{tab:halfres}
+\centering
+\begin{tabular}{lrrr}
+\toprule
+ & polovi\v{c}na (0.5) & puna (1.0) & razlika \\
+\midrule
+Ukupno GPU (ms)        & 9.86   & 15.35  & $+54\%$ \\
+\texttt{GI} prolaz (ms) & 1.08   & 4.09   & $\times 3.8$ \\
+\texttt{AO} prolaz (ms) & 0.17   & 0.63   & $\times 3.7$ \\
+\midrule
+PSNR (dB)              & 24.89  & 24.91  & $+0.02$ \\
+SSIM                   & 0.7516 & 0.7530 & $+0.0014$ \\
+FLIP                   & 0.1425 & 0.1423 & $-0.0002$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Full-resolution tracing costs 5.49 ms more per frame, a 54\% increase on a budget that was already
+approaching ten milliseconds, and returns 0.02 dB of PSNR. All three metrics move by less than the
+run-to-run spread, so the correct reading is not "full resolution is slightly better" but "the
+measurement cannot distinguish them at all".
+
+The reason is that the denoiser is the binding constraint, not the sample grid. Both configurations
+feed the same à-trous filter, whose edge-stopping kernel already blurs over a neighbourhood wider than
+the factor of two separating them; the extra samples are averaged away by the very filter that makes
+the half-resolution result usable. Tracing four times as many rays only helps if something downstream
+can preserve the difference, and here nothing does. This is the strongest single argument in the
+thesis for the half-resolution plus bilateral-upsample pattern: it is not a quality compromise
+accepted for speed, it is close to free.
+
+Two caveats bound that claim. The quality figures come from one viewpoint rather than the three-view
+average used elsewhere, and the conclusion is specific to diffuse gather signals: as
+Section~\ref{sec:rendergraph} argues, the same treatment applied to shadows or reflections would
+destroy exactly the high-frequency detail those effects exist to produce, which is why neither is
+traced at half resolution in the first place.
 
 \section{Evaluacija denoiser-a (SVGF)}
 \label{sec:denoise-eval}
@@ -246,11 +410,33 @@ filter's own contribution shows up elsewhere, in temporal stability rather than 
 frame-to-frame RMS delta on the same static view (frame $N$ against $N{+}1$ at steady state, a
 flicker proxy under a static camera, not motion) drops from 0.3229 with the denoiser off to 0.1949
 with it on, a 40\% reduction: the spatial filter suppresses the per-frame noise that temporal
-accumulation alone leaves as flicker. The GPU cost of the denoiser pass itself is small, 3.739 to
-3.810 ms total (a $\sim$0.07 ms delta) against the same GI-enabled baseline used for the raycount
-sweep in Section~\ref{sec:raycount}; the register-limited \texttt{GIDenoise.comp} shader from
-Section~\ref{sec:denoising} is inexpensive in isolation; its cost is amortized further because it
+accumulation alone leaves as flicker. The GPU cost of the denoiser is best read from its own timestamp
+scopes rather than from a whole-frame A/B: the three \texttt{GIDenoise} à-trous iterations total
+0.332 ms on the 9070 XT and 0.452 ms on the 5070 (Table~\ref{tab:pass-cost}), against a full-frame
+budget near 10 ms. Toggling the denoiser and diffing whole-frame totals gives about 0.07 ms, but that
+number should not be quoted: it is smaller than the run-to-run spread of the identical configuration,
+so it measures noise rather than the filter. The register-limited \texttt{GIDenoise.comp} shader from
+Section~\ref{sec:denoising} is inexpensive in isolation, and its cost is amortized further because it
 runs at half resolution.
+
+The composited frames above show the denoiser's effect diluted by everything else in the image. The
+engine's debug views isolate it exactly: mode 6 is the half-resolution GI irradiance buffer as the
+trace leaves it, and mode 7 is the same buffer after temporal accumulation and the à-trous filter,
+before either is upsampled or composited. Figure~\ref{fig:gi-denoise-ab} is that pair, and it is the
+denoiser's contribution rendered as an image rather than as a table row. The high-frequency energy
+defined in Section~\ref{sec:raycount} falls from 48.3 to 32.1 between the two, a 33\% reduction in
+per-pixel roughness, while the mean level rises from 52.0 to 67.4 because the filter fills in the
+pixels where every ray happened to miss.
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=0.48\textwidth]{figures/dbg_gi_raw.png}\hfill%
+\includegraphics[width=0.48\textwidth]{figures/dbg_gi_denoised.png}
+\caption{Polovi\v{c}na GI zra\v{c}nost pre (levo) i posle (desno) temporalne akumulacije i a-trous
+filtra, pre upsample-a i kompozicije (\texttt{render.debugview} 6 i 7). Levo se vidi zrnasti
+jednozra\v{c}ni signal, desno isti bafer nakon rekonstrukcije.}
+\label{fig:gi-denoise-ab}
+\end{figure}
 
 \begin{figure}[tbp]
 \centering
@@ -321,14 +507,15 @@ light from on-screen geometry, where RT GI also reaches off-screen and behind-ca
 
 \begin{figure}[tbp]
 \centering
-\phshot{0.48\textwidth}{4.9cm}{screen-space (SSAO / SSR)}\hfill%
-\phshot{0.48\textwidth}{4.9cm}{ray-traced (ovaj rad)}
-\caption{Ista scena i kamera: screen-space aproksimacije naspram ray-traced efekata, u slu\v{c}aju
-sa off-screen geometrijom. \textit{(placeholderi; zameniti stvarnim snimcima.)}}
+\includegraphics[width=0.48\textwidth]{figures/ss_all.png}\hfill%
+\includegraphics[width=0.48\textwidth]{figures/rt_all.png}
+\caption{Ista scena i kamera: screen-space aproksimacije (levo: SSAO, SSR, SSGI) naspram
+ray-traced ekvivalenata (desno: RTAO, RT refleksije, RT GI). Screen-space varijanta je svetlija jer
+ne mo\v{z}e da oduzme svetlo koje dolazi od geometrije van ekrana.}
 \label{fig:rt-vs-ss}
 \end{figure}
 
-\section{Zauzetost i cena \v{s}ejdera (opciono)}
+\section{Zauzetost i cena \v{s}ejdera}
 \label{sec:occupancy}
 
 This section reports the static shader occupancy (VGPR usage and register spills) for the
@@ -356,7 +543,7 @@ VGPR-limited. Nijedan od ovih \v{s}ejdera nema VGPR/SGPR spill.}
 \texttt{GIDenoise.comp}    & 191 & 8/16  & najzauzetiji, GI SVGF denoise \\
 \texttt{GI.comp}           & 85  & 16/16 & RT GI trace \\
 \texttt{Reflection.comp}   & 83  & 16/16 & RT refleksije trace \\
-\texttt{Shadow.comp}       & 88  & 16/16 & RT senke (inline) \\
+\texttt{Shadow.comp}       & 88  & 16/16 & stohasti\v{c}ke RT senke (nije podrazumevani put) \\
 \texttt{AO.comp}           & 63  & 16/16 & RT AO trace \\
 \texttt{GITemporal.comp}   & 53  & 16/16 & GI temporalna akumulacija \\
 \texttt{GIUpsample.frag}   & 45  & 16/16 & GI half-res upsample \\
