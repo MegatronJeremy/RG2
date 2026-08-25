@@ -27,9 +27,20 @@ DATA = THESIS / "latex" / "data"
 RGA = ENGINE / "Scripts" / "rga-baseline" / "occupancy-gfx1200.json"
 NV = ENGINE / "Scripts" / "shader-stats-baseline" / "nvidia-geforce-rtx-5070.json"
 
-# AMD RDNA4 (gfx12) and NVIDIA compute capability 12.0, both as the engine's own tools model them.
-AMD_FILE, AMD_MAX, AMD_GRAN = 1536, 16, 24
-NV_REGS, NV_MAX_WARPS, NV_WARP = 65536, 48, 32
+ASIC = "gfx1200"  # RDNA4, the RX 9070 XT under evaluation
+
+# The occupancy models are IMPORTED, never restated here. A copy in this file would be a third
+# definition of the AMD one, and the two that already existed disagreed (granularity 8 against 24),
+# which put wrong wave counts in a draft of this table. rga-occupancy.py owns the AMD model because
+# it is the one the project gates on; shader-stats.py owns the NVIDIA one because no offline
+# analyser exists there.
+def _engine_module(name):
+    import importlib.util
+    path = ENGINE / "Scripts" / f"{name}.py"
+    spec = importlib.util.spec_from_file_location(name.replace("-", "_"), path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 # (RGA permutation name, runtime shader file, stage, thesis label)
 ROWS = [
@@ -43,13 +54,20 @@ ROWS = [
 ]
 
 
+_rga = _engine_module("rga-occupancy")
+_stats = _engine_module("shader-stats")
+
+AMD_MAX = _rga.max_waves_for(ASIC)
+NV_MAX_WARPS = _stats.NV_MAX_WARPS
+
+
 def amd_waves(v):
-    alloc = max(AMD_GRAN, -(-int(v) // AMD_GRAN) * AMD_GRAN)
-    return min(AMD_MAX, AMD_FILE // alloc)
+    return _rga.vgpr_occupancy(float(v), ASIC)
 
 
 def nv_warps(r):
-    return min(NV_MAX_WARPS, NV_REGS // (int(r) * NV_WARP))
+    waves, _ = _stats.occupancy(r, is_amd=False)
+    return waves
 
 
 def main():
