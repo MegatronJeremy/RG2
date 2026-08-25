@@ -160,6 +160,15 @@ structure (TLAS) holds one instance per (Transform, Mesh) entity, with \texttt{i
 set to the instance index so the hit shader can resolve the geometry from a table
 (Section~\ref{sec:efekti}).
 
+The evaluation scenes make the two levels concrete. \texttt{Sponza.world} loads as 25 mesh entities
+over 25 distinct meshes, so its TLAS holds 25 instances over 25 BLAS, a one-to-one mapping in which
+the two-level structure buys nothing: the model is authored as a single unrepeated mesh set.
+\texttt{Sponza-Motion.world} adds the four rotating props of Section~\ref{sec:motion}, which are four
+transforms of one mesh, giving 29 instances over 26 BLAS. The instance count is reported by
+\texttt{TlasBuildSystem} on each rebuild, and it climbs through six rebuilds (6, 12, 18, 24, 25) as
+the meshes stream in before settling, since a mesh entity joins the structure only once its geometry
+is resident.
+
 The TLAS is rebuilt in full on every frame the scene is marked dirty (\texttt{TlasBuildSystem}, in
 the \texttt{PreRender} phase). There is no refit path: a dirty frame destroys and rebuilds the
 structure (\texttt{MODE_BUILD_KHR}) behind a device wait. The dirty check excludes the camera, so a

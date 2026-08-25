@@ -100,6 +100,14 @@ SHOTS = [
     ("dbg_refl", ATRIUM, {**ALL_RT, "SS_RENDER_DEBUGVIEW": "3"}, False),
     ("dbg_gi", ATRIUM, {**ALL_RT, "SS_RENDER_DEBUGVIEW": "4"}, False),
     ("dbg_normals", ATRIUM, {**ALL_RT, "SS_RENDER_DEBUGVIEW": "5"}, False),
+    # The half- versus full-resolution GI trace, shown on the buffer itself rather than on the
+    # composited frame, where the difference is not measurable. Both scales are named explicitly even
+    # though gi_halfres duplicates dbg_gi_raw's config today: the pair has to stay a controlled A/B if
+    # the default gi.scale ever moves, and reusing dbg_gi_raw would silently relabel whatever the new
+    # default is as "half".
+    ("gi_halfres", ATRIUM, {**ALL_RT, "SS_RENDER_DEBUGVIEW": "6", "SS_RENDER_GI_SCALE": "0.5"}, False),
+    ("gi_fullres", ATRIUM, {**ALL_RT, "SS_RENDER_DEBUGVIEW": "6", "SS_RENDER_GI_SCALE": "1.0"}, False),
+
     ("dbg_gi_raw", ATRIUM, {**ALL_RT, "SS_RENDER_DEBUGVIEW": "6"}, False),
     ("dbg_gi_denoised", ATRIUM, {**ALL_RT, "SS_RENDER_DEBUGVIEW": "7"}, False),
     ("dbg_shadow_raw", ATRIUM, {**ALL_RT, "SS_RENDER_SHADOWS_STOCHASTIC": "1",

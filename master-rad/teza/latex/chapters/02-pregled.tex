@@ -87,29 +87,31 @@ many instances share one BLAS and lets the TLAS, which changes as objects move, 
 while the heavier BLAS persists. A structure can be fully rebuilt (highest traversal quality) or
 refit (box extents updated for small deformations, cheaper but lower quality); dynamic scenes trade
 these off each frame. Figure~\ref{fig:tlasblas} shows the two-level structure and the instance
-sharing it enables.
+sharing it enables, drawn with the counts this engine actually reports for the evaluation scene.
 
 \begin{figure}[tbp]
 \centering
 \begin{tikzpicture}[>={Stealth[]},
-  inst/.style={draw, rounded corners, font=\small, align=center, minimum width=2.4cm, minimum height=8mm},
-  blas/.style={draw, rounded corners, font=\small, align=center, minimum width=3.0cm, minimum height=9mm, fill=black!5}]
-  \node[inst] (i0) {Instanca 0\\(transform)};
-  \node[inst, right=7mm of i0] (i1) {Instanca 1\\(transform)};
-  \node[inst, right=7mm of i1] (i2) {Instanca 2\\(transform)};
+  inst/.style={draw, rounded corners, font=\small, align=center, minimum width=2.9cm, minimum height=9mm},
+  blas/.style={draw, rounded corners, font=\small, align=center, minimum width=3.2cm, minimum height=10mm, fill=black!5}]
+  \node[inst] (i0) {Instance 0--24\\\footnotesize statika Sponze};
+  \node[inst, right=10mm of i0] (i1) {Instance 25--28\\\footnotesize \v{c}etiri rotiraju\'ca objekta};
   \begin{scope}[on background layer]
-    \node[draw, dashed, rounded corners, fit=(i0)(i1)(i2), inner sep=7pt,
-          label=above:{\small TLAS (rebuild po ,,dirty'' frejmu)}] (tlas) {};
+    \node[draw, dashed, rounded corners, fit=(i0)(i1), inner sep=7pt,
+          label=above:{\small TLAS: 29 instanci (rebuild po ,,dirty'' frejmu)}] (tlas) {};
   \end{scope}
-  \node[blas, below=16mm of i0, xshift=7mm] (bA) {BLAS: Mesh A};
-  \node[blas, below=16mm of i2, xshift=-7mm] (bB) {BLAS: Mesh B};
+  \node[blas, below=17mm of i0] (bA) {25 BLAS-ova\\\footnotesize po jedan po mre\v{z}i};
+  \node[blas, below=17mm of i1] (bB) {1 BLAS\\\footnotesize deljen 4 puta};
   \draw[->] (i0) -- (bA);
-  \draw[->] (i1) -- (bA);
-  \draw[->] (i2) -- (bB);
+  \draw[->] ([xshift=-9mm]i1.south) -- (bB);
+  \draw[->] ([xshift=-3mm]i1.south) -- (bB);
+  \draw[->] ([xshift=3mm]i1.south) -- (bB);
+  \draw[->] ([xshift=9mm]i1.south) -- (bB);
 \end{tikzpicture}
-\caption{Dvonivo struktura ubrzanja: TLAS dr\v{z}i instance (transform + pokaziva\v{c} na BLAS), pri
-\v{c}emu vi\v{s}e instanci mo\v{z}e deliti isti BLAS; BLAS dr\v{z}i geometriju mre\v{z}e u lokalnom
-prostoru.}
+\caption[Dvonivo struktura ubrzanja (TLAS/BLAS)]{Dvonivo struktura ubrzanja, sa izmerenim brojevima iz scene
+\texttt{Sponza-Motion.world}: TLAS dr\v{z}i 29 instanci (transform + pokaziva\v{c} na BLAS) nad 26
+BLAS-ova, jer \v{c}etiri rotiraju\'ca objekta dele istu mre\v{z}u, dok svaka od 25 stati\v{c}kih mre\v{z}a
+ima svoj. BLAS dr\v{z}i geometriju u lokalnom prostoru.}
 \label{fig:tlasblas}
 \end{figure}
 

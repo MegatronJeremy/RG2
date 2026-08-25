@@ -375,6 +375,32 @@ can preserve the difference, and here nothing does. This is the strongest single
 thesis for the half-resolution plus bilateral-upsample pattern: it is not a quality compromise
 accepted for speed, it is close to free.
 
+That the difference exists before the filter, and only there, is visible in the traced buffer itself.
+Figure~\ref{fig:halfres-buffer} shows the raw GI irradiance under both settings, taken through the
+debug view that bypasses the upsample, denoiser and composite. The half-resolution buffer carries
+44\% more high-frequency energy by the roughness proxy of Section~\ref{sec:raycount} (41.68
+against 28.91). That proxy is reproducible where the per-pixel difference is not: a second
+full-resolution capture with identical settings scores 28.85, within 0.2\%, while differing from the
+first by 18.3 grey levels per pixel simply because the two traces drew different random samples. So
+the per-pixel gap of 35.4 between the half- and full-resolution buffers is only about twice the
+run-to-run floor and carries little information, whereas the roughness gap is far outside it. Four
+times the rays do produce a measurably cleaner buffer; what Table~\ref{tab:halfres} shows is that
+nothing downstream of the filter preserves it.
+
+\begin{figure}[tbp]
+\centering
+\begin{minipage}{0.48\textwidth}\centering
+\includegraphics[width=\linewidth]{figures/gi_halfres.png}\\{\small polovi\v{c}na (0.5)}
+\end{minipage}\hfill
+\begin{minipage}{0.48\textwidth}\centering
+\includegraphics[width=\linewidth]{figures/gi_fullres.png}\\{\small puna (1.0)}
+\end{minipage}
+\caption[Sirov GI bafer: polovi\v{c}na naspram pune rezolucije]{Sirov GI bafer pre upsample-a i denoiser-a, pri \texttt{render.gi.scale} 0.5 i 1.0
+(\texttt{render.debugview} 6). Puna rezolucija daje finiju zrnastost: 28.91 naspram 41.68 po meri
+visokofrekventne energije. U finalnoj slici se ta razlika ne meri (Tabela~\ref{tab:halfres}).}
+\label{fig:halfres-buffer}
+\end{figure}
+
 Two caveats bound that claim. The quality figures come from one viewpoint rather than the three-view
 average used elsewhere, and the conclusion is specific to diffuse gather signals: as
 Section~\ref{sec:rendergraph} argues, the same treatment applied to shadows or reflections would
@@ -677,6 +703,42 @@ pushes it over a wave boundary, and that is the same effect Section~\ref{sec:cen
 pass that grows by 3.482 ms. Nothing in the table spills registers, and across all 47 cooked shaders
 exactly one uses any scratch memory at all (\texttt{NeuralConv.comp}, 272 bytes), which is off the
 render path.
+
+Figure~\ref{fig:occupancy-cliff} plots why the two permutations land so far apart for a difference of
+40 registers. Occupancy is not proportional to register use: it is a step function, because registers
+are allocated in fixed blocks of 24 on this architecture and the wave count is the register file
+divided by that rounded-up allocation. Between 24 and 96 VGPRs every shader gets all 16 waves, so the
+five shaders in the flat region differ in register use by a factor of 1.5 (59 to 87) at no cost in
+parallelism.
+Past 96 the count falls in steps. The inline-shadow permutation at 127 VGPRs is 31 registers into
+that region and allocates 144, giving 10 waves; had it stayed at or below 96, as its non-tracing
+sibling does at 87, it would have cost nothing. This is why the table gates on occupancy rather than
+on the register count directly, and why a register increase is only worth acting on when it crosses a
+step.
+
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.86\textwidth, height=6.2cm,
+  xlabel={VGPR-a po niti}, ylabel={talasa po SIMD-u (wave32)},
+  xmin=24, xmax=192, ymin=0, ymax=17.5,
+  ytick={0,4,8,12,16}, xtick={24,48,72,96,120,144,168,192},
+  grid=major, grid style={black!12}, tick label style={font=\small},
+  label style={font=\small}]
+  \addplot[const plot, thick, black] table[col sep=tab, x=vgpr, y=waves] {data/occupancy-curve.dat};
+  \addplot[only marks, mark=*, mark size=1.9pt, black]
+    table[col sep=tab, x=vgpr, y=waves] {data/occupancy-marks.dat};
+  \node[font=\footnotesize, anchor=west] at (axis cs:130,10.9) {\texttt{DefaultLit} (inline senke)};
+  \node[font=\footnotesize, anchor=east] (nobez) at (axis cs:80,13.6) {\texttt{DefaultLit} (bez)};
+  \draw[black!55, thin] (nobez.east) -- (axis cs:87,15.6);
+\end{axis}
+\end{tikzpicture}
+\caption[Zauzetost kao stepenasta funkcija broja VGPR-a]{Teorijska zauzetost kao stepenasta funkcija broja VGPR-a na RDNA4 (1536 VGPR-a,
+granularnost 24, najvi\v{s}e 16 talasa). Ta\v{c}ke su \v{s}ejderi iz Tabele~\ref{tab:occupancy}. Do 96
+VGPR-a razlika u broju registara ne ko\v{s}ta ni\v{s}ta; \texttt{DefaultLit} sa inline senkama pada
+preko granice na 127.}
+\label{fig:occupancy-cliff}
+\end{figure}
 
 The cross-vendor comparison is the interesting part, and it inverts the naive reading. NVIDIA uses
 markedly fewer registers for the same shader, 80 against 127 for the inline-shadow variant, yet its

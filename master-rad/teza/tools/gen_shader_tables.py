@@ -118,17 +118,41 @@ def main():
         + body + "\n\\bottomrule\n\\end{tabular}\n"
     )
 
+    # The occupancy curve itself: waves against VGPR count, sampled across the whole range, so the
+    # step structure is visible rather than asserted. The cliff the thesis cares about is that 127
+    # allocates 144 and drops to 10 waves while 87 allocates 96 and keeps all 16.
+    curve = ["vgpr\twaves"]
+    for v in range(24, 193, 1):
+        curve.append(f"{v}\t{amd_waves(v)}")
+    curve_txt = "\n".join(curve) + "\n"
+
+    # the shaders to mark on that curve, from the same baseline
+    marks = ["vgpr\twaves\tlabel"]
+    for rga_name, _f, _s, _label in ROWS:
+        e = rga.get(rga_name)
+        if e:
+            v = int(e["vgprs"])
+            short = rga_name.replace(".comp", "").replace(".frag", "")
+            marks.append(f"{v}\t{amd_waves(v)}\t{short}")
+    marks_txt = "\n".join(marks) + "\n"
+
     DATA.mkdir(parents=True, exist_ok=True)
-    p = DATA / "shader-occupancy.tex"
-    old = p.read_text(encoding="utf-8") if p.exists() else None
-    if old == table:
-        print("up to date")
-        return 0
+    outputs = {
+        "shader-occupancy.tex": table,
+        "occupancy-curve.dat": curve_txt,
+        "occupancy-marks.dat": marks_txt,
+    }
+    stale = []
+    for name, text in outputs.items():
+        p = DATA / name
+        if (p.read_text(encoding="utf-8") if p.exists() else None) != text:
+            stale.append(name)
+            if not args.check:
+                p.write_text(text, encoding="utf-8")
     if args.check:
-        print("STALE: shader-occupancy.tex")
-        return 1
-    p.write_text(table, encoding="utf-8")
-    print("wrote shader-occupancy.tex")
+        print(("STALE: " + ", ".join(stale)) if stale else "up to date")
+        return 1 if stale else 0
+    print(("wrote " + ", ".join(stale)) if stale else "up to date")
     return 0
 
 
