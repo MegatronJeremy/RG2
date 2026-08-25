@@ -281,6 +281,30 @@ is offset along the geometric normal and toward the light
 (\texttt{positionWS + Ng*0.02 + L*0.01}) to avoid self-intersection.
 Listing~\ref{lst:shadow} shows the inline query in HLSL.
 
+The alternative the engine keeps is the raster shadow map, which is also the default and the fallback
+on a device without ray tracing. Figure~\ref{fig:shadow-vs-map} puts the two side by side at one pose.
+The traced result resolves contact shadows the map's finite resolution and depth bias smear, and it
+needs no bias tuning at all, since it answers visibility by intersecting the real geometry rather than
+by comparing against a quantised depth texture. What it costs is a ray per light per pixel, so its
+price grows with light count where the map amortises over the whole frame; that tradeoff is measured
+in Section~\ref{sec:analiza-shadow-strategy}.
+
+\begin{figure}[tbp]
+\centering
+\begin{minipage}{0.48\textwidth}\centering
+\includegraphics[width=\linewidth]{figures/shadow_map.png}\\{\small mapa senki (raster)}
+\end{minipage}\hfill
+\begin{minipage}{0.48\textwidth}\centering
+\includegraphics[width=\linewidth]{figures/shadow_rt.png}\\{\small trasirane senke}
+\end{minipage}
+\caption[Mapa senki naspram trasiranih senki]{Ista poza i isto svetlo, \texttt{render.shadows.mode}
+1 naspram 2. Rasterska mapa ima kona\v{c}nu rezoluciju i pomeraj dubine, pa se kontaktne senke
+razlivaju i ivice su mek\v{s}e nego \v{s}to geometrija nala\v{z}e; trasirana verzija ih razre\v{s}ava
+preko stvarne geometrije. Snimci su deterministi\v{c}ki (dva uzastopna snimka iste konfiguracije su
+identi\v{c}na do bita), pa je svaka razlika izme\dj u panela stvarna.}
+\label{fig:shadow-vs-map}
+\end{figure}
+
 
 \needspace{22\baselineskip}
 \begin{lstlisting}[caption={Inline ray-query test vidljivosti za senku (HLSL).}, label={lst:shadow}]

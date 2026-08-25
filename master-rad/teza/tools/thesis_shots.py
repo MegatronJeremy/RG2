@@ -108,6 +108,30 @@ SHOTS = [
     ("gi_halfres", ATRIUM, {**ALL_RT, "SS_RENDER_DEBUGVIEW": "6", "SS_RENDER_GI_SCALE": "0.5"}, False),
     ("gi_fullres", ATRIUM, {**ALL_RT, "SS_RENDER_DEBUGVIEW": "6", "SS_RENDER_GI_SCALE": "1.0"}, False),
 
+    # Screen-space against ray-traced in the RAW effect buffer rather than the composited frame. The
+    # composited pair (ss_all/rt_all) is dominated by direct lighting, so the off-screen error that is
+    # the whole point of tracing is a few grey levels there; the debug views isolate the term itself.
+    # SSR writes the same full-res ReflectionTarget as the RT path, so debug view 3 shows both.
+    # max_roughness stays at its 0.8 default here. Forcing it to 1.0 puts SSR on every surface
+    # including ones whose march cannot hit anything, and its miss path falls back to the prefiltered
+    # env cube, so the buffer goes near-white: that is the override talking, not the technique.
+    ("ssvsrt_ssr", GRAZING, {**BASE_ENV, "SS_RENDER_REFLECTIONS_MODE": "1",
+                             "SS_RENDER_DEBUGVIEW": "3"}, False),
+    ("ssvsrt_rtrefl", GRAZING, {**BASE_ENV, "SS_RENDER_REFLECTIONS_MODE": "2",
+                                "SS_RENDER_DEBUGVIEW": "3"}, False),
+    # These two back a statistic rather than a figure. The isolated AO term is median 255 of 255 over
+    # this view with only 14.1% (SSAO) and 17.6% (RT AO) of pixels below 240, which is what makes the
+    # near-parity FLIP result unsurprising. As an image the pair is near-white and unreadable in print,
+    # so section sec:poredjenje quotes the numbers and shows nothing; they are captured so the numbers
+    # can be recomputed rather than taken on trust.
+    ("ssvsrt_ssao", ATRIUM, {**BASE_ENV, "SS_RENDER_AO_MODE": "1", "SS_RENDER_DEBUGVIEW": "2"}, False),
+    ("ssvsrt_rtao", ATRIUM, {**BASE_ENV, "SS_RENDER_AO_MODE": "2", "SS_RENDER_DEBUGVIEW": "2"}, False),
+
+    # The raster shadow fallback against the traced one, at the same pose. Chapter 3 asserts the
+    # difference (full-res exact visibility, cost linear in light count) and never shows it.
+    ("shadow_map", SUNSTRIP, {**BASE_ENV, "SS_RENDER_SHADOWS_MODE": "1"}, False),
+    ("shadow_rt", SUNSTRIP, {**BASE_ENV, "SS_RENDER_SHADOWS_MODE": "2"}, False),
+
     ("dbg_gi_raw", ATRIUM, {**ALL_RT, "SS_RENDER_DEBUGVIEW": "6"}, False),
     ("dbg_gi_denoised", ATRIUM, {**ALL_RT, "SS_RENDER_DEBUGVIEW": "7"}, False),
     ("dbg_shadow_raw", ATRIUM, {**ALL_RT, "SS_RENDER_SHADOWS_STOCHASTIC": "1",
@@ -115,12 +139,15 @@ SHOTS = [
     ("dbg_shadow_denoised", ATRIUM, {**ALL_RT, "SS_RENDER_SHADOWS_STOCHASTIC": "1",
                                      "SS_RENDER_DEBUGVIEW": "9"}, False),
 
-    # Screen-space (mode 1) against ray-traced (mode 2) for the same three effects and the same pose:
-    # the off-screen-information failure of the screen-space family is the point of the pair.
-    ("ss_all", ATRIUM, {**BASE_ENV, "SS_RENDER_AO_MODE": "1", "SS_RENDER_REFLECTIONS_MODE": "1",
-                        "SS_RENDER_GI_MODE": "1"}, False),
-    ("rt_all", ATRIUM, {**BASE_ENV, "SS_RENDER_AO_MODE": "2", "SS_RENDER_REFLECTIONS_MODE": "2",
-                        "SS_RENDER_GI_MODE": "2"}, False),
+    # Two COMPLETE configurations at one pose, not one variable held against three. Shadows differ
+    # with the rest because screen space has no analogue of a traced shadow: the shadow map is what
+    # that family actually ships. Matching quality-bench's own matrix, where all-rt is the only
+    # technique that overrides render.shadows.mode, keeps this pair and the all-RT row of the quality
+    # table describing the same renderer.
+    ("ss_all", ATRIUM, {**BASE_ENV, "SS_RENDER_SHADOWS_MODE": "1", "SS_RENDER_AO_MODE": "1",
+                        "SS_RENDER_REFLECTIONS_MODE": "1", "SS_RENDER_GI_MODE": "1"}, False),
+    ("rt_all", ATRIUM, {**BASE_ENV, "SS_RENDER_SHADOWS_MODE": "2", "SS_RENDER_AO_MODE": "2",
+                        "SS_RENDER_REFLECTIONS_MODE": "2", "SS_RENDER_GI_MODE": "2"}, False),
 
     # Debug view 1 is identically black under a pinned camera, since nothing moves, so this is the one
     # shot that needs camera.path (a deterministic orbit) instead of a fixed pose. pose=None leaves
