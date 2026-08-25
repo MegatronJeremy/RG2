@@ -1,13 +1,7 @@
 \chapter{Analiza}
 \label{ch:analiza}
 
-This chapter evaluates the system. It first fixes the methodology, hardware, scene, and the two
-measurement setups (Section~\ref{sec:metodologija}), then reports the per-effect GPU cost
-(Section~\ref{sec:cena}), the ray-count versus quality and speed tradeoff
-(Section~\ref{sec:raycount}), the contribution of the denoiser (Section~\ref{sec:denoise-eval}), a
-comparison against the existing solutions from Chapter~\ref{ch:pregled} (Section~\ref{sec:poredjenje}),
-and the static shader occupancy (Section~\ref{sec:occupancy}). Every number reported here is produced
-by a measured run.
+This chapter evaluates the system. Every number reported here is produced by a measured run.
 
 \section{Metodologija}
 \label{sec:metodologija}
@@ -157,7 +151,6 @@ ne izvr\v{s}avaju: \texttt{render.reflections.denoise.iterations} je sada 0
 \input{data/perf-passes.tex}
 \end{table}
 
-Figure~\ref{fig:cost-chart} presents the same data graphically.
 
 \begin{figure}[tbp]
 \centering
@@ -176,12 +169,57 @@ Figure~\ref{fig:cost-chart} presents the same data graphically.
 \label{fig:cost-chart}
 \end{figure}
 
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.88\textwidth, height=6.4cm,
+  xlabel={konfiguracija}, ylabel={ukupno GPU (ms)},
+  xtick={0,1,2,3,4},
+  xticklabels={\texttt{rt-off},\texttt{shadows},\texttt{+ao},\texttt{+refl},\texttt{+gi}},
+  ymin=0, grid=major, grid style={black!12},
+  tick label style={font=\small}, label style={font=\small},
+  legend style={at={(0.02,0.98)}, anchor=north west, font=\small, draw=black!30}]
+\addplot[thick, mark=*] table[col sep=tab, x=i, y=amd] {data/ladder.dat};
+\addplot[thick, mark=square*, dashed] table[col sep=tab, x=i, y=nv] {data/ladder.dat};
+\legend{RX 9070 XT, RTX 5070}
+\end{axis}
+\end{tikzpicture}
+\caption[Kumulativno GPU vreme kroz lestvicu konfiguracija]{Ukupno GPU vreme kroz lestvicu, gde svaka
+sledeca konfiguracija uklju\v{c}uje jo\v{s} jedan efekat. Nagib segmenta je cena tog efekta. Obe
+kartice rastu monotono, ali AMD kre\'ce vi\v{s}e i raste br\v{z}e, pa se razmak \v{s}iri sa 0.93 ms na
+\texttt{rt-off} do 2.85 ms na \texttt{+gi}.}
+\label{fig:ladder}
+\end{figure}
+
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[xbar, bar width=5pt, width=0.62\textwidth, height=9.5cm,
+  xlabel={odnos AMD / NVIDIA (GPU ms)},
+  xmin=0, xmax=2.2, y dir=reverse,
+  ytick={0,...,15}, yticklabels from table={data/passcost-vendor.dat}{pass},
+  yticklabel style={font=\footnotesize}, tick label style={font=\small},
+  label style={font=\small}, grid=major, grid style={black!12},
+  nodes near coords, nodes near coords style={font=\tiny, /pgf/number format/fixed,
+    /pgf/number format/precision=2}]
+\addplot[fill=black!18, draw=black!55] table[col sep=tab, x=ratio, y expr=\coordindex]
+  {data/passcost-vendor.dat};
+\draw[dashed, black!60] (axis cs:1,-1) -- (axis cs:1,16);
+\end{axis}
+\end{tikzpicture}
+\caption[Odnos cene po prolazu izme\dj u proizvo\dj a\v{c}a]{Cena svakog prolaza na AMD-u podeljena
+cenom istog prolaza na NVIDIA-i, u \texttt{+gi} konfiguraciji. Isprekidana linija je paritet. Desno od
+nje NVIDIA je br\v{z}a, levo AMD. Raspon od 0.62 do 1.96 pokazuje da razlika nije jedan globalni
+faktor takta: \texttt{Forward} (koji nosi inline senke) i \texttt{TemporalResolve} idu jako u korist
+NVIDIA-e, dok tre\'ca a-trous iteracija i \texttt{DepthNormal} idu u korist AMD-a.}
+\label{fig:vendor-ratio}
+\end{figure}
+
 The two cards do not agree on which effect is most expensive, and that is the more interesting
-result. On the RX 9070 XT shadows dominate at 2.272 ms, well clear of reflections at 1.756 ms and
-global illumination at 1.705 ms. On the RTX 5070 the same three effects are within 0.018 ms of each
-other (global illumination 1.309 ms, shadows 1.294 ms, reflections 1.291 ms), which is inside the
-run-to-run spread, so on that card they are indistinguishable in cost. Ambient occlusion is the
-cheapest effect on both. Together the four add \perfFourEffectsAMD{} ms (9070 XT) and
+result. On the RX 9070 XT shadows dominate at \perfEffShadowsAMD{} ms, well clear of reflections and
+global illumination. On the RTX 5070 those same three fall within \perfNVSpread{} ms of each other,
+which is inside the run-to-run spread, so on that card they are indistinguishable in cost. Ambient
+occlusion is the cheapest effect on both. Together the four add \perfFourEffectsAMD{} ms (9070 XT) and
 \perfFourEffectsNV{} ms (5070) over their respective baselines, for measured real-time totals of
 \perfTotalAMD{} ms (9070 XT, \perfBaseAMD{} ms baseline) and \perfTotalNV{} ms (5070,
 \perfBaseNV{} ms baseline).
@@ -434,7 +472,7 @@ unless temporal history is cleared before sampling, the unfiltered case is credi
 accumulated while assets were still streaming, which inflates the apparent reduction to near 40\%.
 Figures captured with and without that clear are not comparable. The GPU cost of the denoiser is best read from its own timestamp
 scopes rather than from a whole-frame A/B: the three \texttt{GIDenoise} à-trous iterations total
-0.329 ms on the 9070 XT and 0.317 ms on the 5070 (Table~\ref{tab:pass-cost}), against a full-frame
+\perfDenoiseAMD{} ms on the 9070 XT and \perfDenoiseNV{} ms on the 5070 (Table~\ref{tab:pass-cost}), against a full-frame
 budget near nine milliseconds. Toggling the denoiser and diffing whole-frame totals gives about 0.07 ms, but that
 number should not be quoted: it is smaller than the run-to-run spread of the identical configuration,
 so it measures noise rather than the filter. The \texttt{GIDenoise.comp} shader from
@@ -540,6 +578,30 @@ floor, gallery; RX 9070 XT). Manji FLIP i ve\'ci PSNR/SSIM su bolji.}
 \input{data/quality.tex}
 \end{table}
 
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.88\textwidth, height=6.2cm,
+  ylabel={FLIP $\downarrow$}, ymin=0, ymax=0.58,
+  xtick={0,...,7},
+  xticklabels={raster,SSAO,RT AO,SSR,RT refl.,SSGI,RT GI,sve RT},
+  xticklabel style={font=\small, rotate=25, anchor=north east},
+  tick label style={font=\small}, label style={font=\small},
+  grid=major, grid style={black!12}, enlarge x limits=0.08]
+\addplot[only marks, mark=*, mark size=2pt, black,
+  error bars/.cd, y dir=both, y explicit]
+  table[col sep=tab, x=i, y=flip, y error plus expr=\thisrow{hi}-\thisrow{flip},
+        y error minus expr=\thisrow{flip}-\thisrow{lo}] {data/quality-spread.dat};
+\end{axis}
+\end{tikzpicture}
+\caption[FLIP po tehnici sa rasipanjem po pogledima]{Isti podaci kao
+Tabela~\ref{tab:quality}, ali sa rasponom preko tri pogleda umesto samo proseka. Rasipanje je deo
+rezultata: raster se kre\'ce od 0.363 do 0.534 zavisno od kadra, dok se RT GI dr\v{z}i u 0.129--0.149.
+Tehnike koje re\v{s}avaju indirektno osvetljenje nisu samo ta\v{c}nije u proseku, nego i ujedna\v{c}enije
+po sceni, \v{s}to prosek sam ne pokazuje.}
+\label{fig:quality-spread}
+\end{figure}
+
 Two results stand out. First, global illumination is the dominant quality lever: RT GI alone lifts
 PSNR from \qRasterPsnr{} (raster) to \qRtGiPsnr{} and cuts FLIP by more than two thirds, and enabling
 all effects reaches FLIP \qAllRtFlip{}, PSNR \qAllRtPsnr{}, SSIM \qAllRtSsim{}, by far the closest to
@@ -556,9 +618,11 @@ light from on-screen geometry, where RT GI also reaches off-screen and behind-ca
 \centering
 \includegraphics[width=0.48\textwidth]{figures/ss_all.png}\hfill%
 \includegraphics[width=0.48\textwidth]{figures/rt_all.png}
-\caption{Ista scena i kamera: screen-space aproksimacije (levo: SSAO, SSR, SSGI) naspram
-ray-traced ekvivalenata (desno: RTAO, RT refleksije, RT GI). Screen-space varijanta je svetlija jer
-ne mo\v{z}e da oduzme svetlo koje dolazi od geometrije van ekrana.}
+\caption[Screen-space naspram ray-traced ekvivalenata]{Ista scena i kamera: screen-space
+aproksimacije (levo: SSAO, SSR, SSGI) naspram ray-traced ekvivalenata (desno: RTAO, RT refleksije,
+RT GI). Senke su na obe strane shadow map, a ne trasirane: dr\v{z}e se konstantnim da bi razlika
+poticala samo od ta tri efekta. Screen-space varijanta je svetlija jer ne mo\v{z}e da oduzme svetlo
+koje dolazi od geometrije van ekrana.}
 \label{fig:rt-vs-ss}
 \end{figure}
 
@@ -591,21 +655,42 @@ temporal measure that compares how much the technique changes between consecutiv
 much the \emph{reference} changes over the same interval, so that motion inherent to the scene is
 subtracted and only excess instability remains. Subtracting matters: on this route the reference
 itself moves by a FLIP of about 0.09 between adjacent frames, so a naive frame difference would report
-that as instability. Ranked by it, the techniques order exactly as the flicker proxy predicted: the
-fully reconstructed configurations are the most stable (0.0081 for ray-traced global illumination,
-0.0082 with all effects) and plain rasterization the least (0.0205), with the screen-space and
-single-effect variants between. That is the same conclusion as Section~\ref{sec:denoise-eval}, reached
-under motion instead of by proxy, and it is the evidence for the claim that the spatial filter buys
-stability rather than static fidelity.
+that as instability. Ranked by it (Table~\ref{tab:motion}), the techniques order exactly as the
+flicker proxy predicted: the fully reconstructed configurations are the most stable and plain
+rasterization the least, with the screen-space and single-effect variants between. That is the same
+conclusion as Section~\ref{sec:denoise-eval}, reached under motion instead of by proxy, and it is the
+evidence for the claim that the spatial filter buys stability rather than static fidelity. The two
+temporal metrics disagree usefully: \texttt{rtgi} has the best tFLIP while \texttt{all-rt} has the
+best JOD, because tFLIP isolates temporal excess alone where ColorVideoVDP is spatio-temporal and
+\texttt{all-rt} is far more accurate spatially.
+
+\begin{table}[tbp]
+\caption[Stabilnost pod kretanjem po tehnici]{Stabilnost pod kretanjem, prosek preko \v{c}etiri probne
+ta\v{c}ke rute (RX 9070 XT), pore\dj ano po FLIP-u. tFLIP meri koliko se tehnika menja izme\dj u
+susednih kadrova preko onoga koliko se menja sama referenca; ka\v{s}njenje je pokretni kadar naspram
+sopstvenog konvergiranog mirnog kadra u istoj pozi. JOD je ColorVideoVDP, jedina mera ovde koja
+direktno modeluje vremensku osetljivost.}
+\label{tab:motion}
+\centering
+\input{data/motion.tex}
+\end{table}
 
 The second is lag: the moving frame scored against this renderer's own converged still at the same
-pose, which measures how far reconstruction trails the camera. Read across the route's probe points
-for the full configuration, it is 0.089 while dollying forward, 0.138 while strafing past the
-colonnade, and 0.166 through the direction reversal. Velocity reversal is the costliest motion here,
-and it is not explained by speed, since the route holds translation essentially constant. What is
-special about a reversal is that the velocity vector changes sign, which is the documented pathological
-case for history rejection. A fourth probe past the end of the route, where the camera parks, gives
-0.024 and acts as the control that makes the others readable.
+pose, which measures how far reconstruction trails the camera. Table~\ref{tab:motion-probes} reads it
+across the route for the two ends of the ranking. Velocity reversal is the costliest motion, and it is
+not explained by speed, since the route holds translation essentially constant. What is special about a
+reversal is that the velocity vector changes sign, which is the documented pathological case for
+history rejection. The parked probe is an order of magnitude below the moving ones and acts as the
+control that makes them readable.
+
+\begin{table}[tbp]
+\caption[Stabilnost i ka\v{s}njenje po ta\v{c}ki rute]{Iste dve vremenske mere razlo\v{z}ene po
+probnim ta\v{c}kama, za krajeve rangiranja. Vrednosti se ne porede izme\dj u kolona: svaka ta\v{c}ka
+gleda drugi sadr\v{z}aj, pa je razlika me\dj u njima uglavnom razlika u onome \v{s}to je na ekranu.}
+\label{tab:motion-probes}
+\centering
+\input{data/motion-probes.tex}
+\end{table}
 
 Three cautions belong with these numbers. They must not be compared across probes as if the probes
 were equally hard, because each looks at different scene content: plain rasterization scores its

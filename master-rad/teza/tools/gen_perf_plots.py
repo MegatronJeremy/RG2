@@ -1,0 +1,114 @@
+#!/usr/bin/env python3
+"""Emit pgfplots data files for the performance chapter from the committed perf baselines.
+
+A table is read one cell at a time; these three shapes are the ones the numbers only show as a shape:
+
+  passcost-vendor.dat   per-pass ms on both adapters, and the AMD/NVIDIA ratio. The chapter's claim is
+                        that the two vendors rank the effects differently, which is a per-pass pattern
+                        rather than any single number.
+  ladder.dat            cumulative total GPU time along the rt-off -> shadows -> +ao -> +refl -> +gi
+                        ladder for both adapters, so the divergence point is visible.
+  quality-spread.dat    FLIP per technique with the min/max across the three viewpoints, which says
+                        whether a technique's ranking is stable or an artifact of one frame.
+
+No GPU run: everything here is read from Scripts/{perf,quality}-baseline/.
+
+    py gen_perf_plots.py [--check]
+"""
+import argparse
+import json
+import sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+THESIS = HERE.parent
+ENGINE = THESIS.parent / "Snowstorm-Engine"
+DATA = THESIS / "latex" / "data"
+
+PERF = ENGINE / "Scripts" / "perf-baseline"
+QUALITY = ENGINE / "Scripts" / "quality-baseline"
+
+AMD = "amd-radeon-rx-9070-xt"
+NV = "nvidia-geforce-rtx-5070"
+
+LADDER = ["rt-off", "shadows", "+ao", "+refl", "+gi"]
+
+# Passes worth plotting: everything the RT effects own, plus Forward (which carries inline shadows) and
+# the temporal resolve. Sub-0.05 ms passes are timestamp noise and are dropped by MIN_MS below.
+MIN_MS = 0.05
+
+TECHNIQUES = ["raster", "ssao", "rtao", "ssr", "rtrefl", "ssgi", "rtgi", "all-rt"]
+
+
+def load(dev, config):
+    p = PERF / dev / f"{config}.json"
+    if not p.exists():
+        sys.exit(f"FAIL: missing perf baseline {p}")
+    return json.loads(p.read_text(encoding="utf-8"))
+
+
+def pass_ms(doc, name):
+    e = doc["passes"].get(name)
+    return None if e is None else float(e["avgMs"])
+
+
+def build():
+    out = {}
+
+    amd, nv = load(AMD, "+gi"), load(NV, "+gi")
+    shared = [n for n in amd["passes"] if n in nv["passes"]]
+    rows = []
+    for n in shared:
+        a, b = pass_ms(amd, n), pass_ms(nv, n)
+        if a is None or b is None or max(a, b) < MIN_MS:
+            continue
+        rows.append((n, a, b))
+    rows.sort(key=lambda r: -max(r[1], r[2]))
+    lines = ["pass\tamd\tnv\tratio"]
+    for n, a, b in rows:
+        lines.append(f"{n}\t{a:.4f}\t{b:.4f}\t{(a / b if b else 0):.4f}")
+    out["passcost-vendor.dat"] = "\n".join(lines) + "\n"
+
+    lines = ["i\tconfig\tamd\tnv"]
+    for i, cfg in enumerate(LADDER):
+        a = load(AMD, cfg)["totalGpuMs"]
+        b = load(NV, cfg)["totalGpuMs"]
+        lines.append(f"{i}\t{cfg}\t{a:.4f}\t{b:.4f}")
+    out["ladder.dat"] = "\n".join(lines) + "\n"
+
+    lines = ["i\ttech\tflip\tlo\thi"]
+    for i, t in enumerate(TECHNIQUES):
+        files = sorted((QUALITY / AMD).glob(f"*__{t}.json"))
+        if not files:
+            sys.exit(f"FAIL: no quality baseline for {t}")
+        vals = [json.loads(f.read_text(encoding="utf-8"))["flip"] for f in files]
+        mean = sum(vals) / len(vals)
+        lines.append(f"{i}\t{t}\t{mean:.4f}\t{min(vals):.4f}\t{max(vals):.4f}")
+    out["quality-spread.dat"] = "\n".join(lines) + "\n"
+
+    return out
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--check", action="store_true")
+    args = ap.parse_args()
+
+    out = build()
+    DATA.mkdir(parents=True, exist_ok=True)
+    stale = []
+    for name, text in out.items():
+        p = DATA / name
+        if (p.read_text(encoding="utf-8") if p.exists() else None) != text:
+            stale.append(name)
+            if not args.check:
+                p.write_text(text, encoding="utf-8")
+    if args.check:
+        print(("STALE: " + ", ".join(stale)) if stale else "up to date")
+        return 1 if stale else 0
+    print(("wrote " + ", ".join(stale)) if stale else "up to date")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

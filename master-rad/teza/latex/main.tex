@@ -79,12 +79,6 @@
 % PPK reference title quotes: „...“ (low-opening, high-closing), Serbian style.
 \newcommand{\rqt}[1]{\quotedblbase #1\textquotedblleft}
 
-% Screenshot placeholder: a framed, fixed-size box standing in for a not-yet-captured render.
-% To insert the real capture later, replace \phshot{width}{height}{desc} with
-% \includegraphics[width=...]{figures/<file>}.
-\newcommand{\phshot}[3]{{\setlength{\fboxsep}{3pt}\fbox{\parbox[c][#2][c]{#1}{%
-  \centering\itshape\small [screenshot placeholder]\par\vspace{3pt}#3}}}}
-
 % Must match the title registered on the topic-application form (master-rad/prijava/).
 \title{Hibridno osvetljenje u realnom vremenu primenom pra\'cenja zraka}
 \author{Vuk \DJ or\dj evi\'c}
@@ -115,9 +109,9 @@ The per-effect GPU cost is isolated with an A/B configuration matrix, and recons
 measured with FLIP, PSNR, and SSIM against a converged path-traced reference across several viewpoints. The identical
 pipeline is compared across two vendors, AMD RDNA4 and NVIDIA Blackwell, isolating the effect of
 hardware and driver on the same code. The two vendors rank the effects differently: shadows dominate
-on the RX 9070 XT (2.272 ms) while on the RTX 5070 shadows, reflections, and global illumination cost
-the same to within the measurement spread, for measured real-time totals of \perfTotalAMD{} ms and
-\perfTotalNV{} ms respectively over a baseline under 2.3 ms. The choice of shadow technique is
+on the RX 9070 XT (\perfEffShadowsAMD{} ms) while on the RTX 5070 shadows, reflections, and global
+illumination cost the same to within the measurement spread, for measured real-time totals of
+\perfTotalAMD{} ms and \perfTotalNV{} ms over baselines of \perfBaseAMD{} and \perfBaseNV{} ms. The choice of shadow technique is
 likewise architecture-dependent, the stochastic producer being cheaper than per-light inline tracing
 on AMD and 2.6 times more expensive on NVIDIA. Enabling all four effects lifts reconstruction quality
 from FLIP \qRasterFlip{} / PSNR \qRasterPsnr{} dB / SSIM \qRasterSsim{} (raster) to FLIP

@@ -27,6 +27,25 @@ FIGS = THESIS / "latex" / "figures"
 RESULTS = HERE / "raycount_denoise_results.json"
 
 QUALITY = ENGINE / "Scripts" / "quality-baseline" / "amd-radeon-rx-9070-xt"
+MOTION = ENGINE / "Scripts" / "quality-motion-baseline" / "amd-radeon-rx-9070-xt"
+
+# Motion rows in ascending FLIP, so the table reads as a ranking. megalights* are the experimental
+# stochastic shadow producer and are labelled as such rather than sitting unmarked beside shipping paths.
+MOTION_LABELS = {
+    "raster": "raster",
+    "ssao": "SSAO",
+    "rtao": "RT AO",
+    "ssr": "SSR",
+    "rtrefl": "RT refleksije",
+    "rtshadow": "RT senke",
+    "ssgi": "SSGI",
+    "rtgi": "RT GI",
+    "megalights": r"stohasti\v{c}ke senke",
+    "megalights-nospec": r"stohasti\v{c}ke senke (bez spec.)",
+    "all-rt": r"sve RT (all-RT)",
+}
+PROBES = [("dolly", "naprednica"), ("strafe", "bo\\v{c}no"),
+          ("reversal", "zaokret"), ("static", r"parkirana")]
 
 # thesis row order and label, keyed by the technique slug the gate writes
 TECHNIQUES = [
@@ -94,6 +113,39 @@ def main():
         qmacros += [rf"\newcommand{{\q{name}Flip}}{{{f:.3f}}}",
                     rf"\newcommand{{\q{name}Psnr}}{{{p:.2f}}}",
                     rf"\newcommand{{\q{name}Ssim}}{{{s:.3f}}}"]
+
+    # Motion: the section had no table at all, so its eleven techniques lived only in prose.
+    mot = {}
+    for f in sorted(MOTION.glob("*.json")):
+        m = json.loads(f.read_text(encoding="utf-8"))
+        mot[m["technique"]] = m
+    if not mot:
+        sys.exit(f"FAIL: no committed motion baselines in {MOTION}")
+    order = sorted(mot, key=lambda t: mot[t]["flip"])
+    out["motion.tex"] = tabular(
+        "lrrrr",
+        r"Tehnika & FLIP $\downarrow$ & tFLIP $\downarrow$ & ka\v{s}njenje $\downarrow$ & JOD $\uparrow$",
+        [rf"{MOTION_LABELS.get(t, t):<32} & {mot[t]['flip']:.3f} & {mot[t]['tflip']:.4f} & "
+         rf"{mot[t]['motionPenalty']:.3f} & {mot[t]['cvvdpJod']:.2f} \\" for t in order])
+
+    # Per-probe lag for the two endpoints of the ranking, which is where the probe ordering argument lives:
+    # the costliest motion is the direction reversal, and it is not the fastest or the most angular.
+    def probe_row(t, key):
+        pp = {p["probe"]: p for p in mot[t]["perPair"]}
+        return " & ".join(f"{pp[p][key]:.4f}" if key == "tflip" else f"{pp[p][key]:.3f}"
+                          for p, _lab in PROBES)
+    out["motion-probes.tex"] = tabular(
+        "llrrrr",
+        "Tehnika & mera & " + " & ".join(lab for _p, lab in PROBES),
+        [rf"{MOTION_LABELS[t]} & tFLIP & {probe_row(t, 'tflip')} \\" + "\n"
+         + rf"{MOTION_LABELS[t]} & ka\v{{s}}njenje & {probe_row(t, 'motionPenalty')} \\"
+         for t in ("raster", "all-rt")])
+
+    for slug, name in (("all-rt", "AllRt"), ("rtgi", "RtGi"), ("raster", "Raster")):
+        m = mot[slug]
+        qmacros += [rf"\newcommand{{\m{name}Tflip}}{{{m['tflip']:.4f}}}",
+                    rf"\newcommand{{\m{name}Jod}}{{{m['cvvdpJod']:.2f}}}",
+                    rf"\newcommand{{\m{name}Lag}}{{{m['motionPenalty']:.3f}}}"]
 
     de = d["denoise_eval"]
     off, on = de["quality_off"], de["quality_on"]

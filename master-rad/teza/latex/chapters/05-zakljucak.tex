@@ -1,8 +1,6 @@
 \chapter{Zaklju\v{c}ak}
 \label{ch:zakljucak}
 
-% PPK order: recap zadatak goals -> results (advantages, limitations, application) -> future work.
-% 5.1 recap is qualitative; headline numbers pending Ch4. 5.2/5.3 are complete.
 
 \section{Rezime (osvrt na ciljeve iz zadatka)}
 
@@ -15,21 +13,42 @@ rather than a standalone tracer. The evaluation in Chapter~\ref{ch:analiza} isol
 GPU cost with an A/B benchmark and measures reconstruction quality against a converged path-traced
 reference, and compares the identical pipeline
 across two GPU vendors (AMD RDNA4 and NVIDIA Blackwell).
-The two cards do not agree on which effect costs most. On the RX 9070 XT shadows dominate at 2.272 ms,
-ahead of reflections at 1.756 ms and global illumination at 1.705 ms; on the RTX 5070 those same three
-sit within 0.018 ms of one another, which is inside the run-to-run spread. Measured real-time totals
-are \perfTotalAMD{} ms (9070 XT) and \perfTotalNV{} ms (5070) over a baseline under 2.3 ms. Enabling
-all four effects
-lifts reconstruction quality from FLIP \qRasterFlip{} / PSNR \qRasterPsnr{} dB / SSIM \qRasterSsim{}
-(raster) to FLIP \qAllRtFlip{} / PSNR \qAllRtPsnr{} dB / SSIM \qAllRtSsim{} against the path-traced
-reference (RX 9070 XT; Table~\ref{tab:quality}).
+The headline numbers are collected in Table~\ref{tab:summary}. The two cards do not agree on which
+effect costs most: on the RX 9070 XT shadows dominate, while on the RTX 5070 shadows, reflections and
+global illumination sit within \perfNVSpread{} ms of one another, which is inside the run-to-run
+spread, so on that card they are indistinguishable in cost.
+
+\begin{table}[tbp]
+\caption[Sa\v{z}etak izmerenih rezultata]{Sa\v{z}etak izmerenih rezultata. Cena po efektu je razlika
+ukupnog GPU vremena izme\dj u susednih konfiguracija; kvalitet je prosek preko tri pogleda naspram
+konvergirane path-traced reference na RX 9070 XT.}
+\label{tab:summary}
+\centering
+\begin{tabular}{lrr}
+\toprule
+ & RX 9070 XT & RTX 5070 \\
+\midrule
+osnova bez RT (ms)      & \perfBaseAMD{}        & \perfBaseNV{} \\
+senke (ms)              & \perfEffShadowsAMD{}  & \perfEffShadowsNV{} \\
+AO (ms)                 & \perfEffAoAMD{}       & \perfEffAoNV{} \\
+refleksije (ms)         & \perfEffReflAMD{}     & \perfEffReflNV{} \\
+GI (ms)                 & \perfEffGiAMD{}       & \perfEffGiNV{} \\
+\midrule
+ukupno, sva \v{c}etiri (ms) & \perfTotalAMD{}   & \perfTotalNV{} \\
+\midrule
+FLIP: raster $\rightarrow$ sve RT  & \multicolumn{2}{c}{\qRasterFlip{} $\rightarrow$ \qAllRtFlip{}} \\
+PSNR (dB): raster $\rightarrow$ sve RT & \multicolumn{2}{c}{\qRasterPsnr{} $\rightarrow$ \qAllRtPsnr{}} \\
+SSIM: raster $\rightarrow$ sve RT  & \multicolumn{2}{c}{\qRasterSsim{} $\rightarrow$ \qAllRtSsim{}} \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 Two of the sweeps sharpen that picture. The ray-count knee sits at one ray per pixel: going from one
 to eight rays costs \rcGpuPct\% more GPU time for a \rcPsnrGain{} dB PSNR gain, because the denoiser and temporal
 accumulation already recover most of the achievable quality from a single sample
 (Section~\ref{sec:raycount}). The spatial denoiser's own contribution is likewise not where a static
 metric can see it: it moves PSNR, SSIM and FLIP by less than run-to-run noise, while cutting
-frame-to-frame RMS on a static view from \flickerOff{} to \flickerOn{}, a \flickerPct\% reduction, for 0.33 ms
+frame-to-frame RMS on a static view from \flickerOff{} to \flickerOn{}, a \flickerPct\% reduction, for \perfDenoiseAMD{} ms
 (Section~\ref{sec:denoise-eval}). The honest reading is that at this sample count the temporal history
 does the reconstruction and the spatial filter buys stability rather than static fidelity.
 

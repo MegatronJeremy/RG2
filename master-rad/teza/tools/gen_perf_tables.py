@@ -156,6 +156,18 @@ def build():
         rf"\newcommand{{\perfHeight}}{{{res['9070'][1]}}}",
         rf"\newcommand{{\perfFrames}}{{{res['9070'][2]}}}",
     ]
+    # The conclusion quotes the per-effect costs and the NVIDIA spread; both were hand-typed and both
+    # move whenever a rung is re-baselined.
+    for cfg, name in (("shadows", "Shadows"), ("+ao", "Ao"), ("+refl", "Refl"), ("+gi", "Gi")):
+        macros.append(rf"\newcommand{{\perfEff{name}AMD}}{{{delta('9070', cfg):.3f}}}")
+        macros.append(rf"\newcommand{{\perfEff{name}NV}}{{{delta('5070', cfg):.3f}}}")
+    nv3 = [delta("5070", c) for c in ("shadows", "+refl", "+gi")]
+    macros.append(rf"\newcommand{{\perfNVSpread}}{{{max(nv3) - min(nv3):.3f}}}")
+    # The a-trous chain's own cost, summed over its three iterations. Read from the timestamp scopes
+    # rather than a whole-frame A/B, which for this filter is smaller than the run-to-run spread.
+    for tag, passes in (("AMD", p9), ("NV", p5)):
+        tot = sum(pass_ms(passes, f"GIDenoise{i}") or 0.0 for i in range(3))
+        macros.append(rf"\newcommand{{\perfDenoise{tag}}}{{{tot:.3f}}}")
     out["perf-macros.tex"] = "\n".join(macros) + "\n"
 
     if res["9070"][:2] != res["5070"][:2]:

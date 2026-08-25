@@ -1,14 +1,6 @@
 \chapter{Pregled postoje\'cih re\v{s}enja i tehnologija}
 \label{ch:pregled}
 
-% Draft: English body, Serbian headings.
-
-This chapter provides the background the rest of the thesis relies on and the set of existing
-solutions the evaluation compares against. It first contrasts rasterization with ray tracing and
-introduces acceleration structures and the Vulkan ray-tracing extensions (Sections~\ref{sec:rastervsrt}
-to \ref{sec:vulkanrt}), then surveys existing real-time approaches to the same lighting effects
-(Section~\ref{sec:postojeca}) and the denoising methods that make ray-traced effects usable at
-real-time sample counts (Section~\ref{sec:denoise-pregled}).
 
 \section{Rasterizacija naspram trasiranja zrakova}
 \label{sec:rastervsrt}
@@ -156,34 +148,52 @@ engine and measured head to head against the ray-traced path in Chapter~\ref{ch:
 voxel, probe, and reservoir methods are surveyed for positioning only. They are neither implemented
 nor measured here, and no quantitative claim is made about them.
 
-\emph{Screen-space} methods work entirely from the G-buffer. Screen-space ambient occlusion samples
-the depth buffer in a kernel around each pixel and compares the sampled depths against the pixel's own
-to estimate how occluded it is \cite{mittring2007cryengine}; horizon-based ambient occlusion instead
-integrates the largest unoccluded horizon angle from the depth field \cite{bavoil2008hbao}.
-Screen-space reflections march the reflected ray through the depth buffer until it crosses a surface.
-All are inexpensive and ship widely, but they see only what is currently on screen, so they fail on
-off-screen occluders and reflectors and under disocclusion, and they miss thin geometry the depth
-buffer does not represent. This is precisely the class of error the ray-traced versions remove, since
-they query the true scene.
+Table~\ref{tab:postojeca} summarizes the families and what each gives up. They fail in two distinct
+ways, and the distinction matters for what ray tracing buys. Screen-space methods fail on
+\emph{missing information}: they see only what is currently on screen, so an off-screen occluder or
+reflector simply is not there, and this is precisely the class of error a ray query removes by
+consulting the real scene. Voxel and probe methods do see the whole scene, and fail instead on
+\emph{resolution}: their world representation is coarser than the effect they reconstruct, which shows
+up as light leaking through thin walls or as smoothed-away contact darkening. No amount of sampling
+fixes the first; a finer grid, at a cost, mitigates the second.
 
-\emph{Voxel} approaches voxelize the scene into a (often sparse) grid storing radiance and cone-trace
-that volume to gather indirect light \cite{crassin2011vxgi}. They are scene-wide and independent of
-what is on screen, but the voxel resolution is coarse, which causes light leaking across thin walls
-and demands significant memory and revoxelization work for dynamic geometry. \emph{Probe} methods
-place a grid of light probes, each storing irradiance (and, in dynamic diffuse global illumination, a
-visibility distribution that suppresses leaking) updated by tracing rays from the probe; shading
-points interpolate the surrounding probes \cite{majercik2019ddgi, nvidia_rtxgi}. Probes are robust
-and very cheap to sample, but inherently low-frequency: they smooth out contact darkening and fine
-indirect detail, and their quality depends on probe placement and density.
-
-Production \emph{hybrid} systems combine several of these. Unreal Engine's Lumen traces mesh
-signed-distance fields in software and switches to hardware ray tracing where available, backed by a
-world-space radiance cache, to deliver a complete dynamic global-illumination solution
-\cite{epic_lumen}; it is the bar this work acknowledges rather than tries to beat. Finally,
-\emph{reservoir} resampling (ReSTIR and ReSTIR GI) reuses importance samples spatially and temporally
-across neighboring pixels and frames, sharply lowering variance for many-light direct lighting and
-for indirect paths \cite{bitterli2020restir, ouyang2021restirgi}; it is the current state of the art
-and is positioned as future work in Chapter~\ref{ch:zakljucak}.
+\begin{table}[tbp]
+\caption[Postoje\'ci pristupi i njihova ograni\v{c}enja]{Porodice postoje\'cih re\v{s}enja za iste
+efekte. Prva dve vrste ne vide scenu van ekrana, druge dve je vide ali grublje nego \v{s}to efekat
+tra\v{z}i. Poslednje dve su celoviti sistemi, a ne pojedina\v{c}ne tehnike.}
+\label{tab:postojeca}
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}l>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X@{}}
+\toprule
+Pristup & Kako radi & \v{S}ta gubi \\
+\midrule
+SSAO / HBAO \cite{mittring2007cryengine, bavoil2008hbao}
+  & uzorkuje dubinski bafer oko piksela, odnosno integrali horizontni ugao
+  & samo ono \v{s}to je na ekranu; tanka geometrija koju dubina ne predstavlja \\
+\addlinespace[2pt]
+SSR
+  & mar\v{s}ira odbijeni zrak kroz dubinski bafer do preseka
+  & isto, plus otkrivanje geometrije pri kretanju kamere \\
+\addlinespace[2pt]
+Vokselski GI \cite{crassin2011vxgi}
+  & voksel mre\v{z}a sa radijansom, cone tracing kroz nju
+  & gruba rezolucija: curenje svetla kroz tanke zidove, memorija i revokselizacija \\
+\addlinespace[2pt]
+Probe / DDGI \cite{majercik2019ddgi, nvidia_rtxgi}
+  & mre\v{z}a sondi sa iradijansom i raspodelom vidljivosti
+  & niska frekvencija: gubi kontaktno zatamnjenje i fini indirektni detalj \\
+\addlinespace[2pt]
+Lumen \cite{epic_lumen}
+  & softversko trasiranje SDF-ova uz hardversko gde postoji, radiance cache
+  & celovit sistem; ovde je merilo, ne meta \\
+\addlinespace[2pt]
+ReSTIR \cite{bitterli2020restir, ouyang2021restirgi}
+  & prostorno-vremensko preuzorkovanje rezervoara
+  & stanje struke; ovde budu\'ci rad (Glava~\ref{ch:zakljucak}) \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 \section{Uklanjanje \v{s}uma (denoising) za RT}
 \label{sec:denoise-pregled}

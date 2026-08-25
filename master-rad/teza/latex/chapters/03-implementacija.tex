@@ -1,17 +1,10 @@
 \chapter{Opis implementacije}
 \label{ch:implementacija}
 
-% Ported from ../03-implementacija.md (English draft). Serbian headings, English body.
 
-This chapter describes how the four ray-traced effects and the shared denoiser are implemented
-inside the Snowstorm engine. It first scopes what the host engine provides
-(Section~\ref{sec:engine}), then the render-graph structure the effects plug into
-(Section~\ref{sec:rendergraph}) and the acceleration structures they trace against
-(Section~\ref{sec:accel}), before describing each effect (Section~\ref{sec:efekti}), the SVGF
-denoiser that makes the noisy effects usable (Section~\ref{sec:denoising}), the temporal
-anti-aliasing resolve (Section~\ref{sec:taa}), and the tooling that makes the Chapter~\ref{ch:analiza}
-measurements reproducible (Section~\ref{sec:alati}). The emphasis follows the thesis focus: the ray
-tracing itself and its cost, rather than an exhaustive account of every engine subsystem.
+This chapter describes how the four ray-traced effects and the shared denoiser are implemented inside
+the Snowstorm engine. The emphasis follows the thesis focus: the ray tracing itself and its cost,
+rather than an exhaustive account of every engine subsystem.
 
 \section{Snowstorm Engine (pregled)}
 \label{sec:engine}
@@ -32,7 +25,6 @@ material at trace time. The ImGui editor hosts the
 CVar console and the performance readouts used to drive and measure the effects
 (Section~\ref{sec:alati}). Everything below is a set of passes and shaders added on top of this host.
 
-% Runtime GPU selection pending implementation (engine #152).
 The Vulkan physical device is selected at startup (by index or name through a CVar), so the same
 binary runs on either GPU; the cross-vendor evaluation of Chapter~\ref{ch:analiza} depends on this.
 
@@ -68,7 +60,12 @@ within it, but not past a producer. Each ray-traced effect repeats the same four
 accumulate over time, filter spatially, and (for the half-resolution ones) upsample, which is what
 lets one denoiser implementation serve all of them (Section~\ref{sec:denoising}).
 
-\begin{center}
+\begin{table}[tbp]
+\caption[Prolazi po frejmu, redom]{Prolazi po frejmu redom kojim se izvr\v{s}avaju. Tri efekta se
+rekonstrui\v{s}u pre osvetljavanja i ulaze u \texttt{Forward} kao teksture; senke su izuzetak i
+trasiraju se inline unutar \texttt{Forward} prolaza.}
+\label{tab:framegraph}
+\centering
 \small
 \begin{tabular}{@{}>{\raggedright\arraybackslash}p{2.9cm}@{\hspace{4mm}}>{\raggedright\arraybackslash}p{9.4cm}@{}}
 \toprule
@@ -89,9 +86,7 @@ Post & \texttt{Upscale} $\rightarrow$ \texttt{TemporalResolve} (TAA) $\rightarro
 Merenje & \texttt{Compare}, \texttt{Metrics} (PSNR, SSIM) \\
 \bottomrule
 \end{tabular}
-\end{center}
-
-Figure~\ref{fig:framegraph} summarizes this flow.
+\end{table}
 
 \begin{figure}[tbp]
 \centering
@@ -114,8 +109,8 @@ uzorkuje i pri tome sam trasira zrake senke, inline, po svetlu.}
 \label{fig:framegraph}
 \end{figure}
 
-Three of the four effects run as compute passes \emph{before} the forward pass, each writing a
-denoised texture that the forward shader then samples. They need the depth+normal G-buffer as their
+Three of the four effects run as compute passes \emph{before} the forward pass
+(Figure~\ref{fig:framegraph}), each writing a denoised texture that the forward shader then samples. They need the depth+normal G-buffer as their
 starting surface, so they follow \texttt{DepthNormal} but precede shading; running them ahead of
 forward lets it do a single lit combine (direct lighting plus the sampled indirect, AO, and
 reflection) instead of interleaving trace and shade. This split, screen-space compute effects feeding
@@ -215,8 +210,30 @@ object created inside an otherwise ordinary compute or fragment shader.
 \label{sec:efekti}
 
 All four effects share the same core operation: construct a ray, create a \texttt{RayQuery} against
-the scene TLAS, run its traversal loop, and act on the result. They differ in where the ray starts,
-how many are cast, what a hit returns, and whether the query needs the closest hit or merely any hit.
+the scene TLAS, run its traversal loop, and act on the result. Table~\ref{tab:effect-params} gives the
+four axes they differ on. Two of those axes are coupled: an effect that needs only a visibility answer
+can stop at the first hit, which is both the cheaper traversal and the reason it can afford a lower
+ray count than an effect that must shade what it finds.
+
+\begin{table}[tbp]
+\caption[Parametri \v{c}etiri efekta]{Kako se \v{c}etiri efekta razlikuju pri istoj inline ray query
+operaciji. Broj zrakova i razmera su podrazumevane vrednosti odgovaraju\'cih CVar-ova; ,,prvi
+pogodak`` je \texttt{RAY\_FLAG\_ACCEPT\_FIRST\_HIT\_AND\_END\_SEARCH}, koji prekida obilazak \v{c}im
+na\dj e bilo koji presek.}
+\label{tab:effect-params}
+\centering
+\begin{tabular}{lllll}
+\toprule
+Efekat & zraka/piksel & obilazak & rezultat pogotka & razmera \\
+\midrule
+senke        & 4 po svetlu & prvi pogodak & vidljivost (0/1)        & 1.0 \\
+AO           & 2           & prvi pogodak & okluzija + rastojanje   & 0.5 \\
+refleksije   & 1           & najbli\v{z}i & osen\v{c}ena radijansa  & 1.0 \\
+GI           & 2           & najbli\v{z}i & osen\v{c}ena radijansa  & 0.5 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 The effects that shade their hits (reflections and GI, plus the secondary lighting they evaluate)
 share one routine, \texttt{ShadeSurfaceHit} in \texttt{RTHitShading.hlsli}, which resolves the hit
 triangle through the bindless geometry table and evaluates a single bounce of lighting. Shadows and
@@ -742,20 +759,34 @@ najvi\v{s}e $1{,}6\%$, i nijedan uzorak nije zasi\'cen.}
 
 The measurements in Chapter~\ref{ch:analiza} are produced by instrumentation built into the engine,
 which is what makes them reproducible rather than one-off captures. Every effect is toggled and tuned
-through a console-variable registry, so a benchmark configuration is a set of CVar values (which
-effects are on, ray counts, resolutions) rather than a code change, and the same CVars can be set
-from the command line for headless runs. Each render-graph pass is bracketed by a GPU timestamp
-scope, and a harness (\texttt{perf-bench}) averages those per-pass timings over a fixed frame budget
-past a warmup, writes them to JSON, and diffs against a committed baseline; it sweeps a fixed matrix
-of effect configurations so the per-pass cost of each effect can be read off directly. Reconstruction
-quality is measured by \texttt{quality-bench}, which compares each real-time technique against a
-converged path-traced reference (Section~\ref{sec:pathtracer}) in FLIP, PSNR, and SSIM over several
-viewpoints, and an auto-tuner (\texttt{quality-tune}) can search the real-time CVars against that same
-reference. A smoke harness boots the engine headlessly and fails on any crash or Vulkan validation
-error, and a static shader-occupancy gate tracks register pressure. A cross-thread profiler (Tracy,
-with a headless JSON fallback) and a per-frame time watchdog round out the instrumentation, so a
-stall can be attributed to a specific system or pass without a manual capture. Section~\ref{sec:metodologija}
-combines these into the evaluation methodology.
+through a console-variable registry, so a benchmark configuration is a set of CVar values rather than
+a code change, and the same CVars can be set from the command line for headless runs. Each
+render-graph pass is bracketed by a GPU timestamp scope. Table~\ref{tab:tooling} lists the harnesses
+built on top. Four of them compare against a committed baseline and fail the run on a regression,
+which is what separates a gate from a report: a number nobody checks drifts.
+
+\begin{table}[tbp]
+\caption[Merni alati]{Alati koji proizvode brojeve iz Glave~\ref{ch:analiza}. ,,Kapija`` zna\v{c}i da
+alat pore\dj uje sa committovanim baseline-om i obara izvr\v{s}avanje pri regresiji; alati bez kapije
+samo izve\v{s}tavaju. Svi osim \texttt{rga-occupancy} zahtevaju stvarni GPU, pa se izvr\v{s}avaju
+lokalno, ne na CI-u.}
+\label{tab:tooling}
+\centering
+\begin{tabular}{lll}
+\toprule
+Alat & \v{S}ta meri & Kapija \\
+\midrule
+\texttt{perf-bench}     & GPU ms po prolazu, matrica konfiguracija & da \\
+\texttt{quality-bench}  & FLIP/PSNR/SSIM naspram path trace-a, stati\v{c}na kamera & da \\
+\texttt{quality-motion} & FLIP, tFLIP, ka\v{s}njenje i JOD du\v{z} rute & da \\
+\texttt{rga-occupancy}  & registarski pritisak i zauzetost, offline & da \\
+\texttt{quality-tune}   & pretraga CVar-ova prema referenci & ne \\
+\texttt{smoke-test}     & pad, zaglavljivanje, Vulkan validacija & pass/fail \\
+\texttt{shader-stats}   & registri iz drajvera, oba proizvo\dj a\v{c}a & ne \\
+Tracy + watchdog        & vremenska linija po sistemu, zastoji po frejmu & ne \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \section{Referentni path tracer}
 \label{sec:pathtracer}
@@ -775,12 +806,8 @@ indirect light all emerge from the same multi-bounce transport, one converged pa
 truth for all of them at once. It is not a real-time path: it converges over many frames and exists
 only as the correctness anchor.
 
-Two harnesses build on it. \texttt{quality-bench} captures the converged reference and each real-time
-technique through the same tonemap chain and reports FLIP, PSNR, and SSIM of the technique against the
-reference, averaged over several viewpoints and diffed against a committed baseline;
-\texttt{quality-tune} searches the real-time CVars to minimize the averaged FLIP against the
-reference. Section~\ref{sec:metodologija} uses these for the quality evaluation.
-Figure~\ref{fig:pt-ref} shows a converged reference frame.
+Both sides of every comparison pass through the same tonemap chain, so toggling the path tracer is an
+apples-to-apples A/B rather than a comparison between an HDR and an LDR image.
 
 \begin{figure}[tbp]
 \centering
@@ -804,7 +831,8 @@ simplification of the full problem, not a factor that distorts the relative meas
     upsampled; reflections are traced at full resolution.
   \item \textbf{Low sample counts with reconstruction.} Effects use one or two rays per pixel and
     depend on temporal accumulation, and on the spatial SVGF filter for GI and AO, for a usable
-    image; the spatial filter is disabled for reflections (Section~ef{sec:denoise-eval}).
+    image; the spatial filter is disabled for reflections (Section~
+ef{sec:denoise-eval}).
   \item \textbf{Approximate soft shadows.} In the default path ray-traced shadows use one hard or two
     soft rays per light, traced inline and applied directly with no denoiser, so the penumbra is a
     two-sample approximation of an area light cleaned up only by the temporal resolve, not a
