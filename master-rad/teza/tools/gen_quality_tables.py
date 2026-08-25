@@ -21,9 +21,24 @@ from PIL import Image
 
 HERE = Path(__file__).resolve().parent
 THESIS = HERE.parent
+ENGINE = THESIS.parent / "Snowstorm-Engine"
 DATA = THESIS / "latex" / "data"
 FIGS = THESIS / "latex" / "figures"
 RESULTS = HERE / "raycount_denoise_results.json"
+
+QUALITY = ENGINE / "Scripts" / "quality-baseline" / "amd-radeon-rx-9070-xt"
+
+# thesis row order and label, keyed by the technique slug the gate writes
+TECHNIQUES = [
+    ("raster", r"raster (bez efekata)"),
+    ("ssao", "SSAO"),
+    ("rtao", "RT AO"),
+    ("ssr", "SSR"),
+    ("rtrefl", "RT refleksije"),
+    ("ssgi", "SSGI"),
+    ("rtgi", "RT GI"),
+    ("all-rt", r"sve RT (all-RT)"),
+]
 
 
 def tabular(spec, header, rows):
@@ -56,6 +71,30 @@ def main():
              for r in rc]),
     }
 
+    # The technique comparison averages each metric over the three viewpoints, which is what the section
+    # claims and what quality-tune.py optimises, so a tuned parameter cannot overfit one frame.
+    means, qmacros = {}, []
+    for slug, _label in TECHNIQUES:
+        files = sorted(QUALITY.glob(f"*__{slug}.json"))
+        if not files:
+            sys.exit(f"FAIL: no committed quality baseline for technique '{slug}' in {QUALITY}")
+        vals = [json.loads(f.read_text(encoding="utf-8")) for f in files]
+        means[slug] = tuple(sum(v[k] for v in vals) / len(vals) for k in ("flip", "psnr", "ssim"))
+    rows = []
+    for slug, label in TECHNIQUES:
+        f, p, s = means[slug]
+        cell = (rf"\textbf{{{f:.3f}}} & \textbf{{{p:.2f}}} & \textbf{{{s:.3f}}}"
+                if slug == "all-rt" else rf"{f:.3f} & {p:.2f} & {s:.3f}")
+        rows.append(rf"{label:<20} & {cell} \\")
+    out["quality.tex"] = tabular(
+        "lrrr", r"Tehnika & FLIP $\downarrow$ & PSNR (dB) $\uparrow$ & SSIM $\uparrow$", rows)
+
+    for slug, name in (("raster", "Raster"), ("rtgi", "RtGi"), ("all-rt", "AllRt")):
+        f, p, s = means[slug]
+        qmacros += [rf"\newcommand{{\q{name}Flip}}{{{f:.3f}}}",
+                    rf"\newcommand{{\q{name}Psnr}}{{{p:.2f}}}",
+                    rf"\newcommand{{\q{name}Ssim}}{{{s:.3f}}}"]
+
     de = d["denoise_eval"]
     off, on = de["quality_off"], de["quality_on"]
     out["denoise-eval.tex"] = tabular(
@@ -84,7 +123,7 @@ def main():
         rf"\newcommand{{\hfConeSharp}}{{{high_freq('cone_sharp.png'):.1f}}}",
         rf"\newcommand{{\hfConeGlossy}}{{{high_freq('cone_glossy.png'):.1f}}}",
     ]
-    out["quality-macros.tex"] = "\n".join(macros) + "\n"
+    out["quality-macros.tex"] = "\n".join(macros + qmacros) + "\n"
 
     DATA.mkdir(parents=True, exist_ok=True)
     stale = []

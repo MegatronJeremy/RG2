@@ -7,7 +7,7 @@ measurement setups (Section~\ref{sec:metodologija}), then reports the per-effect
 (Section~\ref{sec:raycount}), the contribution of the denoiser (Section~\ref{sec:denoise-eval}), a
 comparison against the existing solutions from Chapter~\ref{ch:pregled} (Section~\ref{sec:poredjenje}),
 and the static shader occupancy (Section~\ref{sec:occupancy}). Every number reported here is produced
-by a measured run; cells still marked as pending have not yet been measured and are not estimated.
+by a measured run.
 
 \section{Metodologija}
 \label{sec:metodologija}
@@ -195,8 +195,8 @@ that same tradeoff.
 Reflections are no longer the most expensive effect, and the reason is a deliberate default change
 rather than an optimisation. The reflection à-trous filter measured net-negative and now runs zero
 iterations by default (Section~\ref{sec:denoise-eval}), which removed a full-resolution three-pass
-chain worth roughly 1.1 ms. That single change is most of the difference between this table and the
-per-effect ranking a reader of earlier drafts would expect.
+chain worth roughly 1.1 ms. That single change is most of the reason reflections no longer lead the
+ranking.
 
 The per-pass table explains the ordering. Reflections are the only effect that traces at full
 resolution, so their trace alone (1.495 ms on the 9070 XT) costs more than the half-resolution GI
@@ -351,7 +351,7 @@ path-traced reference.}
 \toprule
  & polovi\v{c}na (0.5) & puna (1.0) & razlika \\
 \midrule
-Ukupno GPU (ms)        & 9.86   & 15.35  & $+54\%$ \\
+Ukupno GPU (ms)        & 9.86   & 15.35  & $+56\%$ \\
 \texttt{GI} prolaz (ms) & 1.08   & 4.09   & $\times 3.8$ \\
 \texttt{AO} prolaz (ms) & 0.17   & 0.63   & $\times 3.7$ \\
 \midrule
@@ -362,7 +362,7 @@ FLIP                   & 0.1425 & 0.1423 & $-0.0002$ \\
 \end{tabular}
 \end{table}
 
-Full-resolution tracing costs 5.49 ms more per frame, a 54\% increase on a budget that was already
+Full-resolution tracing costs 5.49 ms more per frame, a 56\% increase on a budget that was already
 approaching ten milliseconds, and returns 0.02 dB of PSNR. All three metrics move by less than the
 run-to-run spread, so the correct reading is not \rqt{full resolution is slightly better} but
 \rqt{the measurement cannot distinguish them at all}.
@@ -429,15 +429,15 @@ history is doing essentially all of the visible convergence at this settled fram
 filter's own contribution shows up elsewhere, in temporal stability rather than static quality. A
 frame-to-frame RMS delta on the same static view (frame $N$ against $N{+}1$ at steady state, a
 flicker proxy under a static camera, not motion) drops only from \flickerOff{} with the denoiser off
-to \flickerOn{} with it on, a \flickerPct\% reduction. An earlier capture protocol put that figure
-near 40\%, but it did not clear the temporal history before sampling, so the unfiltered case was
-credited with noise that had accumulated while assets were still streaming; the corrected protocol
-gives the smaller number, and the two must not be mixed. The GPU cost of the denoiser is best read from its own timestamp
+to \flickerOn{} with it on, a \flickerPct\% reduction. That figure is sensitive to one protocol detail:
+unless temporal history is cleared before sampling, the unfiltered case is credited with noise that
+accumulated while assets were still streaming, which inflates the apparent reduction to near 40\%.
+Figures captured with and without that clear are not comparable. The GPU cost of the denoiser is best read from its own timestamp
 scopes rather than from a whole-frame A/B: the three \texttt{GIDenoise} à-trous iterations total
 0.329 ms on the 9070 XT and 0.317 ms on the 5070 (Table~\ref{tab:pass-cost}), against a full-frame
 budget near nine milliseconds. Toggling the denoiser and diffing whole-frame totals gives about 0.07 ms, but that
 number should not be quoted: it is smaller than the run-to-run spread of the identical configuration,
-so it measures noise rather than the filter. The register-limited \texttt{GIDenoise.comp} shader from
+so it measures noise rather than the filter. The \texttt{GIDenoise.comp} shader from
 Section~\ref{sec:denoising} is inexpensive in isolation, and its cost is amortized further because it
 runs at half resolution.
 
@@ -537,25 +537,13 @@ averaged over the three viewpoints.
 floor, gallery; RX 9070 XT). Manji FLIP i ve\'ci PSNR/SSIM su bolji.}
 \label{tab:quality}
 \centering
-\begin{tabular}{lrrr}
-\toprule
-Tehnika & FLIP $\downarrow$ & PSNR (dB) $\uparrow$ & SSIM $\uparrow$ \\
-\midrule
-raster (bez efekata) & 0.435 & 15.17 & 0.383 \\
-SSAO                 & 0.418 & 15.61 & 0.398 \\
-RT AO                & 0.414 & 15.71 & 0.400 \\
-SSR                  & 0.429 & 15.31 & 0.394 \\
-RT refleksije        & 0.423 & 15.43 & 0.399 \\
-SSGI                 & 0.341 & 17.56 & 0.457 \\
-RT GI                & 0.141 & 25.21 & 0.720 \\
-sve RT (all-RT)      & \textbf{0.087} & \textbf{30.66} & \textbf{0.865} \\
-\bottomrule
-\end{tabular}
+\input{data/quality.tex}
 \end{table}
 
 Two results stand out. First, global illumination is the dominant quality lever: RT GI alone lifts
-PSNR from 15.2 (raster) to 25.2 and cuts FLIP by more than two thirds, and enabling all effects
-reaches FLIP 0.087, PSNR 30.7, SSIM 0.87, by far the closest to the reference. Second, at these
+PSNR from \qRasterPsnr{} (raster) to \qRtGiPsnr{} and cuts FLIP by more than two thirds, and enabling
+all effects reaches FLIP \qAllRtFlip{}, PSNR \qAllRtPsnr{}, SSIM \qAllRtSsim{}, by far the closest to
+the reference. Second, at these
 whole-frame metrics screen-space and ray-traced AO and reflections are near-parity (SSAO versus RT AO,
 and SSR versus RT reflections, differ by under 0.01 in FLIP), because the occlusion and reflection
 contributions are small at the whole-frame level; the ray-traced advantage is off-screen correctness,
@@ -580,8 +568,8 @@ ne mo\v{z}e da oduzme svetlo koje dolazi od geometrije van ekrana.}
 Every quality figure so far comes from a static camera, and Section~\ref{sec:denoise-eval} already
 found that this hides most of what the spatial denoiser does: with temporal accumulation active the
 filter changes PSNR, SSIM and FLIP by less than measurement noise, while cutting frame-to-frame
-flicker by 40\%. That argument was made with a flicker proxy on a static view. This section moves the
-camera.
+flicker by \flickerPct\%. That argument was made with a flicker proxy on a static view. This section
+moves the camera.
 
 The obvious way to build such a measurement is to fly a fixed camera route, capture frames along it,
 and score each against a converged path trace of the same instant. That was done, and the first result
@@ -641,7 +629,8 @@ pairs. Across all 33 the largest absolute difference in FLIP between the adapter
 the median is \textbf{0.0007}, and 24 of the 33 fall below 0.001. The secondary metrics agree to the
 same degree: PSNR never differs by more than 0.10 dB and SSIM never by more than 0.0045. For scale,
 the difference this chapter is actually interested in, between raster and all effects enabled, is a
-FLIP of 0.435 against 0.087, two orders of magnitude larger than the vendor disagreement.
+FLIP of \qRasterFlip{} against \qAllRtFlip{}, two orders of magnitude larger than the vendor
+disagreement.
 
 Technique quality is therefore effectively vendor-independent here, which means the entire
 cross-vendor story of this thesis is cost rather than image quality. That is a useful negative result:

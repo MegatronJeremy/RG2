@@ -684,10 +684,11 @@ The implementation departs from the paper in a few places, all noted so Chapter~
 quality numbers are read correctly: the denoiser filters raw irradiance and remultiplies albedo after
 upsampling rather than demodulating inside the filter as SVGF does; the extra temporal color clamp
 above is not in SVGF; GI and AO are filtered at half resolution where SVGF is full-resolution; and
-the variance edge-stop is optional. \texttt{GIDenoise.comp} is the worst-case shader the static
-occupancy gate flags as register-limited (191 VGPRs, 8 of 16 possible wavefronts on the RX 7900 XTX,
-Table~\ref{tab:occupancy}), which bounds its throughput; Section~\ref{sec:denoise-eval} measures the
-denoiser's cost against the quality it recovers.
+the variance edge-stop is optional. \texttt{GIDenoise.comp} keeps its outer à-trous loop rolled rather
+than unrolled, which costs a little scheduling freedom and in exchange holds register pressure down to
+70 VGPRs on the RX 7900 XTX and 59 on the RX 9070 XT, with no spilling and full occupancy on both
+(Table~\ref{tab:occupancy}); unrolled it allocates 191 and drops to 8 of 16 wavefronts.
+Section~\ref{sec:denoise-eval} measures the denoiser's cost against the quality it recovers.
 
 \section{TAA / temporal resolve}
 \label{sec:taa}

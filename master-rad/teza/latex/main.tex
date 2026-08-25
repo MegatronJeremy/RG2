@@ -1,6 +1,6 @@
 % !TeX program = pdflatex
 % Master rad, ETF Beograd, using the official etf.cls (master option).
-% Drafting language: English (translate to Serbian later); structural strings are Serbian via babel.
+% Body language: English (permitted by Clan 30 of the Pravilnik); structural strings Serbian via babel.
 % Build: pdflatex x2 (manual thebibliography, no bibtex).
 \documentclass[master,a4paper,12pt,oneside]{etf}
 
@@ -120,8 +120,8 @@ the same to within the measurement spread, for measured real-time totals of \per
 \perfTotalNV{} ms respectively over a baseline under 2.3 ms. The choice of shadow technique is
 likewise architecture-dependent, the stochastic producer being cheaper than per-light inline tracing
 on AMD and 2.6 times more expensive on NVIDIA. Enabling all four effects lifts reconstruction quality
-from FLIP 0.435 / PSNR 15.2 dB / SSIM 0.38 (raster) to FLIP 0.087 / PSNR 30.7 dB / SSIM 0.87
-against the path-traced reference.
+from FLIP \qRasterFlip{} / PSNR \qRasterPsnr{} dB / SSIM \qRasterSsim{} (raster) to FLIP
+\qAllRtFlip{} / PSNR \qAllRtPsnr{} dB / SSIM \qAllRtSsim{} against the path-traced reference.
 \end{abstract}
 
 \begin{keywords}

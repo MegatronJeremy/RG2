@@ -24,10 +24,13 @@ THESIS = Path(__file__).resolve().parents[1]
 ENGINE = THESIS.parent / "Snowstorm-Engine"
 DATA = THESIS / "latex" / "data"
 
-RGA = ENGINE / "Scripts" / "rga-baseline" / "occupancy-gfx1200.json"
+RGA = ENGINE / "Scripts" / "rga-baseline" / "occupancy-gfx1201.json"
 NV = ENGINE / "Scripts" / "shader-stats-baseline" / "nvidia-geforce-rtx-5070.json"
 
-ASIC = "gfx1200"  # RDNA4, the RX 9070 XT under evaluation
+# gfx1201 is Navi 48 (RX 9070 / 9070 XT); gfx1200 is Navi 44 (RX 9060 / 9060 XT), per RGA's own target
+# list. The table names the 9070 XT, so it has to read the 9070 XT's ASIC even though the two agree:
+# all 47 cooked shaders allocate identically on both, so this changes provenance, not numbers.
+ASIC = "gfx1201"
 
 # The occupancy models are IMPORTED, never restated here. A copy in this file would be a third
 # definition of the AMD one, and the two that already existed disagreed (granularity 8 against 24),
