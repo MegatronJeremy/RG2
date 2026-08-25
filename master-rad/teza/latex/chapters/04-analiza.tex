@@ -112,10 +112,9 @@ The metrics are averaged over three fixed orientations from one interior positio
 tilted to the floor, and tilted to the upper gallery), chosen to stress ambient occlusion, global
 illumination, and reflections differently, so a single framing cannot bias the result. Each capture is
 bilinearly resampled to a canonical $1024 \times 576$ before any metric is computed, so a window-size
-difference between runs cannot silently change a score. Every quality figure in this chapter is
-captured on a single device, the RX 9070 XT: both devices run identical shaders and an identical
-render graph, so the metrics are not expected to differ materially across vendors, although they were
-in fact measured on only one.
+difference between runs cannot silently change a score. Quality figures quoted elsewhere in this
+chapter are the RX 9070 XT's, and Section~\ref{sec:cross-vendor-quality} measures what that costs by
+capturing the whole matrix on the RTX 5070 as well.
 
 \section{Cena po efektu (GPU ms)}
 \label{sec:cena}
@@ -543,6 +542,46 @@ ray-traced ekvivalenata (desno: RTAO, RT refleksije, RT GI). Screen-space varija
 ne mo\v{z}e da oduzme svetlo koje dolazi od geometrije van ekrana.}
 \label{fig:rt-vs-ss}
 \end{figure}
+
+\section{Kvalitet izme\dj u proizvo\dj a\v{c}a}
+\label{sec:cross-vendor-quality}
+
+The cross-vendor argument of this chapter rests on the claim that the two adapters run identical code,
+so any difference between them is hardware and driver. Everywhere else that claim is used to justify
+comparing \emph{time}. This section tests the other half of it: whether the reconstructed images also
+agree. If they did not, a timing difference could always be dismissed as the two cards having done
+different amounts of work.
+
+The whole quality matrix was captured a second time on the RTX 5070, giving 33 viewpoint and technique
+pairs. Across all 33 the largest absolute difference in FLIP between the adapters is \textbf{0.0037},
+the median is \textbf{0.0007}, and 24 of the 33 fall below 0.001. The secondary metrics agree to the
+same degree: PSNR never differs by more than 0.10 dB and SSIM never by more than 0.0045. For scale,
+the difference this chapter is actually interested in, between raster and all effects enabled, is a
+FLIP of 0.435 against 0.087, two orders of magnitude larger than the vendor disagreement.
+
+Technique quality is therefore effectively vendor-independent here, which means the entire
+cross-vendor story of this thesis is cost rather than image quality. That is a useful negative result:
+the per-effect timings in Section~\ref{sec:cena} and the shadow-strategy inversion in
+Section~\ref{sec:analiza-shadow-strategy} can be read as pure performance differences, with no
+accompanying quality caveat.
+
+One methodological detail makes this measurable at all, and the obvious alternative would have
+destroyed the result. Both adapters are scored against the \emph{same} path-traced reference. The
+reference cache is keyed on the scene, the camera pose, the frame count and the content of the
+path-tracing shaders, and deliberately not on the device, so the second adapter reuses the reference
+the first produced rather than tracing its own. Had each been scored against a reference it produced
+itself, every comparison would have carried the difference between two independently converged path
+traces, and there is no reason to assume that difference is small next to the technique difference
+being measured. Sharing the reference makes the reference error common to both sides, where it
+cancels.
+
+Two limits bound the claim. The residual disagreement is not zero, and the largest of it sits on the
+ambient-occlusion and shadow rows, which are also the effects whose rays interact with the cutout
+geometry where the two drivers genuinely differ (Section~\ref{sec:metodologija}). That is consistent
+with the opacity-micromap disparity being the mechanism, although this experiment does not isolate it.
+And the reference is shared here because both adapters were measured on one machine with a warm cache;
+on two machines each would trace its own, and the comparison would require transferring the reference
+rather than recomputing it.
 
 \section{Zauzetost i cena \v{s}ejdera}
 \label{sec:occupancy}
