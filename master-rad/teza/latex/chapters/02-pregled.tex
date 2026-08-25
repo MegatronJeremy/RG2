@@ -68,11 +68,43 @@ surface area of the child nodes and thus the expected number of node and triangl
 current GPUs the ray-box and ray-triangle intersection tests are executed by dedicated fixed-function
 units, which is what makes casting a ray per pixel affordable in real time. How much of the
 \emph{traversal} around those tests is also fixed-function differs by vendor, and the two GPUs
-evaluated in Chapter~\ref{ch:analiza} sit on opposite sides of that line: NVIDIA's RT cores walk the
-hierarchy in hardware, while on AMD's RDNA architectures the traversal loop is driven by shader
-instructions that issue hardware intersection tests, so traversal competes with shading for the same
-execution resources. This is one structural reason to expect the same shader to have a different cost
-profile on the two vendors, which Section~\ref{sec:cena} measures. Vulkan exposes a two-level structure. A bottom-level
+evaluated in Chapter~\ref{ch:analiza} sit on opposite sides of that line (Figure~\ref{fig:traversal}):
+NVIDIA's RT cores walk the hierarchy in hardware \cite{nvidia_turing}, while on AMD's RDNA
+architectures the traversal loop is driven by shader instructions that issue hardware intersection
+tests \cite{amd_rdna_isa}, so traversal competes with shading for the same execution resources. This
+is one structural reason to \emph{expect} the same shader to cost differently on the two vendors. It
+is not an attribution: Section~\ref{sec:cena} measures that the costs differ, and this evaluation does
+not isolate how much of any measured gap comes from this mechanism rather than from clocks, cache, or
+driver.
+
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}[>={Stealth[]}, font=\small,
+  unit/.style={draw, rounded corners, align=center, minimum width=2.6cm, minimum height=9mm},
+  fixed/.style={unit, fill=black!8}]
+  \begin{scope}
+    \node[font=\small\bfseries] at (1.9,3.5) {NVIDIA (RT jezgra)};
+    \node[unit] (sm) at (1.9,2.5) {SM / \v{s}ejder};
+    \node[fixed, below=12mm of sm, minimum height=14mm, text width=2.4cm] (rtc)
+      {RT jezgro:\\obilazak \emph{i} preseci};
+    \draw[->] ([xshift=-9mm]sm.south) -- node[left, font=\scriptsize] {1 zrak} ([xshift=-9mm]rtc.north);
+    \draw[<-] ([xshift=9mm]sm.south) -- node[right, font=\scriptsize] {pogodak} ([xshift=9mm]rtc.north);
+  \end{scope}
+  \begin{scope}[xshift=6.6cm]
+    \node[font=\small\bfseries] at (1.9,3.5) {AMD RDNA (ray query)};
+    \node[unit, text width=2.4cm] (cu) at (1.9,2.5) {CU / \v{s}ejder:\\petlja obilaska};
+    \node[fixed, below=12mm of cu, text width=2.4cm] (isect) {jedinica za preseke};
+    \draw[->] ([xshift=-9mm]cu.south) -- node[left, font=\scriptsize] {po \v{c}voru} ([xshift=-9mm]isect.north);
+    \draw[<-] ([xshift=9mm]cu.south) -- node[right, font=\scriptsize] {rezultat} ([xshift=9mm]isect.north);
+  \end{scope}
+\end{tikzpicture}
+\caption[Gde \v{z}ivi petlja obilaska]{Preseci zrak-kutija i zrak-trougao su na obe arhitekture
+fiksna funkcija; razlikuje se ko vodi petlju obilaska. Na NVIDIA-i je i ona u hardveru, pa \v{s}ejder
+preda zrak i sa\v{c}eka pogodak; na RDNA arhitekturama petlja te\v{c}e u \v{s}ejderu, koji po
+posve\'cenom \v{c}voru poziva jedinicu za preseke, pa obilazak tro\v{s}i iste izvr\v{s}ne resurse kao
+i sen\v{c}enje. Dijagram obja\v{s}njava za\v{s}to je razlika u ceni o\v{c}ekivana, ne koliko iznosi.}
+\label{fig:traversal}
+\end{figure} Vulkan exposes a two-level structure. A bottom-level
 acceleration structure (BLAS) stores a mesh's triangle geometry in object space; a top-level
 acceleration structure (TLAS) stores instances, each a transform referencing a BLAS. The split lets
 many instances share one BLAS and lets the TLAS, which changes as objects move, be rebuilt per frame

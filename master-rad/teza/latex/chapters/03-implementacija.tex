@@ -206,6 +206,50 @@ but not the ray-tracing-pipeline extension, consistent with the rationale in
 Section~\ref{sec:rendergraph}. There is no shader binding table; every trace is a \texttt{RayQuery}
 object created inside an otherwise ordinary compute or fragment shader.
 
+That absence has a consequence worth drawing, because a reader coming from DXR expects a hit group to
+be dispatched per geometry. Here nothing is dispatched: the shader is handed three integers and has to
+find the surface itself. Figure~\ref{fig:hitresolve} traces that lookup. The committed hit yields an
+instance index, a primitive index and two barycentrics; the instance index reads a \texttt{GeoRecord}
+from a device-address geometry table, which carries the mesh's vertex and index buffer addresses and
+its material; the primitive index reads three indices from that index buffer; the barycentrics
+interpolate the vertex attributes; and the material's texture index samples the bindless texture
+array. One routine, \texttt{ResolveHit} in \texttt{RTHitShading.hlsli}, therefore resolves \emph{any}
+mesh in the scene with no per-geometry shader and no descriptor rebinding, which is what makes a
+single \texttt{ShadeSurfaceHit} usable from all four effects.
+
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}[>={Stealth[]}, font=\small, node distance=4mm,
+  box/.style={draw, rounded corners, align=left, inner sep=4pt, text width=4.4cm},
+  src/.style={box, fill=black!7}]
+  \node[src] (hit) {\textbf{Poga\dj eni trougao}\\\footnotesize \texttt{instanceId}, \texttt{prim},
+    \texttt{bary}};
+  \node[box, below=8mm of hit] (rec) {\textbf{\texttt{GeoRecord}}\\\footnotesize adrese vertex i index
+    bafera, indeks teksture, materijal};
+  \node[box, right=16mm of rec] (idx) {\textbf{Index bafer}\\\footnotesize tri indeksa na
+    \texttt{IndexAddress + prim*12}};
+  \node[box, below=8mm of rec] (vtx) {\textbf{Vertex bafer}\\\footnotesize atributi, interpolirani
+    baricentrima};
+  \node[box, right=16mm of vtx] (tex) {\textbf{Bindless niz tekstura}\\\footnotesize
+    \texttt{NonUniformResourceIndex}};
+  \node[src, below=8mm of vtx] (out) {\textbf{\texttt{HitSurface}}\\\footnotesize albedo, normala,
+    metalnost, hrapavost};
+  \draw[->] (hit) -- node[right, font=\scriptsize] {tabela po adresi} (rec);
+  \draw[->] (rec) -- (idx);
+  \draw[->] (rec) -- (vtx);
+  \draw[->] (idx) -- (vtx);
+  \draw[->] (rec.east) to[out=-30, in=30] (tex.north east);
+  \draw[->] (tex) -- (out);
+  \draw[->] (vtx) -- (out);
+\end{tikzpicture}
+\caption[Razre\v{s}avanje pogotka kroz bindless tabelu geometrije]{Od poga\dj enog trougla do
+osen\v{c}ene povr\v{s}i, bez shader binding table-a. \texttt{RayQuery} vra\'ca samo tri broja;
+\texttt{ResolveHit} od njih stiže do geometrije i materijala kroz tabelu indeksiranu sa
+\texttt{instanceCustomIndex}. Indeks teksture nije uniforman unutar talasa, pa mora kroz
+\texttt{NonUniformResourceIndex}.}
+\label{fig:hitresolve}
+\end{figure}
+
 \section{\v{C}etiri efekta preko inline ray query}
 \label{sec:efekti}
 
@@ -695,6 +739,39 @@ The spatial pass (\texttt{GIDenoise.comp.hlsl}) is the \`a-trous wavelet filter 
 Each iteration is a $5\times5$ tap gather with a B3-spline kernel, and successive iterations double
 the tap stride (\texttt{step = 1 << i}), so a few iterations reach wide spatial support while
 touching few taps. The engine runs up to five iterations, configurable per signal.
+Figure~\ref{fig:atrous} is why that trick is worth the name. At the default three iterations the
+strides are 1, 2 and 4, so the footprints are $5\times5$, $9\times9$ and $17\times17$ and the
+cumulative reach is $2(1+2+4) = 14$ texels, a $29\times29$ support. Gathering that support densely
+would cost $841$ taps per pixel; the three sparse passes cost $3 \times 25 = 75$, a factor of
+$11.2$. The holes are what pay for the reach, and the edge-stopping weights are what keep the
+widening passes from leaking across geometry.
+
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}[font=\scriptsize, scale=0.2]
+  \foreach \it/\stride/\xoff in {0/1/0, 1/2/22, 2/4/44} {
+    \begin{scope}[xshift=\xoff cm]
+      \draw[black!15] (-8.5,-8.5) grid (8.5,8.5);
+      \foreach \dy in {-2,-1,0,1,2} \foreach \dx in {-2,-1,0,1,2} {
+        \pgfmathsetmacro{\px}{\dx*\stride}
+        \pgfmathsetmacro{\py}{\dy*\stride}
+        \fill[black!62] (\px-0.5,\py-0.5) rectangle (\px+0.5,\py+0.5);
+      }
+      \fill[white] (-0.5,-0.5) rectangle (0.5,0.5);
+      \draw[black, thick] (-0.5,-0.5) rectangle (0.5,0.5);
+      \node[font=\small] at (0,-10.4) {iteracija \it, korak \stride};
+      \node[font=\small] at (0,-12.6) {doseg $\pgfmathparse{int(4*\stride+1)}\pgfmathresult
+        \times \pgfmathparse{int(4*\stride+1)}\pgfmathresult$};
+    \end{scope}
+  }
+\end{tikzpicture}
+\caption[\`A-trous: rastu\'ci korak i doseg filtra]{Tri iteracije a-trous filtra, sve nad istim
+$17\times17$ isecem oko piksela koji se filtrira (beli kvadrat u sredini). Svaka iteracija uzima
+istih 25 uzoraka, samo sa dvostruko ve\'cim korakom, pa doseg raste a cena po iteraciji ostaje ista.
+Rupe izme\dj u uzoraka su ono \v{c}ime se pla\'ca doseg: kumulativno $29\times29$ za 75 uzoraka
+umesto 841.}
+\label{fig:atrous}
+\end{figure}
 
 The weights make the filter edge-aware. Each tap carries three edge-stopping terms: a normal term
 \texttt{pow(saturate(dot(N, Ntap)), 8)}, a relative linearized-depth term
