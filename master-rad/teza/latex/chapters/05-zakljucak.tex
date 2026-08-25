@@ -15,9 +15,11 @@ rather than a standalone tracer. The evaluation in Chapter~\ref{ch:analiza} isol
 GPU cost with an A/B benchmark and measures reconstruction quality against a converged path-traced
 reference, and compares the identical pipeline
 across two GPU vendors (AMD RDNA4 and NVIDIA Blackwell).
-On the cross-vendor pair reflections are the single most expensive effect (RX 9070 XT 2.87 ms, RTX
-5070 2.44 ms), ahead of shadows, global illumination, and ambient occlusion, for a measured real-time
-total of 9.97 ms (9070 XT) and 7.24 ms (5070) over a baseline under 2.3 ms. Enabling all four effects
+The two cards do not agree on which effect costs most. On the RX 9070 XT shadows dominate at 2.272 ms,
+ahead of reflections at 1.756 ms and global illumination at 1.705 ms; on the RTX 5070 those same three
+sit within 0.018 ms of one another, which is inside the run-to-run spread. Measured real-time totals
+are \perfTotalAMD{} ms (9070 XT) and \perfTotalNV{} ms (5070) over a baseline under 2.3 ms. Enabling
+all four effects
 lifts reconstruction quality from FLIP 0.435 / PSNR 15.2 dB / SSIM 0.38 (raster) to FLIP 0.087 /
 PSNR 30.7 dB / SSIM 0.87 against the path-traced reference (RX 9070 XT; Table~\ref{tab:quality}).
 

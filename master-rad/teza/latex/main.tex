@@ -92,11 +92,16 @@
 \mentor{prof. dr Dra\v{z}en Dra\v{s}kovi\'c}
 \date{2026}
 
+% Performance figures quoted in the text. Generated from the engine's committed perf baselines by
+% tools/gen_perf_tables.py, never typed by hand: the previous hand-maintained data file drifted out
+% of sync with a re-baseline and nothing detected it.
+\input{data/perf-macros.tex}
+
 \begin{document}
 
 \maketitle
 
-% --- Sa\v{z}etak + klju\v{c}ne re\v{c}i (PPK). English draft; numbers TODO from Ch4. ---
+% --- Sa\v{z}etak + klju\v{c}ne re\v{c}i (PPK) ---
 \begin{abstract}
 This thesis integrates four ray-traced lighting effects (shadows, ambient occlusion, reflections,
 and diffuse global illumination) as inline ray-query (\texttt{VK_KHR_ray_query}) passes over a
@@ -108,9 +113,12 @@ on off-screen or dynamic information; hardware ray tracing makes per-pixel scene
 The per-effect GPU cost is isolated with an A/B configuration matrix, and reconstruction quality is
 measured with FLIP, PSNR, and SSIM against a converged path-traced reference across several viewpoints. The identical
 pipeline is compared across two vendors, AMD RDNA4 and NVIDIA Blackwell, isolating the effect of
-hardware and driver on the same code. Reflections are the single most expensive effect on both
-GPUs (RX 9070 XT 2.87 ms, RTX 5070 2.44 ms), for a measured real-time total of 9.97 ms and 7.24 ms
-respectively over a baseline under 2.3 ms; enabling all four effects lifts reconstruction quality
+hardware and driver on the same code. The two vendors rank the effects differently: shadows dominate
+on the RX 9070 XT (2.272 ms) while on the RTX 5070 shadows, reflections, and global illumination cost
+the same to within the measurement spread, for measured real-time totals of \perfTotalAMD{} ms and
+\perfTotalNV{} ms respectively over a baseline under 2.3 ms. The choice of shadow technique is
+likewise architecture-dependent, the stochastic producer being cheaper than per-light inline tracing
+on AMD and 2.6 times more expensive on NVIDIA. Enabling all four effects lifts reconstruction quality
 from FLIP 0.435 / PSNR 15.2 dB / SSIM 0.38 (raster) to FLIP 0.087 / PSNR 30.7 dB / SSIM 0.87
 against the path-traced reference.
 \end{abstract}

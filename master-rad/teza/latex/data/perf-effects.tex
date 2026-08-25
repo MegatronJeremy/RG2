@@ -1,0 +1,15 @@
+\begin{tabular}{llrr}
+\toprule
+Konfiguracija & Efekat & ms (9070 XT) & ms (5070) \\
+\midrule
+\texttt{rt-off}   & bazna linija (ukupno) & 2.274 & 1.347 \\
+\texttt{+shadows} & senke & 2.272 & 1.294 \\
+\texttt{+ao} & ambijentalna okluzija & 0.817 & 0.728 \\
+\texttt{+refl} & refleksije & 1.756 & 1.291 \\
+\texttt{+gi} & globalno osvetljenje (RT) & 1.705 & 1.309 \\
+\midrule
+\texttt{+gi} & \textbf{ukupno, svi efekti} & \textbf{8.824} & \textbf{5.970} \\
+\midrule
+\texttt{ssgi} & globalno osvetljenje (screen-space, umesto +gi) & 0.739 & 0.667 \\
+\bottomrule
+\end{tabular}

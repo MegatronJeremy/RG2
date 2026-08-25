@@ -125,27 +125,14 @@ Table~\ref{tab:cena} reports it.
 
 \begin{table}[tbp]
 \caption{Cena po efektu (GPU ms) na cross-vendor paru RX 9070 XT / RTX 5070, pri rezoluciji
-$1915 \times 1064$ i fiksiranoj pozi kamere, prosek preko 300 frejmova. \texttt{rt-off} je ukupno GPU
-vreme bez RT efekata; svaki naredni red je dodatak (delta) tog efekta u odnosu na prethodnu
-konfiguraciju. Red \texttt{ssgi} je alternativa za \texttt{+gi} (screen-space GI umesto RT GI) i
-pore\dj en je sa \texttt{+refl}, ne kumulativno sa \texttt{+gi}.}
+$\perfWidth \times \perfHeight$ i fiksiranoj pozi kamere, prosek preko \perfFrames{} frejmova.
+\texttt{rt-off} je ukupno GPU vreme bez RT efekata; svaki naredni red je dodatak (delta) tog efekta u
+odnosu na prethodnu konfiguraciju. Red \texttt{ssgi} je alternativa za \texttt{+gi} (screen-space GI
+umesto RT GI) i pore\dj en je sa \texttt{+refl}, ne kumulativno sa \texttt{+gi}. Sve vrednosti se
+generi\v{s}u iz committovanih baseline-a skriptom \texttt{tools/gen\_perf\_tables.py}.}
 \label{tab:cena}
 \centering
-\begin{tabular}{llrr}
-\toprule
-Konfiguracija & Efekat & ms (9070 XT) & ms (5070) \\
-\midrule
-\texttt{rt-off}   & bazna linija (ukupno)                            & 2.244 & 1.329 \\
-\texttt{+shadows} & senke                                            & 2.388 & 1.428 \\
-\texttt{+ao}      & ambijentalna okluzija                            & 0.772 & 0.789 \\
-\texttt{+refl}    & refleksije                                       & 2.869 & 2.438 \\
-\texttt{+gi}      & globalno osvetljenje (RT)                        & 1.694 & 1.258 \\
-\midrule
-\texttt{+gi}      & \textbf{ukupno, svi efekti}                      & \textbf{9.967} & \textbf{7.243} \\
-\midrule
-\texttt{ssgi}     & globalno osvetljenje (screen-space, umesto +gi)  & 0.752 & 0.790 \\
-\bottomrule
-\end{tabular}
+\input{data/perf-effects.tex}
 \end{table}
 
 The per-effect rows are differences, but the total is the measured whole-frame time of the
@@ -154,26 +141,14 @@ timestamp scope of their own, Table~\ref{tab:pass-cost} breaks the same \texttt{
 pass, which is where the remaining time actually sits.
 
 \begin{table}[tbp]
-\caption{Najskuplji prolazi u \texttt{+gi} konfiguraciji (GPU ms, prosek preko 300 frejmova).
-\texttt{Forward} sadr\v{z}i i inline RT senke, pa nema zaseban scope. Denoise-ovanje refleksija su
-tri a-trous iteracije u punoj rezoluciji, dok GI i AO filtriraju u polovi\v{c}noj.}
+\caption{Najskuplji prolazi u \texttt{+gi} konfiguraciji (GPU ms, prosek preko \perfFrames{}
+frejmova). \texttt{Forward} sadr\v{z}i i inline RT senke, pa nema zaseban scope. GI i AO filtriraju u
+polovi\v{c}noj rezoluciji. Prolazi za denoise-ovanje refleksija ne pojavljuju se u tabeli jer se vi\v{s}e
+ne izvr\v{s}avaju: \texttt{render.reflections.denoise.iterations} je sada 0
+(odeljak~\ref{sec:denoise-eval}).}
 \label{tab:pass-cost}
 \centering
-\begin{tabular}{lrr}
-\toprule
-Prolaz & ms (9070 XT) & ms (5070) \\
-\midrule
-\texttt{Forward} (uklju\v{c}uje inline senke) & 4.439 & 2.322 \\
-\texttt{Reflection}                            & 1.487 & 1.035 \\
-\texttt{ReflectionDenoise0..2}                 & 1.123 & 1.049 \\
-\texttt{GI}                                    & 1.083 & 0.721 \\
-\texttt{GIDenoise0..2}                         & 0.332 & 0.452 \\
-\texttt{AODenoise0..2}                         & 0.333 & 0.539 \\
-\texttt{AO}                                    & 0.169 & 0.200 \\
-\texttt{DepthNormal}                           & 0.143 & 0.253 \\
-\texttt{TemporalResolve} (TAA)                 & 0.179 & 0.081 \\
-\bottomrule
-\end{tabular}
+\input{data/perf-passes.tex}
 \end{table}
 
 Figure~\ref{fig:cost-chart} presents the same data graphically.
@@ -195,22 +170,46 @@ Figure~\ref{fig:cost-chart} presents the same data graphically.
 \label{fig:cost-chart}
 \end{figure}
 
-On both cards reflections, not shadows, are the single most expensive effect (RX 9070 XT 2.87 ms
-versus 2.39 ms for shadows; RTX 5070 2.44 ms versus 1.43 ms), ahead of global illumination and
-ambient occlusion. Together the four effects add 7.72 ms (9070 XT) and 5.91 ms (5070) over their
-respective baselines, for a measured real-time total of 9.97 ms (9070 XT, 2.24 ms baseline) and
-7.24 ms (5070, 1.33 ms baseline). The half-resolution trace plus denoise is what keeps GI and AO cheap
-despite their hemispheric gather. On both cards the screen-space GI producer is cheaper than
-ray-traced GI at the same point in the ladder (9070 XT 0.75 ms versus 1.69 ms; RTX 5070 0.79 ms
-versus 1.26 ms), the expected screen-space-versus-ray-traced cost tradeoff; Section~\ref{sec:poredjenje}
-reports the quality side of that same tradeoff.
+The two cards do not agree on which effect is most expensive, and that is the more interesting
+result. On the RX 9070 XT shadows dominate at 2.272 ms, well clear of reflections at 1.756 ms and
+global illumination at 1.705 ms. On the RTX 5070 the same three effects are within 0.018 ms of each
+other (global illumination 1.309 ms, shadows 1.294 ms, reflections 1.291 ms), which is inside the
+run-to-run spread, so on that card they are indistinguishable in cost. Ambient occlusion is the
+cheapest effect on both. Together the four add \perfFourEffectsAMD{} ms (9070 XT) and
+\perfFourEffectsNV{} ms (5070) over their respective baselines, for measured real-time totals of
+\perfTotalAMD{} ms (9070 XT, \perfBaseAMD{} ms baseline) and \perfTotalNV{} ms (5070,
+\perfBaseNV{} ms baseline).
 
-Reflections are expensive for a structural reason the per-pass table makes visible: they are the only
-effect that traces at full resolution, so both the trace and its three à-trous iterations pay four
-times the pixel count that GI and AO pay. Ambient occlusion costs about a fifth of reflections despite
-casting more rays per pixel, because those rays are short (bounded by \texttt{render.ao.radius}) and
-terminate on the first hit, while a reflection ray can traverse the whole scene and then shade what it
-finds.
+The half-resolution trace plus denoise is what keeps GI and AO cheap despite their hemispheric
+gather. On both cards the screen-space GI producer is cheaper than ray-traced GI at the same point in
+the ladder (9070 XT 0.739 ms versus 1.705 ms; RTX 5070 0.667 ms versus 1.309 ms), the expected
+screen-space-versus-ray-traced cost tradeoff; Section~\ref{sec:poredjenje} reports the quality side of
+that same tradeoff.
+
+Reflections are no longer the most expensive effect, and the reason is a deliberate default change
+rather than an optimisation. The reflection à-trous filter measured net-negative and now runs zero
+iterations by default (Section~\ref{sec:denoise-eval}), which removed a full-resolution three-pass
+chain worth roughly 1.1 ms. That single change is most of the difference between this table and the
+per-effect ranking a reader of earlier drafts would expect.
+
+The per-pass table explains the ordering. Reflections are the only effect that traces at full
+resolution, so their trace alone (1.495 ms on the 9070 XT) costs more than the half-resolution GI
+trace, and until the filter was disabled they also paid a full-resolution three-pass denoise on top.
+Ambient occlusion is the cheapest despite casting more rays per pixel, because those rays are short
+(bounded by \texttt{render.ao.radius}) and terminate on the first hit, while a reflection ray can
+traverse the whole scene and then shade what it finds.
+
+Shadows cost what they do for a different reason, and the per-pass table cannot show it because they
+have no scope of their own. Comparing the \texttt{rt-off} and \texttt{shadows} configurations pass by
+pass on the 9070 XT, the Forward pass grows by 3.482 ms while the raster shadow-map passes disappear
+entirely, returning 1.056 ms (\texttt{Shadow} 0.107 and \texttt{PointShadows} 0.949). Those two terms
+alone would give 2.426 ms, while the measured whole-frame delta is 2.272 ms; the remaining 0.154 ms is
+every other pass shrinking slightly at once, which is the signature of a clock shift rather than of
+real savings, and is consistent with \texttt{rt-off} being the noise-dominated configuration on this
+adapter (8.3\% run-to-run spread against under 1\% for the others). The honest reading is that the
+inline query moves roughly three and a half milliseconds of work into the forward shader and hands
+back one, and that the whole-frame difference is the number to quote because the per-pass terms do not
+close.
 
 \begin{figure}[tbp]
 \centering
@@ -250,30 +249,33 @@ the scene rather than of the implementation.
 \texttt{rt-off}).}
 \label{tab:shadow-strategy}
 \centering
-\begin{tabular}{lrr}
-\toprule
-Strategija & ms (9070 XT) & ms (5070) \\
-\midrule
-inline, po svetlu (podrazumevano) & 2.388 & 1.428 \\
-stohasti\v{c}ka, RIS + denoiser   & 2.758 & 3.510 \\
-\bottomrule
-\end{tabular}
+\input{data/perf-shadow-strategy.tex}
 \end{table}
 
-At five lights the inline path is cheaper on both cards, by 0.37 ms on the 9070 XT and by 2.08 ms on
-the 5070. That is the expected result and not a criticism of the stochastic path: its cost is almost
-entirely fixed overhead, one trace plus a temporal pass plus three à-trous iterations plus an upsample,
-and it buys independence from the light count. The inline path pays roughly one ray per light, so its
-line has a slope while the stochastic line is nearly flat. Extrapolating the inline slope from the
-measured five-light figure puts the crossover in the low tens of lights on the 9070 XT and
-considerably higher on the 5070, whose denoiser chain is the more expensive of the two.
+The two cards disagree about which strategy is cheaper, and they disagree in opposite directions. On
+the RX 9070 XT the stochastic path wins, 1.723 ms against 2.272 ms. On the RTX 5070 it loses badly,
+3.362 ms against 1.294 ms, a factor of 2.6. The same code, the same scene, the same five lights, and
+the better technique is the other one depending on the vendor.
 
-The asymmetry between the vendors is itself informative: the 5070 traces the inline rays faster than
-the 9070 XT (1.43 ms against 2.39 ms) but runs the denoiser chain slower, which is consistent with the
-per-pass breakdown in Table~\ref{tab:pass-cost}, where the 5070's \texttt{AODenoise} and
-\texttt{GIDenoise} iterations also cost more than the AMD card's despite its faster tracing. A
-technique choice that looks obvious on one vendor is therefore not automatically right on the other,
-which is the practical argument for measuring both.
+The explanation is where each architecture spends its budget. The stochastic path replaces per-light
+rays with one importance-sampled ray plus a reconstruction chain, so it trades ray count for filter
+cost. That trade is favourable exactly when rays are expensive relative to filtering. On the 5070 they
+are not: dedicated traversal hardware makes the twenty coherent inline rays of a five-light scene
+cheap enough that paying a temporal pass, three à-trous iterations, and an upsample to avoid them is a
+net loss. On the 9070 XT, where traversal is driven by shader instructions and competes with shading
+for the same execution resources (Section~\ref{sec:accel-pregled}), the same trade pays.
+
+This is the strongest cross-vendor result in the thesis, and it is stronger than a single-GPU ranking
+would have been: it says the choice of shadow technique is a property of the target architecture
+rather than of the scene. A renderer that hard-codes either strategy is wrong on one of these two
+cards. It also bounds how far a single-vendor evaluation can be trusted, which is the practical
+argument for measuring both.
+
+Two caveats bound the claim. The stochastic path's cost is nearly independent of light count while the
+inline path's grows with it, so five lights is one point on two curves that must cross somewhere; this
+scene cannot show where. And the stochastic producer is experimental and off by default, with known
+artifacts under camera motion where two point lights overlap, so these are the numbers of a prototype
+rather than of a shipping technique.
 
 \section{Broj zrakova naspram kvaliteta i brzine}
 \label{sec:raycount}
