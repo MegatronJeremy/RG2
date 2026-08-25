@@ -416,8 +416,8 @@ flicker proxy under a static camera, not motion) drops from 0.3229 with the deno
 with it on, a 40\% reduction: the spatial filter suppresses the per-frame noise that temporal
 accumulation alone leaves as flicker. The GPU cost of the denoiser is best read from its own timestamp
 scopes rather than from a whole-frame A/B: the three \texttt{GIDenoise} à-trous iterations total
-0.332 ms on the 9070 XT and 0.452 ms on the 5070 (Table~\ref{tab:pass-cost}), against a full-frame
-budget near 10 ms. Toggling the denoiser and diffing whole-frame totals gives about 0.07 ms, but that
+0.329 ms on the 9070 XT and 0.317 ms on the 5070 (Table~\ref{tab:pass-cost}), against a full-frame
+budget near nine milliseconds. Toggling the denoiser and diffing whole-frame totals gives about 0.07 ms, but that
 number should not be quoted: it is smaller than the run-to-run spread of the identical configuration,
 so it measures noise rather than the filter. The register-limited \texttt{GIDenoise.comp} shader from
 Section~\ref{sec:denoising} is inexpensive in isolation, and its cost is amortized further because it
@@ -431,6 +431,31 @@ denoiser's contribution rendered as an image rather than as a table row. The hig
 defined in Section~\ref{sec:raycount} falls from 48.3 to 32.1 between the two, a 33\% reduction in
 per-pixel roughness, while the mean level rises from 52.0 to 67.4 because the filter fills in the
 pixels where every ray happened to miss.
+
+\paragraph{Isti filtar na refleksijama je \v{s}tetan.} The same à-trous runs on the reflection signal,
+and there it measured net-negative, which is why it is now disabled by default. Turning it off improved
+every spatial metric at once: FLIP 0.1742 against 0.1746, PSNR 21.75 against 21.70, and SSIM 0.6473
+against 0.6419. That all three move the same way is what separates this from metric gaming, because the
+signature of merely deleting blur is FLIP and PSNR improving while SSIM drops, and SSIM improved here.
+The structural reason is that the filter is guided by the receiving surface's normal and depth, which
+is correct for a diffuse gather but wrong for reflections: reflected radiance is view-dependent, so on
+a flat reflective surface those guides are constant and the kernel opens wide exactly where reflected
+detail lives. The saving is not marginal either, since the reflection chain ran at full resolution
+with no upsample after it: removing it is most of the 1.1 ms by which reflections became cheaper in
+Table~\ref{tab:cena}. A roughness-driven kernel remains the structurally right fix, but it now has to
+beat filtering off rather than beat three iterations.
+
+\paragraph{Cena filtra nije ista na oba proizvo\dj a\v{c}a.} Rolling the à-trous outer loop, which the
+engine did to cut the shader's register pressure (Section~\ref{sec:occupancy}), turned out to pay
+asymmetrically. On the RTX 5070 every stride got faster. On the RX 9070 XT it was close to a wash on
+the half-resolution GI and AO chains, with the first iteration slower and the last one faster, and it
+paid only on the full-resolution chains. The per-pass table shows the residue of this: the AMD denoise
+chain is front-loaded (\texttt{GIDenoise0} 0.133 ms falling to 0.089 ms at \texttt{GIDenoise2}) while
+the NVIDIA one inverts (0.094 ms rising to 0.127 ms). The stride-1 iteration is the one where adjacent
+taps are cache-friendly enough that batching beats occupancy, and that tradeoff evidently lands
+differently on the two memory hierarchies. It is a reminder that a shader optimisation justified by a
+register count is not automatically a win, and has to be measured per vendor like everything else in
+this chapter.
 
 \begin{figure}[tbp]
 \centering

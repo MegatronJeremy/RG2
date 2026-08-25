@@ -80,7 +80,7 @@ GI (1/2 rez.) & \texttt{GI} $\rightarrow$ \texttt{GITemporal} $\rightarrow$ \tex
 \addlinespace[2pt]
 AO (1/2 rez.) & \texttt{AO} $\rightarrow$ \texttt{AOTemporal} $\rightarrow$ \texttt{AODenoise} $\rightarrow$ \texttt{AOUpsample} \\
 \addlinespace[2pt]
-Refleksije (puna) & \texttt{Reflection} $\rightarrow$ \texttt{ReflectionTemporal} $\rightarrow$ \texttt{ReflectionDenoise0..2} \\
+Refleksije (puna) & \texttt{Reflection} $\rightarrow$ \texttt{ReflectionTemporal} (a-trous za refleksije je podrazumevano isklju\v{c}en) \\
 \addlinespace[2pt]
 Osvetljavanje & \texttt{Forward} (\texttt{DefaultLit}): early-Z prepass, nebo, inline zraci senke, i kombinovanje sa GI/AO/refleksijama \\
 \addlinespace[2pt]
@@ -109,7 +109,7 @@ Figure~\ref{fig:framegraph} summarizes this flow.
   \draw[->] (gb) -- (rt); \draw[->] (rt) -- (fw); \draw[->] (fw) -- (taa);
   \draw[->] (taa) -- (post); \draw[->] (post) -- (cmp);
 \end{tikzpicture}
-\caption{Redosled prolaza po frejmu: GI, AO i refleksije se denoise-uju pre Forward prolaza, koji ih
+\caption{Redosled prolaza po frejmu: GI, AO i refleksije se rekonstrui\v{s}u pre Forward prolaza, koji ih
 uzorkuje i pri tome sam trasira zrake senke, inline, po svetlu.}
 \label{fig:framegraph}
 \end{figure}
@@ -775,7 +775,8 @@ simplification of the full problem, not a factor that distorts the relative meas
   \item \textbf{Half-resolution GI and AO.} GI and AO are traced at half resolution and bilaterally
     upsampled; reflections are traced at full resolution.
   \item \textbf{Low sample counts with reconstruction.} Effects use one or two rays per pixel and
-    depend on the SVGF denoiser (GI, AO, reflections) and temporal accumulation for a usable image.
+    depend on temporal accumulation, and on the spatial SVGF filter for GI and AO, for a usable
+    image; the spatial filter is disabled for reflections (Section~ef{sec:denoise-eval}).
   \item \textbf{Approximate soft shadows.} In the default path ray-traced shadows use one hard or two
     soft rays per light, traced inline and applied directly with no denoiser, so the penumbra is a
     two-sample approximation of an area light cleaned up only by the temporal resolve, not a
