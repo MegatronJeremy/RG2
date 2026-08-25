@@ -28,7 +28,7 @@ to eight rays costs 78\% more GPU time for a 0.20 dB PSNR gain, because the deno
 accumulation already recover most of the achievable quality from a single sample
 (Section~\ref{sec:raycount}). The spatial denoiser's own contribution is likewise not where a static
 metric can see it: it moves PSNR, SSIM and FLIP by less than run-to-run noise, while cutting
-frame-to-frame RMS on a static view from 0.3229 to 0.1949, a 40\% reduction in flicker, for 0.33 ms
+frame-to-frame RMS on a static view from \flickerOff{} to \flickerOn{}, a \flickerPct\% reduction, for 0.33 ms
 (Section~\ref{sec:denoise-eval}). The honest reading is that at this sample count the temporal history
 does the reconstruction and the spatial filter buys stability rather than static fidelity.
 

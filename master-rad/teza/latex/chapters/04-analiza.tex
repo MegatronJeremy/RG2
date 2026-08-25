@@ -74,8 +74,14 @@ milliseconds are not comparable across GPUs or output sizes. Persisted console v
 during a benchmark run so that a leftover setting cannot silently change the configuration.
 
 \paragraph{Performance measurement.} Each render-graph pass is wrapped in a GPU timestamp scope, and
-a harness (\texttt{perf-bench}) averages those per-pass timings over a fixed frame budget after a
-fifteen-frame warmup that also covers the one-frame timestamp latency. The benchmark sweeps a fixed
+a harness (\texttt{perf-bench}) averages those per-pass timings over a fixed frame budget once the GPU
+has reached a steady state. The steady state is detected rather than assumed: sampling begins when the
+peak-to-peak spread of a rolling thirty-frame window of whole-frame GPU time falls below 5\% of its
+mean, capped at 600 frames, after which the run proceeds and records that it did not settle. This
+matters more than it sounds. A fixed short warmup, which is the obvious implementation, measures part
+of the clock ramp: on this scene the frame time takes about fifty frames to settle, so a fifteen-frame
+warmup would average the ramp into the result, and how much of it depended on how warm the machine
+already was, with nothing in the output to indicate it. The benchmark sweeps a fixed
 matrix of configurations, \texttt{rt-off} $\rightarrow$ \texttt{shadows} $\rightarrow$ \texttt{+ao}
 $\rightarrow$ \texttt{+refl} $\rightarrow$ \texttt{+gi}, enabling one more effect at each step, so the
 cost of an effect is the difference between adjacent configurations. The reason to measure cost as a
@@ -290,20 +296,12 @@ rays stop paying for themselves.
 \caption{GI kvalitet i GPU cena u funkciji broja zraka po pikselu (denoiser i temporalni resolve
 uklju\v{c}eni, RX 9070 XT).}
 \label{tab:raycount}
-\begin{tabular}{@{}rrrrr@{}}
-\toprule
-Zraka/piksel & PSNR (dB) & SSIM & FLIP & GPU ukupno (ms) \\
-\midrule
-1 & 24.53 & 0.7358 & 0.1487 & 3.53 \\
-2 & 24.65 & 0.7394 & 0.1452 & 3.89 \\
-4 & 24.67 & 0.7404 & 0.1462 & 4.21 \\
-8 & 24.73 & 0.7429 & 0.1437 & 6.29 \\
-\bottomrule
-\end{tabular}
+\input{data/raycount.tex}
 \end{table}
 
-The knee sits at 1 ray per pixel. Going from 1 to 8 rays costs 78\% more GPU time (3.53 to 6.29 ms)
-for a 0.20 dB PSNR gain and a FLIP improvement from 0.1487 to 0.1437, both within run-to-run noise on
+The knee sits at 1 ray per pixel. Going from 1 to 8 rays costs \rcGpuPct\% more GPU time
+(\rcGpuLow{} to \rcGpuHigh{} ms) for a \rcPsnrGain{} dB PSNR gain and a FLIP improvement from
+\rcFlipLow{} to \rcFlipHigh{}, both within run-to-run noise on
 this metric. The denoiser and temporal accumulation already recover most of the achievable quality
 from a single ray; once they are in the pipeline, additional samples per pixel are not where this
 engine's ray budget should go. This is consistent with the SVGF design goal (spatiotemporal
@@ -396,14 +394,7 @@ XT.
 \caption{Doprinos SVGF denoiser-a naspram path-traced reference (2 zraka/piksel, temporalni resolve
 uklju\v{c}en u oba slu\v{c}aja).}
 \label{tab:denoise-eval}
-\begin{tabular}{@{}lrrr@{}}
-\toprule
-Denoiser & PSNR (dB) & SSIM & FLIP \\
-\midrule
-isklju\v{c}en & 24.66 & 0.7407 & 0.1447 \\
-uklju\v{c}en & 24.65 & 0.7393 & 0.1452 \\
-\bottomrule
-\end{tabular}
+\input{data/denoise-eval.tex}
 \end{table}
 
 With temporal accumulation already active, the spatial SVGF pass changes reconstruction quality
@@ -411,9 +402,11 @@ against the static-frame metrics (PSNR, SSIM, FLIP) by less than measurement noi
 history is doing essentially all of the visible convergence at this settled frame, and the spatial
 filter's own contribution shows up elsewhere, in temporal stability rather than static quality. A
 frame-to-frame RMS delta on the same static view (frame $N$ against $N{+}1$ at steady state, a
-flicker proxy under a static camera, not motion) drops from 0.3229 with the denoiser off to 0.1949
-with it on, a 40\% reduction: the spatial filter suppresses the per-frame noise that temporal
-accumulation alone leaves as flicker. The GPU cost of the denoiser is best read from its own timestamp
+flicker proxy under a static camera, not motion) drops only from \flickerOff{} with the denoiser off
+to \flickerOn{} with it on, a \flickerPct\% reduction. An earlier capture protocol put that figure
+near 40\%, but it did not clear the temporal history before sampling, so the unfiltered case was
+credited with noise that had accumulated while assets were still streaming; the corrected protocol
+gives the smaller number, and the two must not be mixed. The GPU cost of the denoiser is best read from its own timestamp
 scopes rather than from a whole-frame A/B: the three \texttt{GIDenoise} à-trous iterations total
 0.329 ms on the 9070 XT and 0.317 ms on the 5070 (Table~\ref{tab:pass-cost}), against a full-frame
 budget near nine milliseconds. Toggling the denoiser and diffing whole-frame totals gives about 0.07 ms, but that
@@ -427,9 +420,21 @@ engine's debug views isolate it exactly: mode 6 is the half-resolution GI irradi
 trace leaves it, and mode 7 is the same buffer after temporal accumulation and the à-trous filter,
 before either is upsampled or composited. Figure~\ref{fig:gi-denoise-ab} is that pair, and it is the
 denoiser's contribution rendered as an image rather than as a table row. The high-frequency energy
-defined in Section~\ref{sec:raycount} falls from 48.3 to 32.1 between the two, a 33\% reduction in
-per-pixel roughness, while the mean level rises from 52.0 to 67.4 because the filter fills in the
-pixels where every ray happened to miss.
+defined in Section~\ref{sec:raycount} falls from \hfGiRaw{} to \hfGiDenoised{} between the two, which
+is essentially all of it, while the mean level rises because the filter fills in the pixels where
+every ray happened to miss.
+
+Putting that next to the table above gives the section its actual conclusion, and it is not the
+expected one. The filter transforms the intermediate buffer almost completely, removing some 96\% of
+its per-pixel roughness, and yet the finished image is unchanged to within measurement noise and the
+static flicker improves by under seven percent. The work is real but the pipeline downstream absorbs
+it: the buffer is upsampled from half resolution, multiplied by surface albedo, added to direct
+lighting that dominates it, and then run through a temporal resolve that is itself a strong low-pass
+in time. At two rays per pixel with temporal accumulation already active, the spatial à-trous is close
+to redundant for global illumination, and Section~\ref{sec:denoise-eval} has already shown it is worse
+than redundant for reflections. That is why it is kept at three iterations for global illumination and
+disabled for reflections rather than applied uniformly, and it is an argument for spending a
+reconstruction budget on the temporal side before the spatial one.
 
 \paragraph{Isti filtar na refleksijama je \v{s}tetan.} The same à-trous runs on the reflection signal,
 and there it measured net-negative, which is why it is now disabled by default. Turning it off improved

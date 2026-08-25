@@ -1,0 +1,54 @@
+{
+  "raycount": [
+    {
+      "spp": 1,
+      "psnr": 24.524752093406978,
+      "ssim": 0.7356052157927374,
+      "flip": 0.14862746000289917,
+      "gpu_total_ms": 3.5129,
+      "device": "AMD Radeon RX 9070 XT"
+    },
+    {
+      "spp": 2,
+      "psnr": 24.64883343667414,
+      "ssim": 0.7394889861193936,
+      "flip": 0.1449105143547058,
+      "gpu_total_ms": 3.8468,
+      "device": "AMD Radeon RX 9070 XT"
+    },
+    {
+      "spp": 4,
+      "psnr": 24.669676985352204,
+      "ssim": 0.7407171514402725,
+      "flip": 0.1457560658454895,
+      "gpu_total_ms": 4.2755,
+      "device": "AMD Radeon RX 9070 XT"
+    },
+    {
+      "spp": 8,
+      "psnr": 24.725783609601425,
+      "ssim": 0.7431750660763607,
+      "flip": 0.14325204491615295,
+      "gpu_total_ms": 6.4279,
+      "device": "AMD Radeon RX 9070 XT"
+    }
+  ],
+  "denoise_eval": {
+    "quality_off": {
+      "psnr": 24.665850647878997,
+      "ssim": 0.7408945898252951,
+      "flip": 0.14458385109901428,
+      "device": "AMD Radeon RX 9070 XT"
+    },
+    "quality_on": {
+      "psnr": 24.65000932932419,
+      "ssim": 0.739658800862334,
+      "flip": 0.14490437507629395,
+      "device": "AMD Radeon RX 9070 XT"
+    },
+    "gpu_off": 3.6873,
+    "gpu_on": 3.8456,
+    "flicker_rms_off": 0.21845787918533868,
+    "flicker_rms_on": 0.20377613369496686
+  }
+}

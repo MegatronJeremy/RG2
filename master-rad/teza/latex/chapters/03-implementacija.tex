@@ -477,12 +477,19 @@ daje jedan o\v{s}tar zrak, a hrapava uzorkuje konus oko $R$.}
 \label{fig:refl}
 \end{figure}
 
-Figure~\ref{fig:refl-onoff} shows the contribution of the pass. The cone width itself is not
-separable by eye in this scene: Sponza's materials are texture-driven fabric and stone with no large
-low-roughness surface, so sweeping \texttt{render.reflections.cone\_scale} from 0 (a pure mirror ray)
-to 3 moves the frame by a mean 0.16/255 at the best of six camera poses tried, against 3.16 for
-enabling the pass at all. The cone is therefore documented by its formula rather than by a
-side-by-side, and the figure shows the pass off against on.
+Figure~\ref{fig:refl-onoff} shows the contribution of the pass, and Figure~\ref{fig:refl-cone} the
+effect of the cone itself.
+
+The second of those needs a note about how it is measured, because the obvious way to make it fails.
+Sweeping \texttt{render.reflections.cone\_scale} from 0 (a pure mirror ray) to 3 changes the finished
+frame by a mean of only 0.16 levels out of 255, across six camera poses tried. That is not because the
+cone does little; it is because the reflection is a small additive term next to direct lighting, so
+the composited image hides it. Measured on the reflection buffer before compositing, the same A/B
+moves 43.7 levels and drops the buffer's high-frequency energy from \hfConeSharp{} to
+\hfConeGlossy{}, a factor of 275 more signal than the composited comparison shows. The figure
+therefore uses the isolated buffer, for the same reason the effect gallery in
+Section~\ref{sec:cena} does: a term that is small in the final image can still be the whole content of
+its own intermediate.
 
 \begin{figure}[tbp]
 \centering
@@ -492,6 +499,17 @@ side-by-side, and the figure shows the pass off against on.
 tangentnog gde je Fresnel-ov doprinos najve\'ci. Sjaj na draperijama i kamenu je razlika koju
 donosi prolaz.}
 \label{fig:refl-onoff}
+\end{figure}
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=0.48\textwidth]{figures/cone_sharp.png}\hfill%
+\includegraphics[width=0.48\textwidth]{figures/cone_glossy.png}
+\caption{Reflektovana radijansa pre kombinovanja (\texttt{render.debugview} 3): o\v{s}tar ogledalski
+zrak, \texttt{cone\_scale} 0 (levo), naspram konusa \v{s}irenog hrapavo\v{s}\'cu, \texttt{cone\_scale}
+3 (desno). U gotovoj slici se ova razlika ne vidi jer je refleksija mali aditivni \v{c}lan pored
+direktnog osvetljenja; u sopstvenom baferu ona je ceo sadr\v{z}aj.}
+\label{fig:refl-cone}
 \end{figure}
 
 \subsection{Globalno osvetljenje (GI)}

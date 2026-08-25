@@ -75,9 +75,16 @@ SHOTS = [
                                "SS_RENDER_SHADOW_SUN_ANGLE_DEG": "3.0", "SS_RENDER_SHADOW_SOFT": "0"}, False),
     ("shadow_soft", SUNSTRIP, {**BASE_ENV, "SS_RENDER_SHADOWS_MODE": "2",
                                "SS_RENDER_SHADOW_SUN_ANGLE_DEG": "3.0", "SS_RENDER_SHADOW_SOFT": "1"}, False),
-    # Sponza's materials are texture-driven fabric and stone with no large glossy surface, so a
-    # sharp-vs-glossy cone A/B is not visible here (cone_scale 0 vs 3 moves 0.16/255 at the best of
-    # six poses tried). Off vs RT reflections is the honest demonstrable pair (3.15).
+    # The cone A/B is invisible in a COMPOSITED frame (cone_scale 0 vs 3 moves 0.16/255 at the best of
+    # six poses tried) because the reflection is a small additive term next to direct lighting. In the
+    # raw reflection buffer it is the dominant signal: the same A/B moves 44.1/255 and drops
+    # high-frequency energy from 16.1 to 8.8. Same lesson as the effect gallery: isolate the signal.
+    ("cone_sharp", GRAZING, {**BASE_ENV, "SS_RENDER_REFLECTIONS_MODE": "2", "SS_RENDER_DEBUGVIEW": "3",
+                             "SS_RENDER_REFLECTIONS_MAX_ROUGHNESS": "1.0",
+                             "SS_RENDER_REFLECTIONS_CONE_SCALE": "0"}, False),
+    ("cone_glossy", GRAZING, {**BASE_ENV, "SS_RENDER_REFLECTIONS_MODE": "2", "SS_RENDER_DEBUGVIEW": "3",
+                              "SS_RENDER_REFLECTIONS_MAX_ROUGHNESS": "1.0",
+                              "SS_RENDER_REFLECTIONS_CONE_SCALE": "3"}, False),
     ("refl_off", GRAZING, {**BASE_ENV}, False),
     ("refl_rt", GRAZING, {**BASE_ENV, "SS_RENDER_REFLECTIONS_MODE": "2",
                           "SS_RENDER_REFLECTIONS_MAX_ROUGHNESS": "1.0"}, False),
