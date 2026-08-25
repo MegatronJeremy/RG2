@@ -543,6 +543,59 @@ ne mo\v{z}e da oduzme svetlo koje dolazi od geometrije van ekrana.}
 \label{fig:rt-vs-ss}
 \end{figure}
 
+\section{Stabilnost pod kretanjem}
+\label{sec:motion}
+
+Every quality figure so far comes from a static camera, and Section~\ref{sec:denoise-eval} already
+found that this hides most of what the spatial denoiser does: with temporal accumulation active the
+filter changes PSNR, SSIM and FLIP by less than measurement noise, while cutting frame-to-frame
+flicker by 40\%. That argument was made with a flicker proxy on a static view. This section moves the
+camera.
+
+The obvious way to build such a measurement is to fly a fixed camera route, capture frames along it,
+and score each against a converged path trace of the same instant. That was done, and the first result
+it produced is a caution about the method rather than a fact about the renderer. Across the eleven
+techniques, the per-frame FLIP measured this way correlates with the static FLIP of
+Section~\ref{sec:poredjenje} at $r = +0.99$. It is very nearly the same measurement taken twice.
+
+The reason is structural. A converged per-frame path trace is a sequence of independent still images;
+it contains no temporal structure, because nothing in its construction relates one frame to the next.
+Error measured against it therefore has no temporal component to carry, however much the camera moves
+while the frames are captured. This is not a defect of this implementation but of that experimental
+design, and it is a known conflation: k-DOP Clipping \cite{ikkala2024kdop} states outright that a
+supersampled reference introduces a constant error by also comparing general temporal-antialiasing
+quality against supersampling. The canonical denoiser papers avoid it by reporting accuracy against a
+reference and temporal behaviour separately, the latter with a reference-free measure.
+
+Two quantities in the moving capture do carry information the static gate cannot. The first is a
+temporal measure that compares how much the technique changes between consecutive frames against how
+much the \emph{reference} changes over the same interval, so that motion inherent to the scene is
+subtracted and only excess instability remains. Subtracting matters: on this route the reference
+itself moves by a FLIP of about 0.09 between adjacent frames, so a naive frame difference would report
+that as instability. Ranked by it, the techniques order exactly as the flicker proxy predicted: the
+fully reconstructed configurations are the most stable (0.0081 for ray-traced global illumination,
+0.0082 with all effects) and plain rasterization the least (0.0205), with the screen-space and
+single-effect variants between. That is the same conclusion as Section~\ref{sec:denoise-eval}, reached
+under motion instead of by proxy, and it is the evidence for the claim that the spatial filter buys
+stability rather than static fidelity.
+
+The second is lag: the moving frame scored against this renderer's own converged still at the same
+pose, which measures how far reconstruction trails the camera. Read across the route's probe points
+for the full configuration, it is 0.089 while dollying forward, 0.138 while strafing past the
+colonnade, and 0.166 through the direction reversal. Velocity reversal is the costliest motion here,
+and it is not explained by speed, since the route holds translation essentially constant. What is
+special about a reversal is that the velocity vector changes sign, which is the documented pathological
+case for history rejection. A fourth probe past the end of the route, where the camera parks, gives
+0.024 and acts as the control that makes the others readable.
+
+Three cautions belong with these numbers. They must not be compared across probes as if the probes
+were equally hard, because each looks at different scene content: plain rasterization scores its
+\emph{best} per-frame FLIP on the reversal probe while showing its worst lag there. The lag measure is
+this renderer against its own still, so it can be driven to zero by degrading the still and must never
+be used as an optimisation target. And its absolute scale depends on the capture protocol, which was
+corrected during this work, so only figures from the current baselines may be quoted and never mixed
+with earlier ones.
+
 \section{Kvalitet izme\dj u proizvo\dj a\v{c}a}
 \label{sec:cross-vendor-quality}
 
