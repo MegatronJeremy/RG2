@@ -22,8 +22,9 @@ specifications. Because both devices run identical shaders and an identical rend
 metrics are not expected to differ materially across them; the cross-vendor result is therefore a
 performance comparison, and a quality divergence would point at a non-determinism worth investigating
 rather than at a real difference. The one documented exception to the identical-code-path claim is
-opacity micromap support, discussed next. The static occupancy analysis (Section~\ref{sec:occupancy}) targets a separate AMD
-architecture (RDNA3) offline and is independent of this cross-vendor comparison.
+opacity micromap support, discussed next. The static occupancy analysis (Section~\ref{sec:occupancy})
+covers both of these adapters and is reported alongside the timings, since register pressure is part
+of why the same shader costs what it does on each.
 
 \begin{table}[tbp]
 \caption{GPU-ovi u cross-vendor pore\dj enju, prema zvani\v{c}nim specifikacijama proizvo\dj a\v{c}a
@@ -521,36 +522,58 @@ ne mo\v{z}e da oduzme svetlo koje dolazi od geometrije van ekrana.}
 \section{Zauzetost i cena \v{s}ejdera}
 \label{sec:occupancy}
 
-This section reports the static shader occupancy (VGPR usage and register spills) for the
-ray-tracing and denoising shaders central to this chapter, from the offline occupancy gate
-(Table~\ref{tab:occupancy}). On the current baseline three of the ten listed shaders are
-VGPR-limited: \texttt{GIDenoise.comp} (191 VGPR, 8/16 waves) is the worst case, followed by
-\texttt{DefaultLit.frag} (132 VGPR, 10/16 waves) and \texttt{PathTrace.comp} (102 VGPR, 13/16
-waves); every RT trace, temporal, and upsample shader in the table reaches the full 16/16 waves, and
-none of the ten has a register spill. These figures are static and theoretical (register-derived
-occupancy), distinct from achieved occupancy measured with a runtime profiler.
+This section reports static shader occupancy: how many registers each ray-tracing and denoising
+shader needs, and how many waves the hardware can therefore keep in flight. It is the one place where
+the two vendors can be compared on something other than time, and it explains part of the cost
+difference the rest of the chapter measures.
+
+Two artifacts feed it, with deliberately different authority. For AMD the offline analyser compiles
+every shader and every permutation, so its coverage is complete and deterministic, and it is what the
+project gates on. For NVIDIA no offline analyser exists, because register allocation happens inside
+the driver's just-in-time compiler; the figures there are read back from the driver itself through
+\texttt{VK\_KHR\_pipeline\_executable\_properties} after the pipelines are built. The two agree on
+every AMD register count they share, which is what licenses carrying the offline permutation labels
+over to the runtime numbers: the runtime capture reports both \texttt{DefaultLit} variants under one
+pipeline name and cannot tell them apart on its own.
 
 \begin{table}[tbp]
-\caption{Stati\v{c}ka VGPR-zauzetost klju\v{c}nih ray-tracing i denoising \v{s}ejdera na RX 7900 XTX
-(gfx1100), iz RGA offline analize. Talasi = teorijski maksimalan broj wave32 talasa po SIMD-u (1536
-VGPR-a po SIMD-u, granularnost alokacije 16, maksimum 16); manje od 16/16 zna\v{c}i da je \v{s}ejder
-VGPR-limited. Nijedan od ovih \v{s}ejdera nema VGPR/SGPR spill.}
+\caption{Registri i teorijska zauzetost klju\v{c}nih \v{s}ejdera na oba GPU-a. Za AMD: broj VGPR-a i
+najve\'ci mogu\'ci broj wave32 talasa po SIMD-u (1536 VGPR-a, granularnost 24, najvi\v{s}e 16). Za
+NVIDIA: broj registara po niti i najve\'ci broj warp-ova po SM-u (65536 registara, najvi\v{s}e 48).
+Obe vrednosti su teorijske i izvedene iz broja registara, ne izmerene profajlerom. Generi\v{s}e se iz
+committovanih baseline-a skriptom \texttt{tools/gen\_shader\_tables.py}.}
 \label{tab:occupancy}
 \centering
-\begin{tabular}{lrrl}
-\toprule
-\v{S}ejder & VGPR & Talasi & Napomena \\
-\midrule
-\texttt{PathTrace.comp}    & 102 & 13/16 & referentni path tracer \\
-\texttt{DefaultLit.frag}   & 132 & 10/16 & glavni forward \v{s}ejder \\
-\texttt{GIDenoise.comp}    & 191 & 8/16  & najzauzetiji, GI SVGF denoise \\
-\texttt{GI.comp}           & 85  & 16/16 & RT GI trace \\
-\texttt{Reflection.comp}   & 83  & 16/16 & RT refleksije trace \\
-\texttt{Shadow.comp}       & 88  & 16/16 & stohasti\v{c}ke RT senke (nije podrazumevani put) \\
-\texttt{AO.comp}           & 63  & 16/16 & RT AO trace \\
-\texttt{GITemporal.comp}   & 53  & 16/16 & GI temporalna akumulacija \\
-\texttt{GIUpsample.frag}   & 45  & 16/16 & GI half-res upsample \\
-\texttt{AOUpsample.frag}   & 40  & 16/16 & AO half-res upsample \\
-\bottomrule
-\end{tabular}
+\input{data/shader-occupancy.tex}
 \end{table}
+
+Only one shader on the render path is occupancy-limited on either card, and it is the same one:
+\texttt{DefaultLit.frag} in its inline-shadow permutation, at 127 VGPRs and 10 of 16 waves on the
+9070 XT. Compiled without the inline shadow query the same shader drops to 87 VGPRs and full
+occupancy, which locates the cost precisely: tracing shadow rays inside the forward shader is what
+pushes it over a wave boundary, and that is the same effect Section~\ref{sec:cena} sees as a Forward
+pass that grows by 3.482 ms. Nothing in the table spills registers, and across all 47 cooked shaders
+exactly one uses any scratch memory at all (\texttt{NeuralConv.comp}, 272 bytes), which is off the
+render path.
+
+The cross-vendor comparison is the interesting part, and it inverts the naive reading. NVIDIA uses
+markedly fewer registers for the same shader, 80 against 127 for the inline-shadow variant, yet its
+relative occupancy is \emph{lower}: 25 of 48 warps against 10 of 16 waves, 52\% against 62\%. The
+reason is the ratio each architecture provides. A Blackwell SM has 65536 registers for up to 48 warps
+of 32 threads, which is about 42 registers per thread at full occupancy, so register pressure begins
+to bite earlier there than the raw counts suggest. Fewer registers used does not mean more parallelism
+available.
+
+Three limits belong with these numbers. The occupancy is theoretical and register-derived, so it is an
+upper bound on both vendors and says nothing about what is achieved once memory stalls and other
+limits are included; that needs a runtime profiler. The RDNA4 register allocation granularity is taken
+from documentation and has not been confirmed against a per-compile report the way the RDNA3 figure
+was, so a wave count sitting near a boundary is model-dependent: at a granularity of 8 rather than 24
+the inline-shadow permutation would read 12 of 16 rather than 10. And the NVIDIA figure is explicitly
+an upper bound, since the allocation granularity for that compute capability is not published and
+rounding up can only lower the warp count.
+
+The one statistic deliberately not reported is register spilling on NVIDIA. The driver returns a
+\texttt{Local Memory Size} whose upper 32 bits are a constant, so the values differ only in their low
+half; the low half is very likely the real figure, but masking it would be inference presented as
+measurement, and a plausible fabricated number is worse than a missing one.
