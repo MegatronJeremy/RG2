@@ -125,10 +125,10 @@ instance per (Transform, Mesh) entity, each carrying its $3\times4$ world transf
 mask, its BLAS address, and an \texttt{instanceCustomIndex} set to the instance index so the hit
 shader can resolve the geometry from a table (Section~\ref{sec:efekti}).
 
-In the evaluation scenes the two-level structure buys nothing, since the model is authored as a
-single unrepeated mesh set: \texttt{Sponza.world} holds 25 instances over 25 BLAS.
+In \texttt{Sponza.world} the two-level structure buys nothing, since the model is authored as a
+single unrepeated mesh set: 25 instances over 25 BLAS, one to one.
 \texttt{Sponza-Motion.world} adds the four rotating props of Section~\ref{sec:motion}, four
-transforms of one mesh, giving 29 instances over 26 BLAS. The instance count reported by
+transforms of one mesh, so its 29 instances share 26 BLAS. The instance count reported by
 \texttt{TlasBuildSystem} climbs across rebuilds (6, 12, 18, 24, 25) as the meshes stream in, since a
 mesh entity joins the structure only once its geometry is resident.
 
@@ -140,7 +140,7 @@ which is the common case for the benchmark scene. A full rebuild on every dynami
 than a refit would be; this is called out as a limitation in Chapter~\ref{ch:zakljucak} and was
 chosen for implementation simplicity given that the test scenes are largely static.
 
-\paragraph{Opacity micromaps for cutout geometry.} On a device exposing
+\paragraph{Opacity micromaps za cutout geometriju.} On a device exposing
 \texttt{VK\_EXT\_opacity\_micromap} (\texttt{render.omm}, on by default when supported), a cutout
 material instead builds a second, non-opaque BLAS carrying an opacity micromap: a compute pass
 (\texttt{OmmBake.comp}) bakes the material's albedo alpha into a per-microtriangle
@@ -357,8 +357,11 @@ Penumbra width is $2H\tan(\theta/2)$ in the occluder-to-receiver distance $H$ an
 angular size $\theta$, so Figure~\ref{fig:shadow-hs} frames the sunlit floor strip: the sun is the
 only light here with a distant occluder, its transverse edge cast by the roof light-well lip about
 10.4 units above the floor, while the four enabled torches sit a couple of units from the walls they
-light. Widening \texttt{render.shadow.source\_radius} instead would be the wrong control, for a reason
-that is also a limitation. Cone samples falling below the shading normal's horizon are skipped while the
+light. At the sun's true angular diameter that penumbra is roughly 36 pixels of a 2560-wide capture
+and disappears once scaled into the page, so the figure raises
+\texttt{render.shadow.sun\_angle\_deg} to $3^\circ$ and says so in its caption. Widening
+\texttt{render.shadow.source\_radius} instead would be the wrong control, for a reason that is also a
+limitation. Cone samples falling below the shading normal's horizon are skipped while the
 average still divides by the full sample count, which is deliberate (counting them lit is the leak
 that next-event estimation rejects in the path tracer), although it means a wider cone also darkens
 grazing surfaces systematically. At a 1.5-unit radius that darkening accounts for about three quarters

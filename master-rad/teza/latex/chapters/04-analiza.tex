@@ -35,7 +35,7 @@ Drajver / OS           & 32.0.31035.1003, Windows 11 Pro (build 26100) & 32.0.15
 \end{tabularx}
 \end{table}
 
-\paragraph{OMM support disparity.} Sponza carries three MASK-mode (alpha-cutout) materials, which
+\paragraph{Nesaglasje u podr\v{s}ci za OMM.} Sponza carries three MASK-mode (alpha-cutout) materials, which
 trace through the opacity-micromap BLAS on a device exposing \texttt{VK\_EXT\_opacity\_micromap} and
 through the any-hit alpha-test fallback otherwise (Section~\ref{sec:accel}). The RTX 5070 driver
 exposes the extension and the 9070 XT driver does not, despite comparable hardware capability, so the
@@ -56,7 +56,7 @@ nondeterministic results, and persisted console variables are ignored during a b
 leftover setting cannot silently change the configuration. Performance baselines are per-machine and
 per-resolution, because absolute milliseconds are not comparable across GPUs or output sizes.
 
-\paragraph{Performance measurement.} GPU time comes from the per-pass timestamp scopes and the
+\paragraph{Merenje performansi.} GPU time comes from the per-pass timestamp scopes and the
 \texttt{perf-bench} harness of Section~\ref{sec:alati}, averaged over a fixed frame budget once a
 steady state has been detected rather than assumed: frame time takes about fifty frames to settle on
 this scene, so a fixed short warmup would average part of the clock ramp into the result, by an
@@ -78,7 +78,7 @@ per-pass times are comparable across vendors, and both GPUs are reported side by
 than against a single-machine baseline, since the cross-vendor comparison is itself the
 measurement.
 
-\paragraph{Quality measurement.} Reconstruction quality is measured by \texttt{quality-bench} against
+\paragraph{Merenje kvaliteta.} Reconstruction quality is measured by \texttt{quality-bench} against
 the converged path-traced reference of Section~\ref{sec:pathtracer}. Each real-time technique's
 tonemapped present is scored against it by \textbf{FLIP} (perceptual), \textbf{PSNR} and
 \textbf{SSIM}. FLIP is primary because it models what a human observer notices rather than raw
@@ -716,8 +716,8 @@ Figure~\ref{fig:occupancy-cliff} plots why the two permutations land so far apar
 blocks of 24 on this architecture and the wave count is the register file divided by that rounded-up
 allocation. Between 24 and 96 VGPRs every shader gets all 16 waves, so the five shaders in the flat
 region differ in register use by a factor of 1.5 (59 to 87) at no cost in parallelism. Past 96 the
-count falls in steps: the inline-shadow permutation at 127 VGPRs allocates 144 and gets 10 waves,
-where at or below 96, as its non-tracing sibling is at 87, it would have cost nothing. Hence gating
+count falls in steps: the inline-shadow permutation at 127 VGPRs allocates 144 and gets 10 waves; had
+it stayed at or below 96, as its non-tracing sibling does at 87, it would have cost nothing. Hence gating
 on occupancy rather than on the register count directly, and acting on a register increase only when
 it crosses a step.
 
