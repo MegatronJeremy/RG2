@@ -19,7 +19,7 @@ INDEX = "2024 / 3102"
 MODUL = "Рачунарска техника и информатика"
 TITLE_SR = "Хибридно осветљење у реалном времену применом праћења зрака"
 TITLE_EN = "Real-Time Hybrid Lighting Using Ray Tracing"
-DATE_ONLY = "25. 08. 2026."
+DATE_ONLY = "26. 08. 2026."
 
 # The form's own Напомене require this to be stated at topic registration when the thesis itself is
 # written in English: "Уколико се рад пише на енглеском, то се мора нагласити приликом пријаве теме
