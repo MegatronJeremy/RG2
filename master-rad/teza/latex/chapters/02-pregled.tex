@@ -6,27 +6,26 @@
 \label{sec:rastervsrt}
 
 Rasterization projects each triangle onto the image plane and resolves visibility with a depth
-buffer. It is a stream operation that maps well to GPU hardware and excels at primary visibility and
-raw throughput, but it processes one triangle at a time with no access to the rest of the scene, so
-it cannot natively answer ``what else is visible from this point.'' Ray tracing takes the opposite
-approach: it casts rays into the scene, finds their nearest intersections \cite{moller1997raytri}, and estimates light
-transport by sampling \cite{pharr2016pbrt}. This answers arbitrary point-to-point visibility, which is what indirect
-lighting, reflections, and occlusion require, at the cost of per-ray traversal work and of noise
-introduced by sampling. The common reference for both is the rendering equation
-\cite{kajiya1986rendering}, which expresses the outgoing radiance $L_o$ at a point $\mathbf{x}$ in
-direction $\omega_o$ as emitted radiance plus the reflected integral over the hemisphere $\Omega$:
+buffer: a stream operation that maps well to GPU hardware, although it processes one triangle at a
+time with no access to the rest of the scene, so it cannot natively answer ``what else is visible
+from this point.'' Ray tracing instead casts rays into the scene, finds their nearest intersections
+\cite{moller1997raytri}, and estimates light transport by sampling \cite{pharr2016pbrt}, which
+answers arbitrary point-to-point visibility (what indirect lighting, reflections, and occlusion
+require) at the cost of per-ray traversal work and sampling noise. The common reference for both is
+the rendering equation \cite{kajiya1986rendering}, splitting outgoing radiance $L_o$ at a point
+$\mathbf{x}$ in direction $\omega_o$ into emitted radiance plus the reflected integral over the
+hemisphere $\Omega$:
 \begin{equation}
 L_o(\mathbf{x}, \omega_o) = L_e(\mathbf{x}, \omega_o) + \int_{\Omega}
 f_r(\mathbf{x}, \omega_i, \omega_o)\, L_i(\mathbf{x}, \omega_i)\, (\omega_i \cdot \mathbf{n})\,
 \mathrm{d}\omega_i,
 \label{eq:rendering}
 \end{equation}
-where $f_r$ is the bidirectional reflectance distribution function (BRDF), $L_i$ the incident
-radiance, $\mathbf{n}$ the surface normal, and the cosine term $(\omega_i \cdot \mathbf{n})$ accounts
-for the projected solid angle. Rasterization resolves the emitted and direct terms efficiently
-through projection, but the integral, which requires the incident radiance $L_i$ from every direction
-and therefore scene-wide visibility, is exactly what it cannot express and what ray tracing evaluates
-by sampling. A hybrid renderer uses each where it is strong \cite{akenine2018rtr}. Figure~\ref{fig:rastervsrt} contrasts the two.
+where $f_r$ is the BRDF, $L_i$ the incident radiance, and $\mathbf{n}$ the surface normal.
+Rasterization resolves the emitted and direct terms efficiently through projection; the integral
+needs incident radiance from every direction and therefore scene-wide visibility, which is exactly
+what it cannot express and what ray tracing evaluates by sampling. A hybrid renderer uses each where
+it is strong (Figure~\ref{fig:rastervsrt}) \cite{akenine2018rtr}.
 
 \begin{figure}[tbp]
 \centering
@@ -59,23 +58,22 @@ piksel u scenu do najbli\v{z}eg preseka).}
 \label{sec:accel-pregled}
 
 Testing every ray against every triangle is $O(\text{rays} \times \text{triangles})$ and hopeless at
-scene scale, so ray tracing depends on a spatial acceleration structure that culls most geometry per
-ray. The standard structure is a bounding-volume hierarchy (BVH): a tree of nested bounding boxes
-whose traversal descends only into boxes a ray actually enters, reducing the expected cost per ray to
-roughly logarithmic in the triangle count. Build quality is governed by a cost heuristic, most
-commonly the surface area heuristic (SAH), which prefers splits that minimize the probability-weighted
-surface area of the child nodes and thus the expected number of node and triangle tests per ray. On
-current GPUs the ray-box and ray-triangle intersection tests are executed by dedicated fixed-function
-units, which is what makes casting a ray per pixel affordable in real time. How much of the
-\emph{traversal} around those tests is also fixed-function differs by vendor, and the two GPUs
-evaluated in Chapter~\ref{ch:analiza} sit on opposite sides of that line (Figure~\ref{fig:traversal}):
-NVIDIA's RT cores walk the hierarchy in hardware \cite{nvidia_turing}, while on AMD's RDNA
-architectures the traversal loop is driven by shader instructions that issue hardware intersection
-tests \cite{amd_rdna_isa}, so traversal competes with shading for the same execution resources. This
-is one structural reason to \emph{expect} the same shader to cost differently on the two vendors. It
-is not an attribution: Section~\ref{sec:cena} measures that the costs differ, and this evaluation does
-not isolate how much of any measured gap comes from this mechanism rather than from clocks, cache, or
-driver.
+scene scale, so ray tracing depends on a spatial acceleration structure. The standard one is a
+bounding-volume hierarchy (BVH): a tree of nested bounding boxes whose traversal descends only into
+boxes a ray actually enters, reducing the expected cost per ray to roughly logarithmic in the
+triangle count. Build quality is governed by a cost heuristic, most commonly the surface area
+heuristic (SAH), which prefers splits minimizing the probability-weighted surface area of the child
+nodes and thus the expected number of tests per ray. On current GPUs the ray-box and ray-triangle
+tests are fixed-function hardware, which is what makes a ray per pixel affordable in real time. How
+much of the \emph{traversal} around those tests is also fixed-function differs by vendor, and the two
+GPUs evaluated in Chapter~\ref{ch:analiza} sit on opposite sides of that line
+(Figure~\ref{fig:traversal}): NVIDIA's RT cores walk the hierarchy in hardware \cite{nvidia_turing},
+while on AMD's RDNA architectures the traversal loop is driven by shader instructions that issue
+hardware intersection tests \cite{amd_rdna_isa}, so traversal competes with shading for the same
+execution resources. That is a structural reason to \emph{expect} the same shader to cost differently
+on the two vendors, not an attribution: Section~\ref{sec:cena} measures that the costs differ, and
+this evaluation does not isolate how much of any measured gap comes from this mechanism rather than
+from clocks, cache, or driver.
 
 \begin{figure}[tbp]
 \centering
@@ -104,14 +102,13 @@ preda zrak i sa\v{c}eka pogodak; na RDNA arhitekturama petlja te\v{c}e u \v{s}ej
 posve\'cenom \v{c}voru poziva jedinicu za preseke, pa obilazak tro\v{s}i iste izvr\v{s}ne resurse kao
 i sen\v{c}enje. Dijagram obja\v{s}njava za\v{s}to je razlika u ceni o\v{c}ekivana, ne koliko iznosi.}
 \label{fig:traversal}
-\end{figure} Vulkan exposes a two-level structure. A bottom-level
-acceleration structure (BLAS) stores a mesh's triangle geometry in object space; a top-level
-acceleration structure (TLAS) stores instances, each a transform referencing a BLAS. The split lets
-many instances share one BLAS and lets the TLAS, which changes as objects move, be rebuilt per frame
-while the heavier BLAS persists. A structure can be fully rebuilt (highest traversal quality) or
-refit (box extents updated for small deformations, cheaper but lower quality); dynamic scenes trade
-these off each frame. Figure~\ref{fig:tlasblas} shows the two-level structure and the instance
-sharing it enables, drawn with the counts this engine actually reports for the evaluation scene.
+\end{figure} Vulkan exposes the BVH as a two-level structure: a bottom-level acceleration structure
+(BLAS) holds a mesh's triangles in object space, and a top-level one (TLAS) holds instances, each a
+transform referencing a BLAS. The split lets many instances share one BLAS and lets the TLAS, which
+changes as objects move, be rebuilt per frame while the heavier BLAS persists
+(Figure~\ref{fig:tlasblas}). Either can be fully rebuilt (highest traversal quality) or refit (box
+extents updated for small deformations, cheaper but lower quality); dynamic scenes trade these off
+each frame.
 
 \begin{figure}[tbp]
 \centering
@@ -144,14 +141,14 @@ ima svoj. BLAS dr\v{z}i geometriju u lokalnom prostoru.}
 
 Vulkan ray tracing rests on three extensions: \texttt{VK_KHR_acceleration_structure} to build and
 manage the BVH, and two ways to trace against it, \texttt{VK_KHR_ray_tracing_pipeline} and
-\texttt{VK_KHR_ray_query} \cite{khronos_rayquery}. The ray-tracing pipeline defines dedicated shader
-stages (ray generation, closest-hit, any-hit, miss, intersection), uses a shader binding table to map
-geometry to shaders, schedules rays in hardware, and supports recursion. It is the natural structure
-for a full path tracer. Inline ray queries instead expose a \texttt{RayQuery} object usable from any
+\texttt{VK_KHR_ray_query} \cite{khronos_rayquery}. The ray-tracing pipeline is the natural structure for a full path tracer:
+hardware ray scheduling and recursion, at the price of dedicated stages (ray generation, closest-hit,
+any-hit, miss, intersection) and a shader binding table mapping geometry to them. Inline ray queries
+instead expose a \texttt{RayQuery} object usable from any
 existing shader stage: the shader runs the traversal loop itself, with no binding table and no
-recursion. Table~\ref{tab:pipeline-vs-rayquery} summarizes the difference. This thesis uses ray
-queries because the effects are bounded additions to an existing rasterizing renderer rather than a
-standalone tracer, as argued in Section~\ref{sec:rendergraph}.
+recursion (Table~\ref{tab:pipeline-vs-rayquery}). This thesis uses ray queries because the effects
+are bounded additions to an existing rasterizing renderer rather than a standalone tracer, as argued
+in Section~\ref{sec:rendergraph}.
 
 \begin{table}[tbp]
 \caption{Ray-tracing pipeline naspram inline ray query u Vulkan-u.}
@@ -174,20 +171,19 @@ Pogodno za          & pun path tracer & ograni\v{c}eni efekti na rasteru \\
 \section{Postoje\'ca real-time re\v{s}enja za GI i RT efekte}
 \label{sec:postojeca}
 
-The effects implemented here have a long line of real-time approximations. Two tiers of them appear
-below, and they play different roles in this thesis: the screen-space family is implemented in this
-engine and measured head to head against the ray-traced path in Chapter~\ref{ch:analiza}, while the
-voxel, probe, and reservoir methods are surveyed for positioning only. They are neither implemented
-nor measured here, and no quantitative claim is made about them.
+The effects implemented here have a long line of real-time approximations
+(Table~\ref{tab:postojeca}), in two tiers. The screen-space family is implemented in this engine and
+measured head to head against the ray-traced path in Chapter~\ref{ch:analiza}; the voxel, probe, and
+reservoir methods are surveyed for positioning only, neither implemented nor measured here, so no
+quantitative claim is made about them.
 
-Table~\ref{tab:postojeca} summarizes the families and what each gives up. They fail in two distinct
-ways, and the distinction matters for what ray tracing buys. Screen-space methods fail on
-\emph{missing information}: they see only what is currently on screen, so an off-screen occluder or
-reflector simply is not there, and this is precisely the class of error a ray query removes by
-consulting the real scene. Voxel and probe methods do see the whole scene, and fail instead on
-\emph{resolution}: their world representation is coarser than the effect they reconstruct, which shows
-up as light leaking through thin walls or as smoothed-away contact darkening. No amount of sampling
-fixes the first; a finer grid, at a cost, mitigates the second.
+The tiers fail differently. Screen-space methods fail on \emph{missing information}: they see only
+what is currently on screen, so an off-screen occluder or reflector is simply absent, which is the
+class of error a ray query removes by consulting the real scene. Voxel and probe methods do see the
+whole scene and fail instead on \emph{resolution}: their world representation is coarser than the
+effect they reconstruct, which shows up as light leaking through thin walls or as smoothed-away
+contact darkening. No amount of sampling fixes the first; a finer grid, at a cost, mitigates the
+second.
 
 \begin{table}[tbp]
 \caption[Postoje\'ci pristupi i njihova ograni\v{c}enja]{Porodice postoje\'cih re\v{s}enja za iste
@@ -239,12 +235,11 @@ L_o \approx L_e + \frac{1}{N}\sum_{k=1}^{N}
 \end{equation}
 The estimator is unbiased, but its variance falls only as $1/N$, so the error (its standard
 deviation) falls as $1/\sqrt{N}$: halving the noise costs four times the rays. At the one-to-few rays
-per pixel a real-time budget allows, the variance is large and the raw estimate is heavily noisy, so
-denoising is a mandatory part of the pipeline rather than an optional post-effect. This thesis
-implements Spatiotemporal Variance-Guided Filtering (SVGF) \cite{schied2017svgf}, which combines
-temporal reprojection and accumulation with a variance-guided \`a-trous spatial filter whose blur
-strength adapts to the estimated per-pixel variance, so it smooths noisy regions while preserving
-converged detail. Chapter~\ref{ch:implementacija} describes this engine's variant in detail. The main
+per pixel a real-time budget allows, the raw estimate is heavily noisy, so denoising is a mandatory
+part of the pipeline rather than an optional post-effect. This thesis implements Spatiotemporal
+Variance-Guided Filtering (SVGF) \cite{schied2017svgf}, which combines temporal reprojection and
+accumulation with a variance-guided \`a-trous spatial filter whose blur strength adapts to the
+estimated per-pixel variance, so it smooths noisy regions while preserving converged detail. The main
 alternatives are its adaptive successor A-SVGF \cite{schied2018asvgf}, NVIDIA's production Real-Time
 Denoisers (ReBLUR and ReLAX) \cite{nvidia_nrd}, and machine-learning denoisers such as Intel's Open
 Image Denoise \cite{intel_oidn}. Over the denoised result, temporal anti-aliasing accumulates jittered

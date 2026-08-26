@@ -1,24 +1,19 @@
 \chapter{Analiza}
 \label{ch:analiza}
 
-This chapter evaluates the system. Every number reported here is produced by a measured run.
+Every number reported in this chapter is produced by a measured run.
 
 \section{Metodologija}
 \label{sec:metodologija}
 
 \paragraph{Hardver: cross-vendor postavka.} The central evaluation compares the identical pipeline on
 two current-generation GPUs from different vendors: an AMD Radeon RX 9070 XT (RDNA4) and an NVIDIA
-GeForce RTX 5070 (Blackwell). Both run the same engine binary, the same HLSL-compiled SPIR-V shaders,
-the same render graph, and the same scene and settings; the only variable is the selected physical
-device. That identity is the fairness basis of the comparison: any difference in timing is due to the
-hardware and its driver, not to a different code path. Table~\ref{tab:gpus} lists the relevant
-specifications. Because both devices run identical shaders and an identical render graph, the quality
-metrics are not expected to differ materially across them; the cross-vendor result is therefore a
-performance comparison, and a quality divergence would point at a non-determinism worth investigating
-rather than at a real difference. The one documented exception to the identical-code-path claim is
-opacity micromap support, discussed next. The static occupancy analysis (Section~\ref{sec:occupancy})
-covers both of these adapters and is reported alongside the timings, since register pressure is part
-of why the same shader costs what it does on each.
+GeForce RTX 5070 (Blackwell), specified in Table~\ref{tab:gpus}. Both run the same engine binary, the
+same SPIR-V shaders, the same render graph, and the same scene and settings; the only variable is the
+selected physical device, which is the fairness basis: any difference in timing is due to the
+hardware and its driver rather than to a different code path, and a quality divergence would point at
+a non-determinism worth investigating rather than at a real difference. The one documented exception
+to the identical-code-path claim is opacity micromap support.
 
 \begin{table}[tbp]
 \caption{GPU-ovi u cross-vendor pore\dj enju, prema zvani\v{c}nim specifikacijama proizvo\dj a\v{c}a
@@ -40,88 +35,65 @@ Drajver / OS           & 32.0.31035.1003, Windows 11 Pro (build 26100) & 32.0.15
 \end{tabularx}
 \end{table}
 
-\paragraph{OMM support disparity.} The ``identical code path'' claim above has one exception. Sponza
-carries three MASK-mode (alpha-cutout) materials; a cutout mesh traces through the opacity-micromap
-BLAS on a device exposing \texttt{VK\_EXT\_opacity\_micromap} and through the any-hit alpha-test
-fallback otherwise (Section~\ref{sec:accel}). On the test machines the NVIDIA RTX 5070 driver exposes
-the extension and the AMD RX 9070 XT driver does not, despite comparable RDNA4/Blackwell hardware
-capability, so the two vendors resolve masked geometry through genuinely different acceleration-structure
-code for this scene. The disparity only changes how a masked microtriangle is classified during
-traversal (skipping the any-hit shader when OMM marks it opaque or transparent, running it when
-unknown); it does not change ray direction, hit position, or shading, so it cannot explain any
-quality-metric difference. It is a small, one-directional, driver-dependent contributor to the
-per-effect GPU-ms gap wherever a shadow, AO, reflection, or GI ray actually hits cutout geometry in a
-given viewpoint, and this evaluation does not isolate it further.
+\paragraph{OMM support disparity.} Sponza carries three MASK-mode (alpha-cutout) materials, which
+trace through the opacity-micromap BLAS on a device exposing \texttt{VK\_EXT\_opacity\_micromap} and
+through the any-hit alpha-test fallback otherwise (Section~\ref{sec:accel}). The RTX 5070 driver
+exposes the extension and the 9070 XT driver does not, despite comparable hardware capability, so the
+two vendors resolve masked geometry through genuinely different acceleration-structure code here. The
+disparity only changes how a masked microtriangle is classified during traversal, not ray direction,
+hit position or shading, so it cannot explain a quality-metric difference. It is a small,
+one-directional, driver-dependent contributor to the per-effect GPU-ms gap wherever a ray hits cutout
+geometry, and this evaluation does not isolate it further.
 
-\paragraph{Scena.} The test scene is Sponza, a standard interior with strong indirect bounce, lit by
-five enabled lights: four point torches and one directional sun. Three spot lights and two further
-point lights are authored in the scene but disabled, and the distinction matters because the default
+\paragraph{Scena i kontrole.} The test scene is Sponza, a standard interior with strong indirect
+bounce, lit by five enabled lights: four point torches and one directional sun. Three spot lights and
+two further point lights are authored but disabled, and the distinction matters because the default
 shadow path costs one ray per light per pixel. Every measurement in this chapter renders at
-$1915 \times 1064$. A code-generated stress scene (a grid of meshes) is available for scaling tests.
+$1915 \times 1064$, with the camera held static for every A/B comparison, since a moving camera
+desynchronizes the frame sequence between two runs and fabricates differences that are timing
+artifacts. The shader cache is cleared before any GPU metric is trusted, since a stale cache produces
+nondeterministic results, and persisted console variables are ignored during a benchmark run, so a
+leftover setting cannot silently change the configuration. Performance baselines are per-machine and
+per-resolution, because absolute milliseconds are not comparable across GPUs or output sizes.
 
-\paragraph{Controls for fair comparison.} Several controls keep the measurements honest and
-reproducible. The camera is held static for every A/B comparison: a moving camera desynchronizes the
-frame sequence between two runs and fabricates differences that are timing artifacts rather than real
-effects. The shader cache is cleared before any GPU metric is trusted, since a stale cache produces
-nondeterministic results. Performance baselines are per-machine and per-resolution, because absolute
-milliseconds are not comparable across GPUs or output sizes. Persisted console variables are ignored
-during a benchmark run so that a leftover setting cannot silently change the configuration.
-
-\paragraph{Performance measurement.} Each render-graph pass is wrapped in a GPU timestamp scope, and
-a harness (\texttt{perf-bench}) averages those per-pass timings over a fixed frame budget once the GPU
-has reached a steady state. The steady state is detected rather than assumed: sampling begins when the
-peak-to-peak spread of a rolling thirty-frame window of whole-frame GPU time falls below 5\% of its
-mean, capped at 600 frames, after which the run proceeds and records that it did not settle. This
-matters more than it sounds. A fixed short warmup, which is the obvious implementation, measures part
-of the clock ramp: on this scene the frame time takes about fifty frames to settle, so a fifteen-frame
-warmup would average the ramp into the result, and how much of it depended on how warm the machine
-already was, with nothing in the output to indicate it. The benchmark sweeps a fixed
+\paragraph{Performance measurement.} GPU time comes from the per-pass timestamp scopes and the
+\texttt{perf-bench} harness of Section~\ref{sec:alati}, averaged over a fixed frame budget once a
+steady state has been detected rather than assumed: frame time takes about fifty frames to settle on
+this scene, so a fixed short warmup would average part of the clock ramp into the result, by an
+amount depending on how warm the machine already was and with nothing in the output to indicate it.
+The benchmark sweeps a fixed
 matrix of configurations, \texttt{rt-off} $\rightarrow$ \texttt{shadows} $\rightarrow$ \texttt{+ao}
 $\rightarrow$ \texttt{+refl} $\rightarrow$ \texttt{+gi}, enabling one more effect at each step, so the
-cost of an effect is the difference between adjacent configurations. The reason to measure cost as a
-difference rather than in isolation is that effects share fixed work: the acceleration structure is
-built once, the G-buffer is filled once, and the tonemap runs once no matter how many effects are
-enabled. Timing an effect on its own would charge it for all of that shared setup, and the four
-figures would then sum to considerably more than the frame actually costs. A difference between two
-runs that share everything except one flag charges each effect only for what it adds. That difference is always taken
-on \emph{total} GPU time, not a single pass scope. Shadows are the reason: in the default
-configuration they are traced inline inside the Forward pass, so they have no scope of their own and
-the whole-frame total is the only way to isolate them. Ambient occlusion, global illumination, and
-reflections do each run as their own passes with separate timestamp scopes (the first two at half
-resolution, reflections at full), and are reported as whole-frame deltas anyway, for consistency
-across the table. Table~\ref{tab:pass-cost} gives the per-pass breakdown those scopes provide. A
-trailing \texttt{ssgi} configuration swaps the ray-traced GI pass for the screen-space producer on top
-of \texttt{+refl}, so it is diffed against \texttt{+refl} rather than against \texttt{+gi}: the two
-are alternatives, not cumulative. Across vendors, the raw timestamps are converted to milliseconds
-using each device's timestamp period, so the per-pass times are directly comparable; results are
-reported for both GPUs side by side rather than diffed against a single-machine baseline, since here
-the cross-vendor comparison is itself the measurement.
+cost of an effect is the difference between adjacent configurations. A difference rather than an
+isolated timing, because effects share fixed work (acceleration structure built once, G-buffer filled
+once, tonemap run once): timing an effect alone would charge it for all of that, and the four figures
+would then sum to considerably more than the frame costs.
+The difference is taken on \emph{total} GPU time rather than on one pass scope, since
+inline shadows are traced inside the Forward pass and have none of their own; the other three
+effects do, and are reported as whole-frame deltas anyway for consistency. A
+trailing \texttt{ssgi} configuration swaps ray-traced GI for the screen-space producer on top
+of \texttt{+refl} and is diffed against \texttt{+refl}, since the two are alternatives rather than
+cumulative. Timestamps are converted with each device's timestamp period, so
+per-pass times are comparable across vendors, and both GPUs are reported side by side rather
+than against a single-machine baseline, since the cross-vendor comparison is itself the
+measurement.
 
-\paragraph{Quality measurement.} Reconstruction quality is measured against a converged
-\emph{path-traced} reference (Section~\ref{sec:pathtracer}): a brute-force unidirectional path tracer
-with next-event estimation, accumulated over many frames on a static view, which is the correctness
-anchor for every effect at once (shadows, ambient occlusion, reflections, and indirect). For each
-real-time technique the harness (\texttt{quality-bench}) captures the same tonemapped present as the
-reference and reports three image-quality metrics against it: \textbf{FLIP} (a perceptual difference
-metric), \textbf{PSNR}, and \textbf{SSIM}. FLIP is the primary metric because it models what a human
-observer notices rather than raw per-pixel error; PSNR reports mean squared error on a logarithmic
-scale and structurally favours a blurrier image, and SSIM compares local structure rather than
-absolute values. All three are reported so that no single metric's bias decides a conclusion.
-
-The metrics are averaged over three fixed orientations from one interior position (down the nave,
-tilted to the floor, and tilted to the upper gallery), chosen to stress ambient occlusion, global
-illumination, and reflections differently, so a single framing cannot bias the result. Each capture is
-bilinearly resampled to a canonical $1024 \times 576$ before any metric is computed, so a window-size
-difference between runs cannot silently change a score. Quality figures quoted elsewhere in this
-chapter are the RX 9070 XT's, and Section~\ref{sec:cross-vendor-quality} measures what that costs by
-capturing the whole matrix on the RTX 5070 as well.
+\paragraph{Quality measurement.} Reconstruction quality is measured by \texttt{quality-bench} against
+the converged path-traced reference of Section~\ref{sec:pathtracer}. Each real-time technique's
+tonemapped present is scored against it by \textbf{FLIP} (perceptual), \textbf{PSNR} and
+\textbf{SSIM}. FLIP is primary because it models what a human observer notices rather than raw
+per-pixel error; PSNR structurally favours a blurrier image and SSIM compares local structure rather
+than absolute values, so all three are reported and no single metric's bias decides a conclusion.
+Scores are averaged over three fixed orientations from one interior position (down the nave, tilted
+to the floor, tilted to the upper gallery), chosen to stress ambient occlusion, global illumination
+and reflections differently, so a single framing cannot bias the result. Each capture is bilinearly
+resampled to a canonical $1024 \times 576$ first, so a window-size difference between runs cannot
+silently change a score. Quality figures elsewhere in this chapter are
+the RX 9070 XT's; Section~\ref{sec:cross-vendor-quality} captures the whole matrix on the RTX 5070 as
+well.
 
 \section{Cena po efektu (GPU ms)}
 \label{sec:cena}
-
-The per-effect cost is the adjacent-configuration difference from the benchmark matrix, read from the
-per-pass timestamp scopes as described above, measured on the cross-vendor RX 9070 XT and RTX 5070.
-Table~\ref{tab:cena} reports it.
 
 \begin{table}[tbp]
 \caption{Cena po efektu (GPU ms) na cross-vendor paru RX 9070 XT / RTX 5070, pri rezoluciji
@@ -135,10 +107,9 @@ generi\v{s}u iz committovanih baseline-a skriptom \texttt{tools/gen\_perf\_table
 \input{data/perf-effects.tex}
 \end{table}
 
-The per-effect rows are differences, but the total is the measured whole-frame time of the
-\texttt{+gi} configuration, not their sum, so rounding cannot accumulate. Because shadows have no
-timestamp scope of their own, Table~\ref{tab:pass-cost} breaks the same \texttt{+gi} frame down by
-pass, which is where the remaining time actually sits.
+In Table~\ref{tab:cena} the per-effect rows are differences, although the total is the measured
+whole-frame time of the \texttt{+gi} configuration rather than their sum, so rounding cannot
+accumulate. Table~\ref{tab:pass-cost} breaks that same frame down by pass.
 
 \begin{table}[tbp]
 \caption{Najskuplji prolazi u \texttt{+gi} konfiguraciji (GPU ms, prosek preko \perfFrames{}
@@ -151,23 +122,6 @@ ne izvr\v{s}avaju: \texttt{render.reflections.denoise.iterations} je sada 0
 \input{data/perf-passes.tex}
 \end{table}
 
-
-\begin{figure}[tbp]
-\centering
-\begin{tikzpicture}
-\begin{axis}[ybar, bar width=6pt, width=0.9\textwidth, height=6cm,
-  symbolic x coords={senke,AO,refl,GI}, xtick=data,
-  ymin=0, ylabel={GPU ms}, xlabel={efekat},
-  legend style={at={(0.5,1.04)}, anchor=south, legend columns=-1},
-  enlarge x limits=0.2]
-\addplot table[x=effect, y=ms9070] {data/perf-cost.dat};
-\addplot table[x=effect, y=ms5070] {data/perf-cost.dat};
-\legend{AMD RX 9070 XT, NVIDIA RTX 5070}
-\end{axis}
-\end{tikzpicture}
-\caption{Cena po efektu na cross-vendor paru RX 9070 XT / RTX 5070 (GPU ms).}
-\label{fig:cost-chart}
-\end{figure}
 
 \begin{figure}[tbp]
 \centering
@@ -215,45 +169,36 @@ NVIDIA-e, dok tre\'ca a-trous iteracija i \texttt{DepthNormal} idu u korist AMD-
 \label{fig:vendor-ratio}
 \end{figure}
 
-The two cards do not agree on which effect is most expensive, and that is the more interesting
-result. On the RX 9070 XT shadows dominate at \perfEffShadowsAMD{} ms, well clear of reflections and
-global illumination. On the RTX 5070 those same three fall within \perfNVSpread{} ms of each other,
-which is inside the run-to-run spread, so on that card they are indistinguishable in cost. Ambient
-occlusion is the cheapest effect on both. Together the four add \perfFourEffectsAMD{} ms (9070 XT) and
-\perfFourEffectsNV{} ms (5070) over their respective baselines, for measured real-time totals of
-\perfTotalAMD{} ms (9070 XT, \perfBaseAMD{} ms baseline) and \perfTotalNV{} ms (5070,
-\perfBaseNV{} ms baseline).
+The two cards do not agree on which effect is most expensive. On the RX 9070 XT shadows dominate at
+\perfEffShadowsAMD{} ms, well clear of reflections and global illumination. On the RTX 5070 those
+same three fall within \perfNVSpread{} ms of each other, inside the run-to-run spread, so on that
+card they are indistinguishable in cost. Ambient occlusion is cheapest on both. Together the four add
+\perfFourEffectsAMD{} ms (9070 XT) and \perfFourEffectsNV{} ms (5070) over their respective
+baselines, for measured real-time totals of \perfTotalAMD{} ms (\perfBaseAMD{} ms baseline) and
+\perfTotalNV{} ms (\perfBaseNV{} ms baseline).
 
 The half-resolution trace plus denoise is what keeps GI and AO cheap despite their hemispheric
-gather. On both cards the screen-space GI producer is cheaper than ray-traced GI at the same point in
-the ladder (9070 XT 0.739 ms versus 1.705 ms; RTX 5070 0.667 ms versus 1.309 ms), the expected
-screen-space-versus-ray-traced cost tradeoff; Section~\ref{sec:poredjenje} reports the quality side of
-that same tradeoff.
+gather. On both cards the screen-space GI producer is cheaper than ray-traced GI at the same rung
+(9070 XT 0.739 against 1.705 ms; RTX 5070 0.667 against 1.309 ms), the expected
+screen-space-versus-ray-traced cost tradeoff, whose quality side is Section~\ref{sec:poredjenje}.
 
 Reflections are no longer the most expensive effect, and the reason is a deliberate default change
-rather than an optimisation. The reflection à-trous filter measured net-negative and now runs zero
-iterations by default (Section~\ref{sec:denoise-eval}), which removed a full-resolution three-pass
-chain worth roughly 1.1 ms. That single change is most of the reason reflections no longer lead the
-ranking.
+rather than an optimisation: the reflection à-trous filter measured net-negative and now runs zero
+iterations (Section~\ref{sec:denoise-eval}), removing a full-resolution three-pass chain worth roughly
+1.1 ms. They remain the only effect tracing at full resolution, so their trace alone (1.495 ms on the
+9070 XT) costs more than the half-resolution GI trace. Ambient occlusion is cheapest despite casting
+more rays per pixel, because those rays are short (bounded by \texttt{render.ao.radius}) and
+terminate on the first hit, while a reflection ray can traverse the whole scene and then shade what
+it finds.
 
-The per-pass table explains the ordering. Reflections are the only effect that traces at full
-resolution, so their trace alone (1.495 ms on the 9070 XT) costs more than the half-resolution GI
-trace, and until the filter was disabled they also paid a full-resolution three-pass denoise on top.
-Ambient occlusion is the cheapest despite casting more rays per pixel, because those rays are short
-(bounded by \texttt{render.ao.radius}) and terminate on the first hit, while a reflection ray can
-traverse the whole scene and then shade what it finds.
-
-Shadows cost what they do for a different reason, and the per-pass table cannot show it because they
-have no scope of their own. Comparing the \texttt{rt-off} and \texttt{shadows} configurations pass by
-pass on the 9070 XT, the Forward pass grows by 3.482 ms while the raster shadow-map passes disappear
-entirely, returning 1.056 ms (\texttt{Shadow} 0.107 and \texttt{PointShadows} 0.949). Those two terms
-alone would give 2.426 ms, while the measured whole-frame delta is 2.272 ms; the remaining 0.154 ms is
-every other pass shrinking slightly at once, which is the signature of a clock shift rather than of
-real savings, and is consistent with \texttt{rt-off} being the noise-dominated configuration on this
-adapter (8.3\% run-to-run spread against under 1\% for the others). The honest reading is that the
-inline query moves roughly three and a half milliseconds of work into the forward shader and hands
-back one, and that the whole-frame difference is the number to quote because the per-pass terms do not
-close.
+Shadows have no scope of their own, so their cost has to be read across configurations. Between
+\texttt{rt-off} and \texttt{shadows} on the 9070 XT the Forward pass grows by 3.482 ms while the
+raster shadow-map passes disappear entirely, returning 1.056 ms (\texttt{Shadow} 0.107 and
+\texttt{PointShadows} 0.949). Those two terms give 2.426 ms against a measured whole-frame delta of
+2.272 ms; the remaining 0.154 ms is every other pass shrinking slightly at once, the signature of a
+clock shift rather than of real savings, consistent with \texttt{rt-off} being the noise-dominated
+configuration on this adapter (8.3\% run-to-run spread against under 1\% for the others). The
+whole-frame difference is the number to quote, since the per-pass terms do not close.
 
 \begin{figure}[tbp]
 \centering
@@ -271,22 +216,20 @@ kombinovanja u forward prolazu, a ne gotova slika.}
 \label{fig:effect-gallery}
 \end{figure}
 
-Isolating the signals this way explains a result that the composited frames hide. Toggling shadows,
-ambient occlusion, or reflections individually moves the final image by a mean of only 2.1 to 2.5
-levels out of 255 at this viewpoint, while global illumination moves it by 23.9, an order of magnitude
-more. The ambient-occlusion buffer is close to white over most of the frame because Sponza's atrium is
-open, so occlusion is confined to the arcade vaults and the column bases; the raw GI term is dim in
-absolute terms yet carries the colour bleeding, the red and green drapes tinting the stone beside them,
-which is the contribution a constant ambient cannot reproduce.
+Toggling shadows, ambient occlusion or reflections individually moves the final image by a mean of
+only 2.1 to 2.5 levels out of 255 at this viewpoint, while global illumination moves it by 23.9. The
+ambient-occlusion buffer is close to white over most of the frame because Sponza's atrium is open, so
+occlusion is confined to the arcade vaults and the column bases; the raw GI term is dim in absolute
+terms yet carries the colour bleeding (the red and green drapes tinting the stone beside them) that a
+constant ambient cannot reproduce.
 
 \section{Dve strategije za senke: inline naspram stohasti\v{c}ke}
 \label{sec:analiza-shadow-strategy}
 
-Section~\ref{sec:senke} describes two structurally different ways to shadow a scene: the default
-inline path, which traces one ray per light per pixel inside the forward shader, and the stochastic
-path, which picks one light per pixel by resampled importance sampling and reconstructs the result
-with the shared denoiser. Their cost curves have different shapes, so which one wins is a property of
-the scene rather than of the implementation.
+The two shadow strategies of Section~\ref{sec:senke} have differently shaped cost curves: the default
+inline path traces one ray per light per pixel inside the forward shader, while the stochastic path
+picks one light per pixel by resampled importance sampling and reconstructs the result with the
+shared denoiser.
 
 \begin{table}[tbp]
 \caption{Dve strategije za senke na istoj sceni sa pet upaljenih svetala (GPU ms, dodatak u odnosu na
@@ -296,24 +239,20 @@ the scene rather than of the implementation.
 \input{data/perf-shadow-strategy.tex}
 \end{table}
 
-The two cards disagree about which strategy is cheaper, and they disagree in opposite directions. On
-the RX 9070 XT the stochastic path wins, 1.723 ms against 2.272 ms. On the RTX 5070 it loses badly,
-3.362 ms against 1.294 ms, a factor of 2.6. The same code, the same scene, the same five lights, and
-the better technique is the other one depending on the vendor.
+The two cards disagree about which strategy is cheaper. On the RX 9070 XT the stochastic path wins,
+1.723 ms against 2.272 ms. On the RTX 5070 it loses badly, 3.362 ms against 1.294 ms, a factor of
+2.6.
 
-The explanation is where each architecture spends its budget. The stochastic path replaces per-light
-rays with one importance-sampled ray plus a reconstruction chain, so it trades ray count for filter
-cost. That trade is favourable exactly when rays are expensive relative to filtering. On the 5070 they
-are not: dedicated traversal hardware makes the twenty coherent inline rays of a five-light scene
+The stochastic path replaces per-light rays with one importance-sampled ray plus a reconstruction
+chain, trading ray count for filter cost, which pays exactly when rays are expensive relative to
+filtering. On the 5070 they are not: dedicated traversal hardware makes the twenty coherent inline rays of a five-light scene
 cheap enough that paying a temporal pass, three à-trous iterations, and an upsample to avoid them is a
 net loss. On the 9070 XT, where traversal is driven by shader instructions and competes with shading
 for the same execution resources (Section~\ref{sec:accel-pregled}), the same trade pays.
 
-This is the strongest cross-vendor result in the thesis, and it is stronger than a single-GPU ranking
-would have been: it says the choice of shadow technique is a property of the target architecture
-rather than of the scene. A renderer that hard-codes either strategy is wrong on one of these two
-cards. It also bounds how far a single-vendor evaluation can be trusted, which is the practical
-argument for measuring both.
+The choice of shadow technique is therefore a property of the target architecture: a renderer that
+hard-codes either strategy is wrong on one of these two cards, and a single-vendor evaluation cannot
+see that.
 
 Two caveats bound the claim. The stochastic path's cost is nearly independent of light count while the
 inline path's grows with it, so five lights is one point on two curves that must cross somewhere; this
@@ -324,10 +263,9 @@ rather than of a shipping technique.
 \section{Broj zrakova naspram kvaliteta i brzine}
 \label{sec:raycount}
 
-This section sweeps the GI ray count per pixel through the full pipeline (denoiser and temporal
-resolve enabled, settled over 90 frames, RX 9070 XT), plotting reconstruction quality against the
-path-traced reference and GPU time against the ray count, to find the knee past which additional
-rays stop paying for themselves.
+The GI ray count per pixel is swept through the full pipeline (denoiser and temporal resolve enabled,
+settled over 90 frames, RX 9070 XT), scoring reconstruction quality against the path-traced reference
+and GPU time against the ray count.
 
 \begin{table}[htb]
 \centering
@@ -341,13 +279,12 @@ The knee sits at 1 ray per pixel. Going from 1 to 8 rays costs \rcGpuPct\% more 
 (\rcGpuLow{} to \rcGpuHigh{} ms) for a \rcPsnrGain{} dB PSNR gain and a FLIP improvement from
 \rcFlipLow{} to \rcFlipHigh{}, both within run-to-run noise on
 this metric. The denoiser and temporal accumulation already recover most of the achievable quality
-from a single ray; once they are in the pipeline, additional samples per pixel are not where this
-engine's ray budget should go. This is consistent with the SVGF design goal (spatiotemporal
+from a single ray, so additional samples per pixel are not where this engine's ray budget should go.
+This is consistent with the SVGF design goal (spatiotemporal
 filtering to make 1 sample per pixel viable) rather than a property specific to this
-implementation. Figure~\ref{fig:spp-sweep} shows the raw noise this filtering is masking, at the two
-extremes of the sweep. The capture disables the GI spatial denoiser, the GI temporal accumulation, and
-TAA, and is cut
-off at a fixed 30-frame cap. Disabling TAA is what makes the figure honest: TAA is itself a temporal
+implementation. Figure~\ref{fig:spp-sweep} shows the raw noise this filtering masks, captured with the
+GI spatial denoiser, the GI temporal accumulation and TAA disabled, at a fixed 30-frame cap.
+Disabling TAA is what makes the figure honest: TAA is itself a temporal
 accumulator, so with it enabled the capture settles into the same smoothness as the denoised image and
 the ray count appears to make no difference at all.
 
@@ -374,9 +311,7 @@ proporcionalno ve\'cu cenu (Tabela~\ref{tab:raycount}).}
 \label{sec:halfres}
 
 Tracing the two hemispheric gather effects at half resolution is the single largest cost decision in
-the renderer (Section~\ref{sec:rendergraph}), and it is the one sub-question of
-Chapter~\ref{ch:uvod} that the preceding sections do not answer. Setting
-\texttt{render.gi.scale} and \texttt{render.ao.scale} to 1.0 turns it off, changing nothing else, so
+the renderer (Section~\ref{sec:rendergraph}). Setting \texttt{render.gi.scale} and \texttt{render.ao.scale} to 1.0 turns it off, changing nothing else, so
 the two configurations differ in exactly one variable.
 
 \begin{table}[tbp]
@@ -408,12 +343,9 @@ run-to-run spread, so the correct reading is not \rqt{full resolution is slightl
 The reason is that the denoiser is the binding constraint, not the sample grid. Both configurations
 feed the same à-trous filter, whose edge-stopping kernel already blurs over a neighbourhood wider than
 the factor of two separating them; the extra samples are averaged away by the very filter that makes
-the half-resolution result usable. Tracing four times as many rays only helps if something downstream
-can preserve the difference, and here nothing does. This is the strongest single argument in the
-thesis for the half-resolution plus bilateral-upsample pattern: it is not a quality compromise
-accepted for speed, it is close to free.
+the half-resolution result usable. The half-resolution plus bilateral-upsample pattern is therefore
+close to free rather than a quality compromise accepted for speed.
 
-That the difference exists before the filter, and only there, is visible in the traced buffer itself.
 Figure~\ref{fig:halfres-buffer} shows the raw GI irradiance under both settings, taken through the
 debug view that bypasses the upsample, denoiser and composite. The half-resolution buffer carries
 44\% more high-frequency energy by the roughness proxy of Section~\ref{sec:raycount} (41.68
@@ -448,10 +380,9 @@ traced at half resolution in the first place.
 \section{Evaluacija denoiser-a (SVGF)}
 \label{sec:denoise-eval}
 
-This section isolates the SVGF spatial denoiser's own contribution, holding temporal accumulation
-constant (enabled in both states, settled over 90 frames): the noisy input (denoiser disabled)
-against the denoised result against the path-traced reference, at a fixed 2 rays per pixel, RX 9070
-XT.
+The SVGF spatial denoiser's own contribution is isolated by holding temporal accumulation constant
+(enabled in both states, settled over 90 frames) and scoring the noisy input against the denoised
+result against the path-traced reference, at a fixed 2 rays per pixel, RX 9070 XT.
 
 \begin{table}[htb]
 \centering
@@ -461,69 +392,61 @@ uklju\v{c}en u oba slu\v{c}aja).}
 \input{data/denoise-eval.tex}
 \end{table}
 
-With temporal accumulation already active, the spatial SVGF pass changes reconstruction quality
-against the static-frame metrics (PSNR, SSIM, FLIP) by less than measurement noise: the temporal
-history is doing essentially all of the visible convergence at this settled frame, and the spatial
-filter's own contribution shows up elsewhere, in temporal stability rather than static quality. A
-frame-to-frame RMS delta on the same static view (frame $N$ against $N{+}1$ at steady state, a
-flicker proxy under a static camera, not motion) drops only from \flickerOff{} with the denoiser off
-to \flickerOn{} with it on, a \flickerPct\% reduction. That figure is sensitive to one protocol detail:
-unless temporal history is cleared before sampling, the unfiltered case is credited with noise that
-accumulated while assets were still streaming, which inflates the apparent reduction to near 40\%.
-Figures captured with and without that clear are not comparable. The GPU cost of the denoiser is best read from its own timestamp
-scopes rather than from a whole-frame A/B: the three \texttt{GIDenoise} à-trous iterations total
-\perfDenoiseAMD{} ms on the 9070 XT and \perfDenoiseNV{} ms on the 5070 (Table~\ref{tab:pass-cost}), against a full-frame
-budget near nine milliseconds. Toggling the denoiser and diffing whole-frame totals gives about 0.07 ms, but that
-number should not be quoted: it is smaller than the run-to-run spread of the identical configuration,
-so it measures noise rather than the filter. The \texttt{GIDenoise.comp} shader from
-Section~\ref{sec:denoising} is inexpensive in isolation, and its cost is amortized further because it
-runs at half resolution.
+With temporal accumulation already active, the spatial SVGF pass changes the static-frame metrics
+(PSNR, SSIM, FLIP) by less than measurement noise: the temporal history is doing essentially all of
+the visible convergence at this settled frame, and the filter's own contribution shows up in temporal
+stability instead. A frame-to-frame RMS delta on the same static view (frame $N$ against $N{+}1$ at
+steady state, a flicker proxy under a static camera, not motion) drops only from \flickerOff{} with
+the denoiser off to \flickerOn{} with it on, a \flickerPct\% reduction. That figure is sensitive to
+one protocol detail: unless temporal history is cleared before sampling, the unfiltered case is
+credited with noise that accumulated while assets were still streaming, which inflates the apparent
+reduction to near 40\%, so figures captured with and without that clear are not comparable. The
+denoiser's GPU cost is read from its own timestamp scopes rather than from a whole-frame A/B: the
+three \texttt{GIDenoise} à-trous iterations total \perfDenoiseAMD{} ms on the 9070 XT and
+\perfDenoiseNV{} ms on the 5070 (Table~\ref{tab:pass-cost}), against a full-frame budget near nine
+milliseconds, and they are cheap partly because they run at half resolution. Toggling the denoiser
+and diffing whole-frame totals gives about 0.07 ms, which should not be quoted: it is smaller than
+the run-to-run spread of the identical configuration, so it measures noise rather than the filter.
 
-The composited frames above show the denoiser's effect diluted by everything else in the image. The
-engine's debug views isolate it exactly: mode 6 is the half-resolution GI irradiance buffer as the
-trace leaves it, and mode 7 is the same buffer after temporal accumulation and the à-trous filter,
-before either is upsampled or composited. Figure~\ref{fig:gi-denoise-ab} is that pair, and it is the
-denoiser's contribution rendered as an image rather than as a table row. The high-frequency energy
-defined in Section~\ref{sec:raycount} falls from \hfGiRaw{} to \hfGiDenoised{} between the two, which
-is essentially all of it, while the mean level rises because the filter fills in the pixels where
-every ray happened to miss.
+Debug views 6 and 7 isolate the filter from everything else in the image, showing the half-resolution
+GI irradiance buffer as the trace leaves it and after temporal accumulation plus the à-trous, before
+either is upsampled or composited (Figure~\ref{fig:gi-denoise-ab}). The high-frequency energy defined
+in Section~\ref{sec:raycount} falls from \hfGiRaw{} to \hfGiDenoised{} between the two, some 96\% of
+it, while the mean level rises because the filter fills in the pixels where every ray happened to
+miss.
 
-Putting that next to the table above gives the section its actual conclusion, and it is not the
-expected one. The filter transforms the intermediate buffer almost completely, removing some 96\% of
-its per-pixel roughness, and yet the finished image is unchanged to within measurement noise and the
-static flicker improves by under seven percent. The work is real but the pipeline downstream absorbs
-it: the buffer is upsampled from half resolution, multiplied by surface albedo, added to direct
-lighting that dominates it, and then run through a temporal resolve that is itself a strong low-pass
-in time. At two rays per pixel with temporal accumulation already active, the spatial à-trous is close
-to redundant for global illumination, and Section~\ref{sec:denoise-eval} has already shown it is worse
-than redundant for reflections. That is why it is kept at three iterations for global illumination and
-disabled for reflections rather than applied uniformly, and it is an argument for spending a
-reconstruction budget on the temporal side before the spatial one.
+So the filter transforms the intermediate buffer almost completely, and yet the finished image is
+unchanged to within measurement noise. The pipeline downstream absorbs the work: the buffer is
+upsampled from half resolution, multiplied by surface albedo, added to direct lighting that dominates
+it, then run through a temporal resolve that is itself a strong low-pass in time. At two rays per pixel with
+temporal accumulation already active, the spatial à-trous is close to redundant for global
+illumination and worse than redundant for reflections, which is why it is kept at three iterations
+for the former and disabled for the latter rather than applied uniformly, and it argues for spending
+a reconstruction budget on the temporal side before the spatial one.
 
-\paragraph{Isti filtar na refleksijama je \v{s}tetan.} The same à-trous runs on the reflection signal,
-and there it measured net-negative, which is why it is now disabled by default. Turning it off improved
-every spatial metric at once: FLIP 0.1742 against 0.1746, PSNR 21.75 against 21.70, and SSIM 0.6473
-against 0.6419. That all three move the same way is what separates this from metric gaming, because the
-signature of merely deleting blur is FLIP and PSNR improving while SSIM drops, and SSIM improved here.
-The structural reason is that the filter is guided by the receiving surface's normal and depth, which
-is correct for a diffuse gather but wrong for reflections: reflected radiance is view-dependent, so on
-a flat reflective surface those guides are constant and the kernel opens wide exactly where reflected
-detail lives. The saving is not marginal either, since the reflection chain ran at full resolution
-with no upsample after it: removing it is most of the 1.1 ms by which reflections became cheaper in
-Table~\ref{tab:cena}. A roughness-driven kernel remains the structurally right fix, but it now has to
-beat filtering off rather than beat three iterations.
+\paragraph{Isti filtar na refleksijama je \v{s}tetan.} The same à-trous runs on the reflection signal
+and there it measured net-negative, which is why it is now disabled by default: turning it off
+improved every spatial metric at once, FLIP 0.1742 against 0.1746, PSNR 21.75 against 21.70, SSIM
+0.6473 against 0.6419. That all three move the same way is what separates this from metric gaming,
+since the signature of merely deleting blur is FLIP and PSNR improving while SSIM drops. The
+structural reason is that the filter is guided by the receiving surface's normal and depth, correct
+for a diffuse gather although wrong for reflections: reflected radiance is view-dependent, so on a
+flat reflective surface those guides are constant and the kernel opens wide exactly where reflected
+detail lives. The chain ran at full resolution with no upsample after it, so removing it is most of
+the 1.1 ms by which reflections became cheaper in
+Table~\ref{tab:cena}. A roughness-driven kernel remains the structurally right fix, although it now
+has to beat filtering off rather than beat three iterations.
 
-\paragraph{Cena filtra nije ista na oba proizvo\dj a\v{c}a.} Rolling the à-trous outer loop, which the
-engine did to cut the shader's register pressure (Section~\ref{sec:occupancy}), turned out to pay
-asymmetrically. On the RTX 5070 every stride got faster. On the RX 9070 XT it was close to a wash on
-the half-resolution GI and AO chains, with the first iteration slower and the last one faster, and it
-paid only on the full-resolution chains. The per-pass table shows the residue of this: the AMD denoise
-chain is front-loaded (\texttt{GIDenoise0} 0.133 ms falling to 0.089 ms at \texttt{GIDenoise2}) while
-the NVIDIA one inverts (0.094 ms rising to 0.127 ms). The stride-1 iteration is the one where adjacent
-taps are cache-friendly enough that batching beats occupancy, and that tradeoff evidently lands
-differently on the two memory hierarchies. It is a reminder that a shader optimisation justified by a
-register count is not automatically a win, and has to be measured per vendor like everything else in
-this chapter.
+\paragraph{Cena filtra nije ista na oba proizvo\dj a\v{c}a.} Rolling the à-trous outer loop, done to
+cut the shader's register pressure (Section~\ref{sec:occupancy}), paid asymmetrically: on the RTX
+5070 every stride got faster, while on the RX 9070 XT it was close to a wash on the half-resolution
+GI and AO chains (first iteration slower, last one faster) and paid only on the full-resolution ones.
+The per-pass table shows the residue: the AMD denoise chain is front-loaded (\texttt{GIDenoise0}
+0.133 ms falling to 0.089 ms at \texttt{GIDenoise2}) while the NVIDIA one inverts (0.094 ms rising to
+0.127 ms). The stride-1 iteration is the one where adjacent taps are cache-friendly enough that
+batching beats occupancy, and that tradeoff lands differently on the two memory hierarchies. A shader
+optimisation justified by a register count is therefore not automatically a win, and has to be
+measured per vendor like everything else in this chapter.
 
 \begin{figure}[tbp]
 \centering
@@ -556,19 +479,13 @@ izolovan je metrikama u tekstu, gde se vidi pre svega u temporalnoj stabilnosti.
 \section{Pore\dj enje sa postoje\'cim re\v{s}enjima}
 \label{sec:poredjenje}
 
-This section compares the ray-traced effects against the existing solutions surveyed in
-Chapter~\ref{ch:pregled}. The engine implements raster screen-space baselines for ambient occlusion and
-reflections (SSAO, SSR; Section~\ref{sec:efekti}), so the comparison is a same-scene, same-camera A/B: the
-screen-space version against the ray-traced version, showing the cases the screen-space method
-structurally cannot handle (off-screen occluders and reflectors, disocclusion) and the cost
-difference (Figure~\ref{fig:rt-vs-ss}). Separately, the real-time hybrid is compared against the
-path-traced reference of Section~\ref{sec:metodologija} in FLIP, PSNR, and SSIM, to show how close it comes and
-where it diverges. The positioning against production systems (Lumen, RTXGI, ReSTIR) is qualitative:
-the contribution is an integrated, measured, openly licensed ray-query implementation, not a system
-that beats a production global-illumination solution.
-
-Table~\ref{tab:quality} reports each technique's image quality against the path-traced reference,
-averaged over the three viewpoints.
+The engine implements raster screen-space baselines for ambient occlusion and reflections (SSAO, SSR;
+Section~\ref{sec:efekti}), so the comparison against the solutions surveyed in
+Chapter~\ref{ch:pregled} is a same-scene, same-camera A/B, exposing the cases the screen-space method
+structurally cannot handle: off-screen occluders and reflectors, and disocclusion
+(Figure~\ref{fig:rt-vs-ss}). The positioning against production systems (Lumen, RTXGI, ReSTIR) is
+qualitative: the contribution is an integrated, measured, openly licensed ray-query implementation,
+not a system that beats a production global-illumination solution.
 
 \begin{table}[tbp]
 \caption{Kvalitet svake tehnike u odnosu na path-traced referencu (prosek preko tri pogleda: atrium,
@@ -602,14 +519,15 @@ po sceni, \v{s}to prosek sam ne pokazuje.}
 \label{fig:quality-spread}
 \end{figure}
 
-Two results stand out. First, global illumination is the dominant quality lever: RT GI alone lifts
+Against the path-traced reference (Table~\ref{tab:quality}) global illumination is the dominant
+quality lever: RT GI alone lifts
 PSNR from \qRasterPsnr{} (raster) to \qRtGiPsnr{} and cuts FLIP by more than two thirds, and enabling
 all effects reaches FLIP \qAllRtFlip{}, PSNR \qAllRtPsnr{}, SSIM \qAllRtSsim{}, by far the closest to
-the reference. Second, at these
+the reference. At these
 whole-frame metrics screen-space and ray-traced AO and reflections are near-parity (SSAO versus RT AO,
 and SSR versus RT reflections, differ by under 0.01 in FLIP), because the occlusion and reflection
-contributions are small at the whole-frame level. That smallness is measurable rather than assumed:
-captured through the debug view that isolates the AO term alone, the atrium viewpoint has a median AO
+contributions are small at the whole-frame level. Captured through the debug view that isolates the
+AO term alone, the atrium viewpoint has a median AO
 of 255 of 255, that is no occlusion at all, and only 14.1\% (SSAO) and 17.6\% (RT AO) of pixels fall
 below 240. An effect that leaves five sixths of the frame untouched cannot move a whole-frame average
 much, whichever way it is computed. The ray-traced advantage is off-screen correctness, which a
@@ -651,40 +569,36 @@ osvetljenja, zbog \v{c}ega je FLIP dve tehnike gotovo isti.}
 \section{Stabilnost pod kretanjem}
 \label{sec:motion}
 
-Every quality figure so far comes from a static camera, and Section~\ref{sec:denoise-eval} already
-found that this hides most of what the spatial denoiser does: with temporal accumulation active the
-filter changes PSNR, SSIM and FLIP by less than measurement noise, while cutting frame-to-frame
-flicker by \flickerPct\%. That argument was made with a flicker proxy on a static view. This section
-moves the camera.
+Every quality figure so far comes from a static camera, which Section~\ref{sec:denoise-eval} found
+hides most of what the spatial denoiser does: it cuts frame-to-frame flicker by \flickerPct\% while
+moving the static metrics by less than measurement noise, an argument made there only by proxy. This
+section moves the camera.
 
-The obvious way to build such a measurement is to fly a fixed camera route, capture frames along it,
-and score each against a converged path trace of the same instant. That was done, and the first result
-it produced is a caution about the method rather than a fact about the renderer. Across the eleven
-techniques, the per-frame FLIP measured this way correlates with the static FLIP of
-Section~\ref{sec:poredjenje} at $r = +0.99$. It is very nearly the same measurement taken twice.
+Flying a fixed route, capturing frames along it and scoring each against a converged path trace of
+the same instant produces a caution about the method before any fact about the renderer: across the
+eleven techniques, the per-frame FLIP measured this way correlates with the static FLIP of
+Section~\ref{sec:poredjenje} at $r = +0.99$, very nearly the same measurement taken twice. A
+converged per-frame path trace is a sequence of independent still images with no temporal structure,
+since nothing in its construction relates one frame to the next, so error measured against it has no
+temporal component to carry however much the camera moves. The defect is in that experimental design
+rather than in the implementation, and it is a known conflation: k-DOP Clipping
+\cite{ikkala2024kdop} states outright that a supersampled reference introduces a constant error by
+also comparing general temporal-antialiasing quality against supersampling. The canonical denoiser
+papers avoid it by reporting accuracy against a reference and temporal behaviour separately, the
+latter with a reference-free measure.
 
-The reason is structural. A converged per-frame path trace is a sequence of independent still images;
-it contains no temporal structure, because nothing in its construction relates one frame to the next.
-Error measured against it therefore has no temporal component to carry, however much the camera moves
-while the frames are captured. This is not a defect of this implementation but of that experimental
-design, and it is a known conflation: k-DOP Clipping \cite{ikkala2024kdop} states outright that a
-supersampled reference introduces a constant error by also comparing general temporal-antialiasing
-quality against supersampling. The canonical denoiser papers avoid it by reporting accuracy against a
-reference and temporal behaviour separately, the latter with a reference-free measure.
-
-Two quantities in the moving capture do carry information the static gate cannot. The first is a
-temporal measure that compares how much the technique changes between consecutive frames against how
-much the \emph{reference} changes over the same interval, so that motion inherent to the scene is
-subtracted and only excess instability remains. Subtracting matters: on this route the reference
-itself moves by a FLIP of about 0.09 between adjacent frames, so a naive frame difference would report
-that as instability. Ranked by it (Table~\ref{tab:motion}), the techniques order exactly as the
-flicker proxy predicted: the fully reconstructed configurations are the most stable and plain
-rasterization the least, with the screen-space and single-effect variants between. That is the same
-conclusion as Section~\ref{sec:denoise-eval}, reached under motion instead of by proxy, and it is the
-evidence for the claim that the spatial filter buys stability rather than static fidelity. The two
-temporal metrics disagree usefully: \texttt{rtgi} has the best tFLIP while \texttt{all-rt} has the
-best JOD, because tFLIP isolates temporal excess alone where ColorVideoVDP is spatio-temporal and
-\texttt{all-rt} is far more accurate spatially.
+Two quantities in the moving capture do carry information the static gate cannot. The first compares
+how much the technique changes between consecutive frames against how much the \emph{reference}
+changes over the same interval, so that motion inherent to the scene is subtracted and only excess
+instability remains. Subtracting matters: on this route the reference itself moves by a FLIP of about
+0.09 between adjacent frames, which a naive frame difference would report as instability. Ranked by
+it (Table~\ref{tab:motion}), the techniques order exactly as the flicker proxy predicted, the fully
+reconstructed configurations most stable and plain rasterization least, which is
+Section~\ref{sec:denoise-eval}'s conclusion reached under motion instead of by proxy: the spatial
+filter buys stability rather than static fidelity. The two temporal metrics disagree usefully:
+\texttt{rtgi} has the best tFLIP while \texttt{all-rt} has the best JOD, because tFLIP isolates
+temporal excess alone where ColorVideoVDP is spatio-temporal and \texttt{all-rt} is far more accurate
+spatially.
 
 \begin{table}[tbp]
 \caption[Stabilnost pod kretanjem po tehnici]{Stabilnost pod kretanjem, prosek preko \v{c}etiri probne
@@ -698,12 +612,12 @@ direktno modeluje vremensku osetljivost.}
 \end{table}
 
 The second is lag: the moving frame scored against this renderer's own converged still at the same
-pose, which measures how far reconstruction trails the camera. Table~\ref{tab:motion-probes} reads it
-across the route for the two ends of the ranking. Velocity reversal is the costliest motion, and it is
-not explained by speed, since the route holds translation essentially constant. What is special about a
-reversal is that the velocity vector changes sign, which is the documented pathological case for
-history rejection. The parked probe is an order of magnitude below the moving ones and acts as the
-control that makes them readable.
+pose, which measures how far reconstruction trails the camera, read across the route in
+Table~\ref{tab:motion-probes} for the two ends of the ranking. Velocity reversal is the costliest
+motion, and not because of speed, since the route holds translation essentially constant: what is
+special about a reversal is that the velocity vector changes sign, the documented pathological case
+for history rejection. The parked probe is an order of magnitude below the moving ones and acts as
+the control that makes them readable.
 
 \begin{table}[tbp]
 \caption[Stabilnost i ka\v{s}njenje po ta\v{c}ki rute]{Iste dve vremenske mere razlo\v{z}ene po
@@ -725,11 +639,9 @@ with earlier ones.
 \section{Kvalitet izme\dj u proizvo\dj a\v{c}a}
 \label{sec:cross-vendor-quality}
 
-The cross-vendor argument of this chapter rests on the claim that the two adapters run identical code,
-so any difference between them is hardware and driver. Everywhere else that claim is used to justify
-comparing \emph{time}. This section tests the other half of it: whether the reconstructed images also
-agree. If they did not, a timing difference could always be dismissed as the two cards having done
-different amounts of work.
+The cross-vendor argument rests on the two adapters running identical code, which elsewhere justifies
+comparing \emph{time}. If the reconstructed images did not also agree, a timing difference could
+always be dismissed as the two cards having done different amounts of work.
 
 The whole quality matrix was captured a second time on the RTX 5070, giving 33 viewpoint and technique
 pairs. Across all 33 the largest absolute difference in FLIP between the adapters is \textbf{0.0037},
@@ -739,14 +651,14 @@ the difference this chapter is actually interested in, between raster and all ef
 FLIP of \qRasterFlip{} against \qAllRtFlip{}, two orders of magnitude larger than the vendor
 disagreement.
 
-Technique quality is therefore effectively vendor-independent here, which means the entire
-cross-vendor story of this thesis is cost rather than image quality. That is a useful negative result:
+Technique quality is therefore effectively vendor-independent here, so the entire
+cross-vendor story of this thesis is cost rather than image quality:
 the per-effect timings in Section~\ref{sec:cena} and the shadow-strategy inversion in
 Section~\ref{sec:analiza-shadow-strategy} can be read as pure performance differences, with no
 accompanying quality caveat.
 
-One methodological detail makes this measurable at all, and the obvious alternative would have
-destroyed the result. Both adapters are scored against the \emph{same} path-traced reference. The
+Both adapters are scored against the \emph{same} path-traced reference, and the obvious alternative
+would have destroyed the result. The
 reference cache is keyed on the scene, the camera pose, the frame count and the content of the
 path-tracing shaders, and deliberately not on the device, so the second adapter reuses the reference
 the first produced rather than tracing its own. Had each been scored against a reference it produced
@@ -766,15 +678,15 @@ rather than recomputing it.
 \section{Zauzetost i cena \v{s}ejdera}
 \label{sec:occupancy}
 
-This section reports static shader occupancy: how many registers each ray-tracing and denoising
-shader needs, and how many waves the hardware can therefore keep in flight. It is the one place where
-the two vendors can be compared on something other than time, and it explains part of the cost
-difference the rest of the chapter measures.
+Static shader occupancy, how many registers each ray-tracing and denoising shader needs and how many
+waves the hardware can therefore keep in flight, is the one place where the two vendors compare on
+something other than time, and it explains part of the cost difference the rest of the chapter
+measures.
 
 Two artifacts feed it, with deliberately different authority. For AMD the offline analyser compiles
-every shader and every permutation, so its coverage is complete and deterministic, and it is what the
-project gates on. For NVIDIA no offline analyser exists, because register allocation happens inside
-the driver's just-in-time compiler; the figures there are read back from the driver itself through
+every shader and permutation, so its coverage is complete and deterministic, and it is what the
+project gates on. For NVIDIA no offline analyser exists, since register allocation happens inside the
+driver's just-in-time compiler, so those figures are read back from the driver through
 \texttt{VK\_KHR\_pipeline\_executable\_properties} after the pipelines are built. The two agree on
 every AMD register count they share, which is what licenses carrying the offline permutation labels
 over to the runtime numbers: the runtime capture reports both \texttt{DefaultLit} variants under one
@@ -793,24 +705,21 @@ committovanih baseline-a skriptom \texttt{tools/gen\_shader\_tables.py}.}
 
 Only one shader on the render path is occupancy-limited on either card, and it is the same one:
 \texttt{DefaultLit.frag} in its inline-shadow permutation, at 127 VGPRs and 10 of 16 waves on the
-9070 XT. Compiled without the inline shadow query the same shader drops to 87 VGPRs and full
-occupancy, which locates the cost precisely: tracing shadow rays inside the forward shader is what
-pushes it over a wave boundary, and that is the same effect Section~\ref{sec:cena} sees as a Forward
-pass that grows by 3.482 ms. Nothing in the table spills registers, and across all 47 cooked shaders
-exactly one uses any scratch memory at all (\texttt{NeuralConv.comp}, 272 bytes), which is off the
-render path.
+9070 XT. Compiled without the inline shadow query it drops to 87 VGPRs and full occupancy, which
+locates the cost precisely: tracing shadow rays inside the forward shader is what pushes it over a
+wave boundary, the same effect Section~\ref{sec:cena} sees as a Forward pass that grows by 3.482 ms.
+Nothing in the table spills registers, and across all 47 cooked shaders exactly one uses scratch
+memory at all (\texttt{NeuralConv.comp}, 272 bytes), off the render path.
 
 Figure~\ref{fig:occupancy-cliff} plots why the two permutations land so far apart for a difference of
-40 registers. Occupancy is not proportional to register use: it is a step function, because registers
-are allocated in fixed blocks of 24 on this architecture and the wave count is the register file
-divided by that rounded-up allocation. Between 24 and 96 VGPRs every shader gets all 16 waves, so the
-five shaders in the flat region differ in register use by a factor of 1.5 (59 to 87) at no cost in
-parallelism.
-Past 96 the count falls in steps. The inline-shadow permutation at 127 VGPRs is 31 registers into
-that region and allocates 144, giving 10 waves; had it stayed at or below 96, as its non-tracing
-sibling does at 87, it would have cost nothing. This is why the table gates on occupancy rather than
-on the register count directly, and why a register increase is only worth acting on when it crosses a
-step.
+40 registers. Occupancy is a step function of register use, since registers are allocated in fixed
+blocks of 24 on this architecture and the wave count is the register file divided by that rounded-up
+allocation. Between 24 and 96 VGPRs every shader gets all 16 waves, so the five shaders in the flat
+region differ in register use by a factor of 1.5 (59 to 87) at no cost in parallelism. Past 96 the
+count falls in steps: the inline-shadow permutation at 127 VGPRs allocates 144 and gets 10 waves,
+where at or below 96, as its non-tracing sibling is at 87, it would have cost nothing. Hence gating
+on occupancy rather than on the register count directly, and acting on a register increase only when
+it crosses a step.
 
 \begin{figure}[tbp]
 \centering
@@ -836,13 +745,12 @@ preko granice na 127.}
 \label{fig:occupancy-cliff}
 \end{figure}
 
-The cross-vendor comparison is the interesting part, and it inverts the naive reading. NVIDIA uses
-markedly fewer registers for the same shader, 80 against 127 for the inline-shadow variant, yet its
-relative occupancy is \emph{lower}: 25 of 48 warps against 10 of 16 waves, 52\% against 62\%. The
-reason is the ratio each architecture provides. A Blackwell SM has 65536 registers for up to 48 warps
-of 32 threads, which is about 42 registers per thread at full occupancy, so register pressure begins
-to bite earlier there than the raw counts suggest. Fewer registers used does not mean more parallelism
-available.
+The cross-vendor comparison inverts the naive reading. NVIDIA uses markedly fewer registers for the
+same shader, 80 against 127 for the inline-shadow variant, yet its relative occupancy is \emph{lower},
+25 of 48 warps against 10 of 16 waves (52\% against 62\%), because of the ratio each architecture
+provides: a Blackwell SM has 65536 registers for up to 48 warps of 32 threads, about 42 registers per
+thread at full occupancy, so pressure begins to bite earlier there than the raw counts suggest. Fewer
+registers used does not mean more parallelism available.
 
 Three limits belong with these numbers. The occupancy is theoretical and register-derived, so it is an
 upper bound on both vendors and says nothing about what is achieved once memory stalls and other
@@ -853,7 +761,6 @@ the inline-shadow permutation would read 12 of 16 rather than 10. And the NVIDIA
 an upper bound, since the allocation granularity for that compute capability is not published and
 rounding up can only lower the warp count.
 
-The one statistic deliberately not reported is register spilling on NVIDIA. The driver returns a
-\texttt{Local Memory Size} whose upper 32 bits are a constant, so the values differ only in their low
-half; the low half is very likely the real figure, but masking it would be inference presented as
-measurement, and a plausible fabricated number is worse than a missing one.
+Register spilling on NVIDIA is deliberately not reported: the driver returns a \texttt{Local Memory
+Size} whose upper 32 bits are a constant, so the values differ only in their low half, and while that
+low half is very likely the real figure, masking it would be inference presented as measurement.

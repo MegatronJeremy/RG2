@@ -3,30 +3,26 @@
 
 
 This chapter describes how the four ray-traced effects and the shared denoiser are implemented inside
-the Snowstorm engine. The emphasis follows the thesis focus: the ray tracing itself and its cost,
-rather than an exhaustive account of every engine subsystem.
+the Snowstorm engine, with the emphasis on the ray tracing itself and its cost rather than on every
+engine subsystem.
 
 \section{Snowstorm Engine (pregled)}
 \label{sec:engine}
 
 Snowstorm is a Vulkan engine the author wrote from scratch; this thesis uses it as the host for the
-ray-tracing passes and does not treat the engine itself as the contribution. The parts that matter
-for the RT path are four. An EnTT-based entity-component-system whose Systems produce the per-frame
-render work. A backend-agnostic \texttt{Render/} layer (\texttt{RendererAPI}, \texttt{RenderGraph},
-\texttt{Pipeline}, \texttt{Shader}, \texttt{Buffer}, \texttt{Texture}, \texttt{Material})
-implemented over a Vulkan RHI in \texttt{Platform/Vulkan/}, using volk for entry-point loading,
-Vulkan Memory Allocator for allocations, and spirv-reflect to derive descriptor layouts from the
-compiled shaders. An HLSL shader pipeline compiled to SPIR-V through dxc. And a bindless descriptor
-model, which is what lets one ray-query hit-shading routine index any mesh's vertices, indices, and
-material without per-draw descriptor churn (Section~\ref{sec:efekti}). Concretely, each mesh exposes
-its vertex and index buffers by device address, and a per-instance geometry table indexed by
-\texttt{instanceCustomIndex} lets the hit shader fetch the hit triangle's attributes and its bindless
-material at trace time. The ImGui editor hosts the
-CVar console and the performance readouts used to drive and measure the effects
-(Section~\ref{sec:alati}). Everything below is a set of passes and shaders added on top of this host.
+ray-tracing passes and does not treat the engine itself as the contribution. An EnTT-based
+entity-component-system produces the per-frame render work; a backend-agnostic \texttt{Render/} layer
+sits over a Vulkan RHI (volk, Vulkan Memory Allocator, spirv-reflect for descriptor layouts) in
+\texttt{Platform/Vulkan/}; shaders are HLSL compiled to SPIR-V through dxc; the ImGui editor hosts the
+CVar console and the performance readouts (Section~\ref{sec:alati}).
 
-The Vulkan physical device is selected at startup (by index or name through a CVar), so the same
-binary runs on either GPU; the cross-vendor evaluation of Chapter~\ref{ch:analiza} depends on this.
+The one part load-bearing for the RT path is the bindless descriptor model, which lets a single
+hit-shading routine index any mesh's vertices, indices, and material without per-draw descriptor churn
+(Section~\ref{sec:efekti}): each mesh exposes its vertex and index buffers by device address, and a
+per-instance geometry table indexed by \texttt{instanceCustomIndex} lets the hit shader fetch the hit
+triangle's attributes and its material at trace time. The Vulkan physical device is selected at startup
+by index or name through a CVar, so the same binary runs on either GPU, which the cross-vendor
+evaluation of Chapter~\ref{ch:analiza} depends on.
 
 \section{Render graf i struktura frejma}
 \label{sec:rendergraph}
@@ -35,30 +31,30 @@ The renderer is organized as a \texttt{RenderGraph}: passes are appended in orde
 textures it reads and writes, and the graph derives from those declarations both the Vulkan layout
 barriers between them and a dependency DAG (\texttt{BuildDependencies}). Declaration order is a valid
 topological order by construction, so the derived edges do not change what is correct, only what is
-free to move: \texttt{BuildSchedule} topologically sorts the graph and pulls compute passes as early
-as their edges allow, which gathers the ray-traced chains into one contiguous run instead of leaving
-them split by the raster upsamples that happen to sit between them. That contiguity is what makes
-async compute worthwhile, since otherwise each chain would pay its own fork and join.
+free to move: \texttt{BuildSchedule} pulls compute passes as early as their edges allow, gathering the
+ray-traced chains into one contiguous run instead of leaving them split by the raster upsamples that
+happen to sit between them. That contiguity is what makes async compute worthwhile, since otherwise
+each chain would pay its own fork and join.
 
-Two ordering constraints are derived rather than declared, because no texture edge expresses them.
-Graphics passes keep their relative order, since they submit draws through a shared instance buffer at
+Two ordering constraints are derived rather than declared, since no texture edge expresses them.
+Graphics passes keep their relative order, because they submit draws through a shared instance buffer at
 a running cursor, so only compute passes are free to move. And a pass that writes the swapchain is
 terminal, because the editor samples the viewport through ImGui bindings the graph cannot see. The
-honest limitation is that the DAG is only as complete as the declarations: a pass touching an
+limitation is that the DAG is only as complete as the declarations: a pass touching an
 acceleration structure, a bindless table, or a buffer carries a real ordering requirement that no edge
-records, since only textures are tracked. The \texttt{render.graph.dumpdeps} CVar exists for exactly
-that reason, reporting which passes look unconstrained so the gap is visible rather than latent.
+records, since only textures are tracked. The \texttt{render.graph.dumpdeps} CVar reports which passes
+look unconstrained, so that gap is visible rather than latent.
 
-Each pass is wrapped in a named GPU timestamp scope (\texttt{BeginGpuScope}), and those names are the rows of
-Table~\ref{tab:pass-cost} in Chapter~\ref{ch:analiza}, so the graph structure and the finest available
-measurement granularity are one and the same. The per-effect costs in Table~\ref{tab:cena} are
-deliberately coarser, whole-frame differences rather than scope readings, for the reason given
-there: the default shadow path has no scope of its own.
+Each pass is wrapped in a named GPU timestamp scope (\texttt{BeginGpuScope}), and those names are the
+rows of Table~\ref{tab:pass-cost} in Chapter~\ref{ch:analiza}, so the graph structure and the finest
+available measurement granularity are one and the same. The per-effect costs in Table~\ref{tab:cena}
+are deliberately coarser, whole-frame differences rather than scope readings, since the default shadow
+path has no scope of its own.
 
-The per-viewport frame is declared in the order below; the scheduler may hoist compute passes earlier
-within it, but not past a producer. Each ray-traced effect repeats the same four-stage shape, trace,
-accumulate over time, filter spatially, and (for the half-resolution ones) upsample, which is what
-lets one denoiser implementation serve all of them (Section~\ref{sec:denoising}).
+Table~\ref{tab:framegraph} gives the declared per-viewport order. Each ray-traced effect repeats the
+same four-stage shape, trace, accumulate over time, filter spatially, and (for the half-resolution
+ones) upsample, which is what lets one denoiser implementation serve all of them
+(Section~\ref{sec:denoising}).
 
 \begin{table}[tbp]
 \caption[Prolazi po frejmu, redom]{Prolazi po frejmu redom kojim se izvr\v{s}avaju. Tri efekta se
@@ -88,81 +84,53 @@ Merenje & \texttt{Compare}, \texttt{Metrics} (PSNR, SSIM) \\
 \end{tabular}
 \end{table}
 
-\begin{figure}[tbp]
-\centering
-\begin{tikzpicture}[node distance=5mm, >={Stealth[]},
-  box/.style={draw, rounded corners, align=center, text width=10.4cm, inner sep=4pt, font=\small}]
-  \node[box] (gb)   {G-buffer: \texttt{DepthNormal} (depth + geometric normal), \texttt{Velocity}};
-  \node[box, below=of gb]   (rt)  {RT effects traced before Forward: GI and AO at half resolution,
-    reflections at full; each trace followed by \texttt{Temporal} and \texttt{Denoise}, with
-    \texttt{Upsample} for the half-res signals};
-  \node[box, below=of rt]   (fw)  {\texttt{Forward} (\texttt{DefaultLit}): early-Z prepass, sky;
-    traces shadow rays inline, per light, and combines them with the sampled GI, AO, and reflections};
-  \node[box, below=of fw]   (taa) {\texttt{TemporalResolve} (TAA)};
-  \node[box, below=of taa]  (post){Post: tonemap $\rightarrow$ FXAA $\rightarrow$ Sharpen};
-  \node[box, below=of post] (cmp) {Compare / Metrics (PSNR, SSIM)};
-  \draw[->] (gb) -- (rt); \draw[->] (rt) -- (fw); \draw[->] (fw) -- (taa);
-  \draw[->] (taa) -- (post); \draw[->] (post) -- (cmp);
-\end{tikzpicture}
-\caption{Redosled prolaza po frejmu: GI, AO i refleksije se rekonstrui\v{s}u pre Forward prolaza, koji ih
-uzorkuje i pri tome sam trasira zrake senke, inline, po svetlu.}
-\label{fig:framegraph}
-\end{figure}
 
-Three of the four effects run as compute passes \emph{before} the forward pass
-(Figure~\ref{fig:framegraph}), each writing a denoised texture that the forward shader then samples. They need the depth+normal G-buffer as their
+Three of the four effects run as compute passes \emph{before} the forward pass, each writing a
+denoised texture that the forward shader then samples. They need the depth+normal G-buffer as their
 starting surface, so they follow \texttt{DepthNormal} but precede shading; running them ahead of
 forward lets it do a single lit combine (direct lighting plus the sampled indirect, AO, and
-reflection) instead of interleaving trace and shade. This split, screen-space compute effects feeding
-a forward combine, follows how hybrid renderers such as Unreal's Lumen separate their screen passes
-from hit lighting.
+reflection) instead of interleaving trace and shade. This split of screen-space compute effects
+feeding a forward combine follows how hybrid renderers such as Unreal's Lumen separate their screen
+passes from hit lighting.
 
-Shadows are the exception, and the asymmetry is deliberate. In the default configuration the shadow
-ray is traced \emph{inline}, inside the forward shader, once per light per pixel, at full resolution
-and with no denoiser in between (Section~\ref{sec:senke}). A visibility test is a single bit of
-information that is cheap to compute exactly and expensive to reconstruct approximately, so for a
-handful of lights it is cheaper to answer it in place than to write a buffer, filter it, and read it
-back. The cost of that choice is that it scales linearly with light count, which is what the
-alternative stochastic path in Section~\ref{sec:senke} exists to address.
+Shadows are the deliberate exception: the shadow ray is traced \emph{inline} inside the forward
+shader, once per light per pixel, at full resolution and with no denoiser in between
+(Section~\ref{sec:senke}). A visibility test is a single bit that is cheap to compute exactly and
+expensive to reconstruct approximately, so for a handful of lights answering it in place beats
+writing a buffer, filtering it, and reading it back. The cost is linear growth in light count, which
+the alternative stochastic path of Section~\ref{sec:senke} exists to address.
 
 GI and AO are traced at half resolution (\texttt{render.gi.scale}, \texttt{render.ao.scale}, both
-0.5 by default) and bilaterally upsampled to full resolution before the forward pass samples them;
-reflections are traced at full resolution. Half-res tracing is the single biggest cost lever for the
-two hemispheric gather effects, since it quarters the ray count, and the denoiser plus the
-depth/normal-aware upsample are what keep the half-res result usable. Section~\ref{sec:cena}
-quantifies what this buys.
-
-Which effects tolerate that treatment is not arbitrary, and the rule is worth stating plainly because
-it recurs throughout the chapter. Tracing at half resolution means computing the signal for one pixel
-in four and reconstructing the other three from their neighbours, which is only safe when the signal
-varies slowly across the surface. Ambient occlusion and diffuse global illumination qualify: both are
-broad hemispherical averages, so adjacent pixels on the same wall genuinely do receive almost the same
-answer, and the error introduced by interpolating between them is smaller than the noise already
-present. Shadows and reflections do not. A shadow boundary is a step function, and a reflection is
-view-dependent, so a neighbouring pixel can legitimately see something completely different; halving
-the resolution there does not blur noise, it destroys the detail that made the effect worth tracing.
-That is why the two gather effects run at half resolution and are upsampled, while shadows are traced
-inline at full resolution and reflections get their own full-resolution pass.
+0.5 by default) and bilaterally upsampled before the forward pass samples them; reflections are
+traced at full resolution. Half-res tracing is the single biggest cost lever for the two hemispheric
+gather effects since it quarters the ray count, and Section~\ref{sec:cena} quantifies what it buys.
+Which effects tolerate it is not arbitrary: reconstructing three pixels in four from their neighbours
+is only safe when the signal varies slowly across the surface. Ambient occlusion and diffuse global
+illumination are broad hemispherical averages, so adjacent pixels on the same wall genuinely receive
+almost the same answer and interpolating introduces less error than the noise already present. A
+shadow boundary is a step function and a reflection is view-dependent, so there a neighbouring pixel
+can legitimately see something completely different, and halving the resolution destroys the detail
+that made the effect worth tracing rather than blurring noise.
 
 \section{Izgradnja struktura ubrzanja (BLAS/TLAS)}
 \label{sec:accel}
 
-Ray queries trace against a two-level acceleration structure. Each unique mesh owns one bottom-level
-structure (BLAS), built lazily the first time the mesh is used and cached on the mesh
-(\texttt{Mesh::GetOrBuildBLAS}): opaque triangle geometry referenced by device address (positions as
-R32G32B32, 32-bit indices), built once with the \texttt{PREFER_FAST_TRACE} flag. The top-level
-structure (TLAS) holds one instance per (Transform, Mesh) entity, with \texttt{instanceCustomIndex}
-set to the instance index so the hit shader can resolve the geometry from a table
-(Section~\ref{sec:efekti}).
+Ray queries trace against the two-level structure described in Section~\ref{sec:accel-pregled}. Each
+unique mesh owns one BLAS, built lazily on first use and cached on the mesh
+(\texttt{Mesh::GetOrBuildBLAS}) with the \texttt{PREFER_FAST_TRACE} flag over opaque triangle
+geometry referenced by device address (positions R32G32B32, 32-bit indices). Opaque meshes are
+flagged \texttt{OPAQUE} so traversal skips the any-hit stage; alpha-cutout (glTF MASK) materials fall
+back to a minimal any-hit alpha test unless an opacity micromap is available. The TLAS holds one
+instance per (Transform, Mesh) entity, each carrying its $3\times4$ world transform, a visibility
+mask, its BLAS address, and an \texttt{instanceCustomIndex} set to the instance index so the hit
+shader can resolve the geometry from a table (Section~\ref{sec:efekti}).
 
-The evaluation scenes make the two levels concrete. \texttt{Sponza.world} loads as 25 mesh entities
-over 25 distinct meshes, so its TLAS holds 25 instances over 25 BLAS, a one-to-one mapping in which
-the two-level structure buys nothing: the model is authored as a single unrepeated mesh set.
-\texttt{Sponza-Motion.world} adds the four rotating props of Section~\ref{sec:motion}, which are four
-transforms of one mesh, giving 29 instances over 26 BLAS. The instance count is reported by
-\texttt{TlasBuildSystem} on each rebuild, and it climbs through six rebuilds (6, 12, 18, 24, 25) as
-the meshes stream in before settling, since a mesh entity joins the structure only once its geometry
-is resident.
+In the evaluation scenes the two-level structure buys nothing, since the model is authored as a
+single unrepeated mesh set: \texttt{Sponza.world} holds 25 instances over 25 BLAS.
+\texttt{Sponza-Motion.world} adds the four rotating props of Section~\ref{sec:motion}, four
+transforms of one mesh, giving 29 instances over 26 BLAS. The instance count reported by
+\texttt{TlasBuildSystem} climbs across rebuilds (6, 12, 18, 24, 25) as the meshes stream in, since a
+mesh entity joins the structure only once its geometry is resident.
 
 The TLAS is rebuilt in full on every frame the scene is marked dirty (\texttt{TlasBuildSystem}, in
 the \texttt{PreRender} phase). There is no refit path: a dirty frame destroys and rebuilds the
@@ -172,50 +140,34 @@ which is the common case for the benchmark scene. A full rebuild on every dynami
 than a refit would be; this is called out as a limitation in Chapter~\ref{ch:zakljucak} and was
 chosen for implementation simplicity given that the test scenes are largely static.
 
-Building a structure follows the standard Vulkan sequence: the required scratch and result buffer
-sizes are queried with \texttt{vkGetAccelerationStructureBuildSizesKHR}, the scratch and structure
-buffers are allocated, and \texttt{vkCmdBuildAccelerationStructuresKHR} records the build. A BLAS
-geometry is described by a \texttt{VkAccelerationStructureGeometryKHR} that points at the vertex and
-index buffers by device address and is flagged \texttt{OPAQUE} for opaque meshes (so traversal skips
-the any-hit stage); alpha-cutout (glTF MASK) materials fall back to a minimal any-hit alpha test
-unless an opacity micromap is available for them, described next. Each TLAS instance is a
-\texttt{VkAccelerationStructureInstanceKHR} carrying the $3\times4$ world transform, a visibility
-mask, the \texttt{instanceCustomIndex}, and the device address of its BLAS.
-
 \paragraph{Opacity micromaps for cutout geometry.} On a device exposing
 \texttt{VK\_EXT\_opacity\_micromap} (\texttt{render.omm}, on by default when supported), a cutout
 material instead builds a second, non-opaque BLAS carrying an opacity micromap: a compute pass
 (\texttt{OmmBake.comp}) bakes the material's albedo alpha into a per-microtriangle
 opaque/transparent/unknown classification at a fixed subdivision level, using the same bird-curve
-microtriangle indexing Khronos' reference implementation uses. During traversal the hardware resolves
-microtriangles classified opaque or transparent without invoking the any-hit shader at all, so the
-any-hit alpha test only runs on the unknown (edge) microtriangles; without the extension every cutout
-microtriangle still pays the any-hit test. The bake runs once per mesh and is cached on it, alongside
-the plain BLAS. Because it samples the resident albedo texture, the bake is deferred until that
-texture has finished streaming in (an async load's placeholder is opaque, and baking against it would
-cache a solid cutout permanently); the plain BLAS with the any-hit fallback is used meanwhile. Support
-is driver-dependent as well as hardware-dependent: on the RDNA4 GPU used for this work the Vulkan
-driver does not yet expose the extension despite the hardware, while the Blackwell NVIDIA GPU used
-here does, so the two vendors in the cross-vendor comparison (Chapter~\ref{ch:analiza}) exercise
-different geometry paths for masked materials while producing the same acceleration-structure query
-semantics.
+microtriangle indexing Khronos' reference implementation uses. Traversal then resolves opaque and
+transparent microtriangles in hardware, so the any-hit alpha test runs only on the unknown (edge)
+ones; without the extension every cutout microtriangle pays it. The bake runs once per mesh and is
+cached alongside the plain BLAS. Because it samples the resident albedo texture, it is deferred until
+that texture has finished streaming in (an async load's placeholder is opaque, and baking against it
+would cache a solid cutout permanently), with the any-hit fallback used meanwhile. Support is
+driver-dependent as well as hardware-dependent: on the RDNA4 GPU used here the Vulkan driver does not
+expose the extension despite the hardware, while the Blackwell NVIDIA GPU does, so the two vendors of
+Chapter~\ref{ch:analiza} exercise different geometry paths for masked materials while producing the
+same acceleration-structure query semantics.
 
-The engine uses inline ray queries only. It enables \texttt{VK_KHR_ray_query} and
-\texttt{VK_KHR_acceleration_structure} (plus \texttt{VK_KHR_deferred_host_operations} for the build)
-but not the ray-tracing-pipeline extension, consistent with the rationale in
-Section~\ref{sec:rendergraph}. There is no shader binding table; every trace is a \texttt{RayQuery}
-object created inside an otherwise ordinary compute or fragment shader.
+The engine enables \texttt{VK_KHR_ray_query} and \texttt{VK_KHR_acceleration_structure} (plus
+\texttt{VK_KHR_deferred_host_operations} for the build) but not the ray-tracing-pipeline extension.
+There is no shader binding table: every trace is a \texttt{RayQuery} object created inside an
+otherwise ordinary compute or fragment shader.
 
-That absence has a consequence worth drawing, because a reader coming from DXR expects a hit group to
-be dispatched per geometry. Here nothing is dispatched: the shader is handed three integers and has to
-find the surface itself. Figure~\ref{fig:hitresolve} traces that lookup. The committed hit yields an
-instance index, a primitive index and two barycentrics; the instance index reads a \texttt{GeoRecord}
-from a device-address geometry table, which carries the mesh's vertex and index buffer addresses and
-its material; the primitive index reads three indices from that index buffer; the barycentrics
-interpolate the vertex attributes; and the material's texture index samples the bindless texture
-array. One routine, \texttt{ResolveHit} in \texttt{RTHitShading.hlsli}, therefore resolves \emph{any}
-mesh in the scene with no per-geometry shader and no descriptor rebinding, which is what makes a
-single \texttt{ShadeSurfaceHit} usable from all four effects.
+Where DXR would dispatch a hit group per geometry, here nothing is dispatched: the shader is handed
+three integers and has to find the surface itself, walking the instance index through a
+device-address \texttt{GeoRecord} table to the mesh's index and vertex buffers and its bindless
+material (Figure~\ref{fig:hitresolve}). One routine, \texttt{ResolveHit} in
+\texttt{RTHitShading.hlsli}, therefore resolves \emph{any} mesh in the scene with no per-geometry
+shader and no descriptor rebinding, which is what makes a single \texttt{ShadeSurfaceHit} usable from
+all four effects.
 
 \begin{figure}[tbp]
 \centering
@@ -254,8 +206,8 @@ osen\v{c}ene povr\v{s}i, bez shader binding table-a. \texttt{RayQuery} vra\'ca s
 \label{sec:efekti}
 
 All four effects share the same core operation: construct a ray, create a \texttt{RayQuery} against
-the scene TLAS, run its traversal loop, and act on the result. Table~\ref{tab:effect-params} gives the
-four axes they differ on. Two of those axes are coupled: an effect that needs only a visibility answer
+the scene TLAS, run its traversal loop, and act on the result. They differ on the four axes of
+Table~\ref{tab:effect-params}, two of which are coupled: an effect that needs only a visibility answer
 can stop at the first hit, which is both the cheaper traversal and the reason it can afford a lower
 ray count than an effect that must shade what it finds.
 
@@ -278,60 +230,50 @@ GI           & 2           & najbli\v{z}i & osen\v{c}ena radijansa  & 0.5 \\
 \end{tabular}
 \end{table}
 
-The effects that shade their hits (reflections and GI, plus the secondary lighting they evaluate)
-share one routine, \texttt{ShadeSurfaceHit} in \texttt{RTHitShading.hlsli}, which resolves the hit
-triangle through the bindless geometry table and evaluates a single bounce of lighting. Shadows and
-AO need only a visibility answer and use the cheaper any-hit traversal. Primary shading in the forward
-pass is a metallic-roughness Cook-Torrance model: a GGX (Trowbridge-Reitz) normal distribution, Smith
-geometry with the Schlick-GGX approximation, and a Schlick Fresnel term, over a Lambertian diffuse
-term; the ambient term uses a prefiltered environment cube and a precomputed BRDF lookup table.
+The effects that shade their hits (reflections and GI) share one routine, \texttt{ShadeSurfaceHit} in
+\texttt{RTHitShading.hlsli}, which resolves the hit triangle through the bindless geometry table and
+evaluates a single bounce; shadows and AO need only a visibility answer and use the cheaper any-hit
+traversal. Primary shading in the forward pass is a standard metallic-roughness Cook-Torrance model
+(GGX distribution, Smith geometry with the Schlick-GGX approximation, Schlick Fresnel, Lambertian
+diffuse), with the ambient term from a prefiltered environment cube and a precomputed BRDF lookup
+table.
 
-Secondary hits are shaded more cheaply, and the simplification is deliberate.
-\texttt{ShadeSurfaceHit} evaluates a Lambertian diffuse term scaled by $(1 - \text{metallic})$, plus
-the surface's emissive term and an image-based ambient fill, with no specular lobe at all. A conductor
-seen in a reflection or through a GI bounce therefore returns black rather than a mirrored highlight.
-The justification is that a second-bounce specular highlight is both rare and low-contrast once it has
-been convolved by the denoiser, while a full BRDF evaluation at every hit would roughly double the
-cost of the hit-shading path; the cost of the approximation is that metal-on-metal interreflection is
-absent, which the path-traced reference in Section~\ref{sec:pathtracer} does reproduce and which
-therefore shows up as a small systematic difference in the reflection metrics.
+Secondary hits are shaded more cheaply, deliberately: \texttt{ShadeSurfaceHit} evaluates a Lambertian
+diffuse term scaled by $(1 - \text{metallic})$, plus the surface's emissive term and an image-based
+ambient fill, with no specular lobe at all, so a conductor seen in a reflection or through a GI bounce
+returns black rather than a mirrored highlight. A second-bounce specular highlight is rare and
+low-contrast once convolved by the denoiser, while a full BRDF evaluation at every hit would roughly
+double the cost of the hit-shading path. The cost of the approximation is that metal-on-metal
+interreflection is absent, which the path-traced reference in Section~\ref{sec:pathtracer} does
+reproduce and which therefore shows up as a small systematic difference in the reflection metrics.
 
 For the evaluation in Chapter~\ref{ch:analiza}, ambient occlusion, reflections, and global
 illumination can each also be produced by a screen-space approximation, selected through a mode
-setting (\texttt{render.ao.mode}, \texttt{render.reflections.mode}, \texttt{render.gi.mode}):
-screen-space ambient occlusion (SSAO), screen-space reflections (SSR), and screen-space global
-illumination (SSGI). All three read the same depth+normal G-buffer and write into the same slot
-their ray-traced counterpart does (SSGI marches the depth buffer and writes the same half-res GI
-target the RT trace does, then flows through the same temporal/denoise/upsample/forward tail), so
-the ray-traced and screen-space versions of a given effect differ only in how the signal is
-produced; they are the screen-space baselines the ray-traced effects are compared against in
-Section~\ref{sec:poredjenje}. Unlike SSAO and SSR, which run unconditionally in their mode, SSGI's
-own gather has no device-support check and runs on any GPU, while ray-traced GI (mode 2) is the one
-that degrades to off on a device without ray-tracing support.
+setting (\texttt{render.ao.mode}, \texttt{render.reflections.mode}, \texttt{render.gi.mode}). SSAO,
+SSR and SSGI read the same depth+normal G-buffer and write into the same slot their ray-traced
+counterpart does (SSGI marches the depth buffer into the same half-res GI target, then flows through
+the same temporal/denoise/upsample/forward tail), so the two versions of a given effect differ only
+in how the signal is produced; they are the baselines of Section~\ref{sec:poredjenje}. SSGI's gather
+has no device-support check and runs on any GPU, while ray-traced GI (mode 2) is the one that
+degrades to off without ray-tracing support.
 
 \subsection{Senke (RT shadows)}
 \label{sec:senke}
 
 Shadows are traced inline in the forward pass, once per light per pixel, at full resolution and
-without an intervening denoiser (the shadow query and shading live in \texttt{DefaultLit.frag.hlsl} and the
-shared RT includes, in the \texttt{SS_RAYTRACING} permutation). A shadow ray is a pure visibility
-test, so it uses the cheapest traversal: \texttt{RayQuery} parameterised with
-\texttt{ACCEPT_FIRST_HIT_AND_END_SEARCH}, which lets traversal stop at the first surviving hit instead
-of searching for the closest one. The traversal is not fully fixed-function, because cutout geometry
-has to be resolved on the CPU side of the query: candidate hits on non-opaque triangles come back to
-the shader through \texttt{q.Proceed()}, where the material's alpha is tested and the hit is committed
-only if it passes. The first hit that survives that test marks the surface as shadowed. The ray origin
-is offset along the geometric normal and toward the light
-(\texttt{positionWS + Ng*0.02 + L*0.01}) to avoid self-intersection.
-Listing~\ref{lst:shadow} shows the inline query in HLSL.
+without an intervening denoiser (\texttt{DefaultLit.frag.hlsl} and the shared RT includes, in the
+\texttt{SS_RAYTRACING} permutation). A shadow ray is a pure visibility test, so it uses the cheapest
+traversal, \texttt{ACCEPT_FIRST_HIT_AND_END_SEARCH}. That traversal is not fully fixed-function,
+since cutout geometry must be resolved in the shader: candidate hits on non-opaque triangles come back
+through \texttt{q.Proceed()}, where the material's alpha is tested and the hit committed only if it
+passes, and the first surviving hit marks the surface shadowed. The ray origin is offset along the
+geometric normal and toward the light (\texttt{positionWS + Ng*0.02 + L*0.01}) to avoid
+self-intersection (Listing~\ref{lst:shadow}).
 
-The alternative the engine keeps is the raster shadow map, which is also the default and the fallback
-on a device without ray tracing. Figure~\ref{fig:shadow-vs-map} puts the two side by side at one pose.
-The traced result resolves contact shadows the map's finite resolution and depth bias smear, and it
-needs no bias tuning at all, since it answers visibility by intersecting the real geometry rather than
-by comparing against a quantised depth texture. What it costs is a ray per light per pixel, so its
-price grows with light count where the map amortises over the whole frame; that tradeoff is measured
-in Section~\ref{sec:analiza-shadow-strategy}.
+The alternative the engine keeps is the raster shadow map, also the default and the fallback on a
+device without ray tracing (Figure~\ref{fig:shadow-vs-map}). Intersecting the real geometry needs no
+depth-bias tuning at all, although its price grows with light count where the map amortises over the
+whole frame; Section~\ref{sec:analiza-shadow-strategy} measures that tradeoff.
 
 \begin{figure}[tbp]
 \centering
@@ -373,24 +315,19 @@ bool shadowed = (q.CommittedStatus() == COMMITTED_TRIANGLE_HIT);
 \end{lstlisting}
 
 Two quality levels are exposed through the \texttt{render.shadow.soft} CVar. The hard path casts one
-ray straight at the light. The soft path casts \texttt{SHADOW_RAY_COUNT = 2} rays whose directions
-sample, uniformly by solid angle, the cone that the source subtends at the shaded point, and averages
+ray straight at the light; the soft path casts \texttt{SHADOW_RAY_COUNT = 2} rays sampling, uniformly
+by solid angle, the cone the source subtends at the shaded point (Figure~\ref{fig:shadow}), averaging
 the hits into a penumbra factor in $[0,1]$. The cone is parameterised by the cosine of its half-angle:
 $\cos(\tfrac{1}{2}\,\texttt{render.shadow.sun\_angle\_deg})$ for the sun, and
 $\sqrt{1 - (r/d)^2}$ for a local light of radius \texttt{render.shadow.source\_radius} at distance
 $d$, so a physically larger or nearer source gives a softer edge. Sampling the solid angle rather
-than a tangent-plane disk matters beyond tidiness: it is what makes the real-time penumbra agree with
-the path tracer's next-event estimation at any cone width, instead of only in the small-angle limit
-where the two parameterisations coincide. Note that \texttt{SHADOW_RAY_COUNT} is a compile-time
-constant in the shader, a cost class rather than a live knob; the \texttt{render.shadows.rays} CVar
-applies to the stochastic path described below, not to this one.
-Directions are decorrelated per pixel and per frame with an interleaved-gradient-noise hash,
-spreading the two-sample penumbra across frames for the denoiser and temporal accumulator to resolve
-(Sections~\ref{sec:denoising} and \ref{sec:taa}). Each light traces its own ray or rays inside the directional, point, and
-spot loops; the sun uses an effectively infinite \texttt{tMax}, local lights clamp \texttt{tMax} just
-short of the light. With ray-traced shadows disabled the shader falls back to raster shadow maps.
-
-Figure~\ref{fig:shadow} shows the soft-shadow cone sampling.
+than a tangent-plane disk is what makes the real-time penumbra agree with the path tracer's
+next-event estimation at any cone width, instead of only in the small-angle limit where the two
+parameterisations coincide. \texttt{SHADOW_RAY_COUNT} is a compile-time constant, a cost class rather
+than a live knob; \texttt{render.shadows.rays} applies to the stochastic path below, not to this one.
+Directions are decorrelated per pixel and per frame with an interleaved-gradient-noise hash, spreading
+the two-sample penumbra across frames for the temporal accumulator to resolve
+(Sections~\ref{sec:denoising} and \ref{sec:taa}).
 
 \begin{figure}[tbp]
 \centering
@@ -416,24 +353,18 @@ izvora $r$ i rastojanjem; udeo neblokiranih zraka daje penumbru.}
 \label{fig:shadow}
 \end{figure}
 
-Figure~\ref{fig:shadow-hs} contrasts a hard and a soft shadow on the scene. Penumbra width is
-$2H\tan(\theta/2)$ in the occluder-to-receiver distance $H$ and the source's angular size $\theta$,
-the latter being \texttt{render.shadow.sun\_angle\_deg} for the directional light and
-\texttt{render.shadow.source\_radius} for the punctual ones. The figure frames the sunlit floor strip,
-because the sun is the only light in this scene with a distant occluder: its transverse edge is cast
-by the roof light-well lip about 10.4 units above the floor, while the four enabled torches sit a
-couple of units from the walls they light. At the sun's physical angular diameter that penumbra is
-roughly 36 pixels of a 2560-wide capture and disappears once scaled into the page, so the figure
-raises the angle to $3^\circ$ and says so.
-
-Widening \texttt{render.shadow.source\_radius} instead would be the wrong control here, and the
-reason is a limitation worth stating. Cone samples falling below the shading normal's horizon are
-skipped while the average still divides by the full sample count, which is deliberate (counting them
-lit is the leak that next-event estimation rejects in the path tracer), although it means a wider cone
-also darkens grazing surfaces systematically. At a 1.5-unit radius that darkening accounts for about
-three quarters of the frame difference and swamps the penumbra it was meant to show. Driving the sun
-avoids it: the sun is near vertical, so it meets the floor at $\mathbf{n}\cdot\boldsymbol{\omega}
-\approx 1$, where no sample is horizon-rejected.
+Penumbra width is $2H\tan(\theta/2)$ in the occluder-to-receiver distance $H$ and the source's
+angular size $\theta$, so Figure~\ref{fig:shadow-hs} frames the sunlit floor strip: the sun is the
+only light here with a distant occluder, its transverse edge cast by the roof light-well lip about
+10.4 units above the floor, while the four enabled torches sit a couple of units from the walls they
+light. Widening \texttt{render.shadow.source\_radius} instead would be the wrong control, for a reason
+that is also a limitation. Cone samples falling below the shading normal's horizon are skipped while the
+average still divides by the full sample count, which is deliberate (counting them lit is the leak
+that next-event estimation rejects in the path tracer), although it means a wider cone also darkens
+grazing surfaces systematically. At a 1.5-unit radius that darkening accounts for about three quarters
+of the frame difference and swamps the penumbra it was meant to show. The near-vertical sun meets the
+floor at $\mathbf{n}\cdot\boldsymbol{\omega} \approx 1$ and avoids it, since no sample is
+horizon-rejected there.
 
 \begin{figure}[tbp]
 \centering
@@ -449,19 +380,19 @@ onoga \v{s}to se vidi u \v{s}tampi.}
 \paragraph{Stohasti\v{c}ka alternativa.} Tracing one ray per light per pixel is exact but scales
 linearly with light count, which does not survive a scene lit by hundreds of sources. The engine
 therefore implements a second strategy, enabled by \texttt{render.shadows.stochastic} and off by
-default, that follows the MegaLights approach: instead of visiting every light, each pixel uses
-resampled importance sampling to pick \emph{one} light with probability proportional to its
-unshadowed contribution, traces \texttt{render.shadows.rays} rays at that light alone, and writes a
-single aggregate visibility ratio. The estimate is unbiased but extremely noisy, since one pixel's
-sample says nothing about which light its neighbour chose, so this path necessarily runs as its own
-half-resolution pass chain, \texttt{RTShadow} $\rightarrow$ \texttt{ShadowTemporal} $\rightarrow$
-\texttt{ShadowDenoise0..2} $\rightarrow$ \texttt{ShadowUpsample}, reusing the shared denoiser, with a
-parallel demodulated-specular chain for the specular occlusion term. Its cost is constant in light
-count, which is the whole point: the inline path wins for a handful of lights and loses for many.
-Section~\ref{sec:analiza-shadow-strategy} measures the crossover on this scene.
-
-Figure~\ref{fig:shadow-denoise-ab} shows why the stochastic path cannot skip reconstruction. The
-engine's debug views expose the aggregate visibility buffer both before and after filtering.
+default, following the MegaLights approach: each pixel uses resampled importance sampling to pick
+\emph{one} light with probability proportional to its unshadowed contribution, traces
+\texttt{render.shadows.rays} rays at that light alone, and writes a single aggregate visibility ratio.
+The estimate is unbiased but extremely noisy, since one pixel's sample says nothing about which light
+its neighbour chose, so this path necessarily runs as its own half-resolution chain,
+\texttt{RTShadow} $\rightarrow$ \texttt{ShadowTemporal} $\rightarrow$ \texttt{ShadowDenoise0..2}
+$\rightarrow$ \texttt{ShadowUpsample}, reusing the shared denoiser, with a parallel
+demodulated-specular chain for the specular occlusion term. Those passes carry their own GPU timestamp
+scopes, which Section~\ref{sec:cena} accounts for separately from the forward pass. Its cost is
+constant in light count, which is the whole point: the inline path wins for a handful of lights and
+loses for many. Section~\ref{sec:analiza-shadow-strategy} measures the crossover on this scene, and
+the debug views expose the aggregate visibility buffer before and after filtering
+(Figure~\ref{fig:shadow-denoise-ab}), where one sample per pixel is nearly binary noise.
 
 \begin{figure}[tbp]
 \centering
@@ -473,20 +404,15 @@ potpuno u senci; levo se vidi da jedan uzorak po pikselu daje skoro binarni \v{s
 \label{fig:shadow-denoise-ab}
 \end{figure}
 
-Because the visibility signal is denoised before use, shadow tracing runs as its own passes with their
-own GPU timestamp scopes (\texttt{Shadow}, \texttt{ShadowTemporal}, \texttt{ShadowDenoise}), which
-Section~\ref{sec:cena} accounts for separately from the forward pass.
-
 \subsection{Ambijentalna okluzija (AO)}
 
-Ambient occlusion is a compute pass (\texttt{AO.comp.hlsl}) run at half resolution. For each pixel it
+Ambient occlusion is a compute pass (\texttt{AO.comp.hlsl}) run at half resolution. Each pixel
 reconstructs world position from the depth G-buffer and casts \texttt{render.ao.rays} short rays
 (default 2, clamped to $[1,16]$) over the cosine-weighted hemisphere around the geometric normal,
-oriented by a tangent basis and rotated per pixel by interleaved gradient noise. Occlusion is a
-visibility query, so it too uses \texttt{ACCEPT_FIRST_HIT_AND_END_SEARCH}. Rays are limited to
-\texttt{render.ao.radius} (\texttt{TMax = AORadius}); a hit contributes
-\texttt{1 - saturate(t / AORadius)}, so nearer occluders darken more, and the result is scaled by
-\texttt{render.ao.intensity}. Listing~\ref{lst:ao} shows the gather loop.
+rotated per pixel by interleaved gradient noise, using the same
+\texttt{ACCEPT_FIRST_HIT_AND_END_SEARCH} visibility traversal as shadows. Rays are limited to
+\texttt{render.ao.radius}; a hit contributes \texttt{1 - saturate(t / AORadius)}, so nearer occluders
+darken more, and the result is scaled by \texttt{render.ao.intensity} (Listing~\ref{lst:ao}).
 
 
 \needspace{17\baselineskip}
@@ -505,14 +431,14 @@ for (uint k = 0; k < RayCount; ++k)
 occlusion = 1.0 - occlusion / RayCount;
 \end{lstlisting}
 
-The pass writes \texttt{float4(ao, ao, ao, meanHitT)}: the occlusion value, and in alpha the mean
-distance to the occluders. That alpha channel feeds a hit-distance-guided edge-stopping term in the
+The pass writes \texttt{float4(ao, ao, ao, meanHitT)}, the alpha channel carrying the mean
+distance to the occluders. That alpha feeds a hit-distance-guided edge-stopping term in the
 denoiser (Section~\ref{sec:denoising}), the same idea NVIDIA's ReBLUR denoiser \cite{nvidia_nrd} uses
 to scale the spatial filter by how far the occluder was. The term is implemented but disabled by
 default on every signal, AO included: at two rays per pixel the hit distance is itself too noisy to
-steer the filter, and a wrong steer is worse than none. The half-resolution result is denoised and bilaterally upsampled
-before the forward pass multiplies it into the ambient term. Figure~\ref{fig:ao} illustrates the
-hemisphere sampling.
+steer the filter, and a wrong steer is worse than none. The half-resolution result is denoised and
+bilaterally upsampled before the forward pass multiplies it into the ambient term
+(Figure~\ref{fig:ao}).
 
 \begin{figure}[tbp]
 \centering
@@ -535,25 +461,22 @@ oko normale $N$; udeo zraka koji u zadatom polupre\v{c}niku pogodi geometriju da
 
 Reflections are a compute pass (\texttt{Reflection.comp.hlsl}) run at full resolution, the only
 ray-traced effect not traced at half res, since reflection detail is view-dependent and does not
-tolerate the blur that half-res tracing plus upsampling introduces. For each pixel the pass
-reconstructs world position and reflects the view vector about the normal-mapped shading normal (read
-from a separate shading-normal G-buffer, not the geometric normal, so normal maps are mirrored
-correctly). It needs the closest hit rather than any hit, so unlike the visibility queries it uses a
-plain \texttt{RayQuery<RAY_FLAG_NONE>} and runs traversal to completion instead of stopping at the
-first hit.
+tolerate the blur that half-res tracing plus upsampling introduces. Each pixel reconstructs world
+position and reflects the view vector about the normal-mapped shading normal (read from a separate
+shading-normal G-buffer, not the geometric normal, so normal maps are mirrored correctly). It needs
+the closest hit, so unlike the visibility queries it uses a plain \texttt{RayQuery<RAY_FLAG_NONE>}
+and runs traversal to completion.
 
 Glossy reflections are approximated by jittering each ray inside a cone whose half-angle scales with
 surface roughness (\texttt{roughness * ReflConeScale}), averaged over \texttt{render.reflections.rays}
 (default 1); a mirror surface (\texttt{roughness == 0}) collapses to one sharp ray. Hits are shaded
-by \texttt{ShadeSurfaceHit}, which resolves the triangle through the bindless geometry table and
-evaluates one bounce (sun lighting with its own shadow ray, the hit surface's own emissive term, plus
-image-based ambient); a miss samples the prefiltered sky cube. Unlike the GI pass below, reflections do
-not sample the scene's local point and spot lights at the hit: the same importance-sampled local-light
-estimator was measured here too and showed no quality gain for twice the GI side's cost, so it is
-compiled out of this pass entirely. The pass writes raw reflected radiance plus hit distance; the Fresnel term,
-the BRDF weighting, and \texttt{render.reflections.intensity} are applied afterward in the forward
-pass, where the reflection is combined with the rest of the shading. Figure~\ref{fig:refl} shows the
-reflection direction and the roughness cone.
+by \texttt{ShadeSurfaceHit} (sun lighting with its own shadow ray, the hit surface's emissive term,
+image-based ambient); a miss samples the prefiltered sky cube. Unlike the GI pass below, reflections
+do not sample the scene's local point and spot lights at the hit: the same importance-sampled
+local-light estimator was measured here too and showed no quality gain for twice the GI side's cost,
+so it is compiled out of this pass entirely. The pass writes raw reflected radiance plus hit distance;
+the Fresnel term, the BRDF weighting, and \texttt{render.reflections.intensity} are applied afterward
+in the forward pass (Figure~\ref{fig:refl}).
 
 \begin{figure}[tbp]
 \centering
@@ -571,19 +494,16 @@ daje jedan o\v{s}tar zrak, a hrapava uzorkuje konus oko $R$.}
 \label{fig:refl}
 \end{figure}
 
-Figure~\ref{fig:refl-onoff} shows the contribution of the pass, and Figure~\ref{fig:refl-cone} the
-effect of the cone itself.
-
-The second of those needs a note about how it is measured, because the obvious way to make it fails.
-Sweeping \texttt{render.reflections.cone\_scale} from 0 (a pure mirror ray) to 3 changes the finished
-frame by a mean of only 0.16 levels out of 255, across six camera poses tried. That is not because the
-cone does little; it is because the reflection is a small additive term next to direct lighting, so
-the composited image hides it. Measured on the reflection buffer before compositing, the same A/B
-moves 43.7 levels and drops the buffer's high-frequency energy from \hfConeSharp{} to
-\hfConeGlossy{}, a factor of 275 more signal than the composited comparison shows. The figure
-therefore uses the isolated buffer, for the same reason the effect gallery in
-Section~\ref{sec:cena} does: a term that is small in the final image can still be the whole content of
-its own intermediate.
+Figure~\ref{fig:refl-onoff} shows the contribution of the pass. The cone itself
+(Figure~\ref{fig:refl-cone}) resists the obvious measurement: sweeping
+\texttt{render.reflections.cone\_scale} from 0 (a pure mirror ray) to 3 changes the finished frame by
+a mean of only 0.16 levels out of 255, across six camera poses tried. The cause is that the reflection
+is a small additive term next to direct lighting, so the composited image hides it. Measured on the
+reflection buffer before compositing, the same A/B moves 43.7 levels and drops the buffer's
+high-frequency energy from \hfConeSharp{} to \hfConeGlossy{}, a factor of 275 more signal than the
+composited comparison shows. The figure therefore uses the isolated buffer, for the same reason the
+effect gallery in Section~\ref{sec:cena} does: a term that is small in the final image can still be
+the whole content of its own intermediate.
 
 \begin{figure}[tbp]
 \centering
@@ -608,28 +528,27 @@ direktnog osvetljenja; u sopstvenom baferu ona je ceo sadr\v{z}aj.}
 
 \subsection{Globalno osvetljenje (GI)}
 
-Global illumination is the headline effect and the most expensive. It is a compute pass
-(\texttt{GI.comp.hlsl}) run at half resolution that computes one bounce of diffuse indirect light.
-For each pixel it casts \texttt{render.gi.rays} rays (default 2, clamped to $[1,16]$) over the
-cosine-weighted hemisphere, rotated per pixel and per frame by interleaved gradient noise, out to
-\texttt{render.gi.range}. Each ray that hits geometry is shaded by \texttt{ShadeSurfaceHit}: the sun
-with its own shadow ray, the hit surface's own emissive term, an image-based ambient fill, and, when
-\texttt{render.rt.hit_lights} is on (the default), one of the scene's point and spot lights.
-That light is importance-sampled in proportion to its unshadowed contribution at the hit and confirmed
-with its own shadow ray, an unbiased single-sample estimator (the same one \texttt{RTShadowPass} already
-uses, in the spirit of UE5's MegaLights) whose cost is constant in the light count, unlike a full
-next-event-estimation sum over every light, which would multiply the ray budget at every secondary hit.
-This term is GI-only: the routine still does not itself re-trace beyond these shadow rays, so the whole
-evaluation remains one bounce. A ray that misses the scene samples the sky cube.
+Global illumination is the most expensive effect: a compute pass (\texttt{GI.comp.hlsl}) run at half
+resolution that computes one bounce of diffuse indirect light. It samples the hemisphere exactly as
+AO does, \texttt{render.gi.rays} rays (default 2) out to \texttt{render.gi.range}; the difference is
+what a ray returns. A miss samples the sky cube, and each hit is shaded by
+\texttt{ShadeSurfaceHit}: the sun with its own shadow ray,
+the hit surface's emissive term, an image-based ambient fill, and, when \texttt{render.rt.hit_lights}
+is on (the default), one of the scene's point and spot lights. That light is importance-sampled in
+proportion to its unshadowed contribution at the hit and confirmed with its own shadow ray, an
+unbiased single-sample estimator (the same one \texttt{RTShadowPass} uses, in the spirit of UE5's
+MegaLights) whose cost is constant in the light count, unlike a full next-event-estimation sum over
+every light, which would multiply the ray budget at every secondary hit. This term is GI-only, and the
+routine does not re-trace beyond these shadow rays, so the evaluation remains one bounce.
 
 The pass outputs incoming irradiance only, without the receiver's albedo, which is multiplied in at
 full resolution in the forward pass. This is the demodulated-irradiance convention that both the SVGF
-denoiser and probe systems such as DDGI/RTXGI \cite{majercik2019ddgi, nvidia_rtxgi} rely on: filtering irradiance rather than final color
-keeps the denoiser's edge-stopping from being misled by albedo texture detail. The forward pass then
-replaces its flat ambient term with this ray-traced indirect, the same substitution Lumen and RTXGI
-make \cite{epic_lumen}. At two rays per pixel and half resolution the raw output is very noisy; it is usable only after
-the temporal-plus-spatial denoise of Section~\ref{sec:denoising}, which is the point of the whole
-pipeline and the subject of much of Chapter~\ref{ch:analiza}. Figure~\ref{fig:gi} shows the hemisphere gather.
+denoiser and probe systems such as DDGI/RTXGI \cite{majercik2019ddgi, nvidia_rtxgi} rely on: filtering
+irradiance rather than final color keeps the denoiser's edge-stopping from being misled by albedo
+texture detail. The forward pass then replaces its flat ambient term with this ray-traced indirect,
+the same substitution Lumen and RTXGI make \cite{epic_lumen}. At two rays per pixel and half
+resolution (Figure~\ref{fig:gi}) the raw output is usable only after the temporal-plus-spatial denoise
+of Section~\ref{sec:denoising}.
 
 \begin{figure}[tbp]
 \centering
@@ -646,8 +565,7 @@ koji pogodi geometriju vra\'ca radijansu (jedno odbijanje).}
 \label{fig:gi}
 \end{figure}
 
-Figure~\ref{fig:gi-onoff} shows the scene without and with ray-traced global illumination, the
-clearest single visual in the thesis.
+Figure~\ref{fig:gi-onoff} shows the scene without and with ray-traced global illumination.
 
 \begin{figure}[tbp]
 \centering
@@ -664,38 +582,29 @@ prelivanje boja i popunu u senkama.}
 \section{Denoising (SVGF)}
 \label{sec:denoising}
 
-Every effect in this chapter answers a question by averaging: how much of the hemisphere is blocked,
-how much light arrives from the surroundings. The honest answer is an integral over every incoming
-direction, and a ray is one sample of it. With one or two rays per pixel the estimate is correct
-\emph{on average} but wrong in any individual pixel, and neighbouring pixels are wrong independently,
-which is what noise is. Doubling the rays only shrinks the error by $\sqrt{2}$, so buying a clean
-image with samples alone is hopeless inside a frame budget.
-
-The way out is to notice that the missing samples exist, just not in this pixel and this frame.
-Neighbouring pixels usually look at nearly the same surface, and the previous frame usually contains
-the same surface one small camera motion away. A denoiser is the machinery for borrowing those
-samples: spatially from the neighbourhood, temporally from the history, while refusing to borrow
-across a real edge, where the neighbour is a different surface and averaging would smear the image
-instead of cleaning it. Deciding what counts as "the same surface" is the entire difficulty, and it is
-why a denoiser needs the G-buffer's depth and normals rather than just the colour.
+Each effect here estimates an integral over incoming directions from one or two samples, and
+$\sqrt{n}$ convergence means samples alone cannot buy a clean image inside a frame budget. The
+missing samples do exist, just not in this pixel and this frame: neighbouring pixels usually look at
+nearly the same surface, and the previous frame usually contains the same surface one small camera
+motion away. A denoiser borrows those samples spatially and temporally while refusing to borrow
+across a real edge, where the neighbour is a different surface and averaging would smear the image.
+Deciding what counts as "the same surface" is the entire difficulty, and it is why a denoiser needs
+the G-buffer's depth and normals rather than just the colour.
 
 Snowstorm implements a variant of Spatiotemporal Variance-Guided Filtering (SVGF)
 \cite{schied2017svgf}, the standard real-time reconstruction filter for path-traced effects, as a
-single reusable component.
-
-The denoiser is signal-agnostic. One \texttt{Denoiser} class (\texttt{Render/Denoiser.\{hpp,cpp\}})
-drives two passes, a temporal accumulation (\texttt{Temporal}) and a spatial \`a-trous filter
-(\texttt{Atrous}), and all per-viewport GPU state (history, moments, and scratch ping-pong textures)
-lives in a \texttt{DenoiserInstance} component the caller owns. The same denoiser is instantiated
-four times, for shadows, GI, AO, and reflections; each signal gets its own instance and configuration
-but runs identical code. This reuse is a deliberate design choice: the noisy estimate, its variance
-inputs, and the depth/normal G-buffer are the only signal-specific data, and everything else is
-shared. The hit-distance edge-stopping weight is wired up for every signal but left at zero by
-default, so that term is a no-op in the measured configuration; the stochastic shadow path instead
-sizes its kernel by occluder distance directly, in the NRD SIGMA style, through
-\texttt{render.shadows.denoise.penumbra}. Reflections reuse GI's temporal shader, a
-limitation since a reflection history has view-dependent content that a diffuse-tuned
-reprojection does not perfectly handle. Figure~\ref{fig:svgf} shows the two-stage flow.
+single signal-agnostic component. One \texttt{Denoiser} class (\texttt{Render/Denoiser.\{hpp,cpp\}})
+drives a temporal accumulation and a spatial \`a-trous filter, with all per-viewport GPU state
+(history, moments, scratch ping-pong textures) in a \texttt{DenoiserInstance} component the caller
+owns. It is instantiated four times, for shadows, GI, AO, and reflections, each with its own
+configuration but identical code (Figure~\ref{fig:svgf}). The reuse is possible because the noisy
+estimate, its variance inputs, and the depth/normal G-buffer are the only signal-specific data. The
+hit-distance
+edge-stopping weight is wired up for every signal but left at zero by default, so that term is a
+no-op in the measured configuration; the stochastic shadow path instead sizes its kernel by occluder
+distance directly, in the NRD SIGMA style, through \texttt{render.shadows.denoise.penumbra}.
+Reflections reuse GI's temporal shader, a limitation since a reflection history has view-dependent
+content that a diffuse-tuned reprojection does not perfectly handle.
 
 \begin{figure}[tbp]
 \centering
@@ -718,33 +627,29 @@ reprojection does not perfectly handle. Figure~\ref{fig:svgf} shows the two-stag
 
 The temporal pass (\texttt{GITemporal.comp.hlsl}, at trace resolution) reprojects the previous
 frame's result by the motion vectors (\texttt{prev_uv = uv - velocity}) and blends it with the
-current noisy input. History is rejected where reprojection is invalid: off-screen samples and the
-first frame reset to the current input, and a relative-depth test rejects disoccluded pixels. The
-blend follows SVGF's history-length scheme: a per-pixel accumulated history length, capped at 32
-frames, sets the blend weight \texttt{max(alphaMin, 1 / historyLength)}, so a freshly disoccluded
-pixel weights the current frame heavily while a long-lived pixel averages many frames. First and
-second luminance moments accumulate with the same weight, and their difference is the temporal
-variance that guides the spatial filter; pixels too young for a stable temporal variance (history
-under four frames) fall back to a $7\times7$ spatial variance estimate.
+current noisy input. Off-screen samples and the first frame reset to the current input, and a
+relative-depth test rejects disoccluded pixels. The blend follows SVGF's history-length scheme: a
+per-pixel accumulated history length, capped at 32 frames, sets the blend weight
+\texttt{max(alphaMin, 1 / historyLength)}, so a freshly disoccluded pixel weights the current frame
+heavily while a long-lived pixel averages many frames. First and second luminance moments accumulate
+with the same weight, and their difference is the temporal variance that guides the spatial filter;
+pixels too young for a stable temporal variance (history under four frames) fall back to a
+$7\times7$ spatial variance estimate.
 
-One addition over stock SVGF is a neighborhood color clamp: the reprojected history is clipped toward
-the mean of a $3\times3$ current-frame neighborhood, with the clamp weakened when the pixel is static
-and tightened when it moves. This is a TAA-style clamp, absent from the original SVGF, added to
-suppress ghosting on moving edges and in reflections where depth/normal rejection alone is
-insufficient.
+A neighborhood color clamp is added over stock SVGF: the reprojected history is clipped toward the
+mean of a $3\times3$ current-frame neighborhood, weakened when the pixel is static and tightened when
+it moves. This TAA-style clamp suppresses ghosting on moving edges and in reflections, where
+depth/normal rejection alone is insufficient.
 
 \subsection{Prostorni \`a-trous filter}
 
-The spatial pass (\texttt{GIDenoise.comp.hlsl}) is the \`a-trous wavelet filter at the core of SVGF.
-Each iteration is a $5\times5$ tap gather with a B3-spline kernel, and successive iterations double
-the tap stride (\texttt{step = 1 << i}), so a few iterations reach wide spatial support while
-touching few taps. The engine runs up to five iterations, configurable per signal.
-Figure~\ref{fig:atrous} is why that trick is worth the name. At the default three iterations the
-strides are 1, 2 and 4, so the footprints are $5\times5$, $9\times9$ and $17\times17$ and the
-cumulative reach is $2(1+2+4) = 14$ texels, a $29\times29$ support. Gathering that support densely
-would cost $841$ taps per pixel; the three sparse passes cost $3 \times 25 = 75$, a factor of
-$11.2$. The holes are what pay for the reach, and the edge-stopping weights are what keep the
-widening passes from leaking across geometry.
+The spatial pass (\texttt{GIDenoise.comp.hlsl}) is the \`a-trous wavelet filter at the core of SVGF:
+each iteration is a $5\times5$ tap gather with a B3-spline kernel, and successive iterations double
+the tap stride (\texttt{step = 1 << i}). The engine runs up to five iterations, configurable per
+signal. At the default three (Figure~\ref{fig:atrous}) the cumulative reach is $2(1+2+4) = 14$ texels,
+a $29\times29$ support gathered with $75$ taps instead of the $841$ a dense gather would cost. The
+holes pay for the reach, and the edge-stopping weights keep the widening passes from leaking across
+geometry.
 
 \begin{figure}[tbp]
 \centering
@@ -773,16 +678,13 @@ umesto 841.}
 \label{fig:atrous}
 \end{figure}
 
-The weights make the filter edge-aware. Each tap carries three edge-stopping terms: a normal term
-\texttt{pow(saturate(dot(N, Ntap)), 8)}, a relative linearized-depth term
-\texttt{exp(-relativeDepth * scale)}, and the variance-guided luminance term
-\texttt{exp(-|dLuma| / (LumaPhi * sqrt(variance) + eps))} that is the defining idea of SVGF. Because
-the luminance weight scales with the square root of the filtered variance, the filter blurs
-aggressively where the signal is noisy and preserves detail where it has converged. Variance itself
-is filtered with the squared tap weights, and all guide buffers are point-sampled to avoid bleeding
-across edges. The variance term can be disabled (\texttt{LumaPhi = 0}), reducing the filter to a
-plain bilateral blur, which is a useful baseline in Chapter~\ref{ch:analiza}.
-Listing~\ref{lst:atrous} shows the per-tap weight.
+Each tap carries three edge-stopping terms (Listing~\ref{lst:atrous}): normal, relative linearized
+depth, and the variance-guided luminance term that is the defining idea of SVGF. Because the
+luminance weight scales with the square root of the filtered variance, the filter blurs aggressively
+where the signal is noisy and preserves detail where it has converged. Variance itself is filtered
+with the squared tap weights, and all guide buffers are point-sampled to avoid bleeding across edges.
+Disabling the variance term (\texttt{LumaPhi = 0}) reduces the filter to a plain bilateral blur, a
+useful baseline in Chapter~\ref{ch:analiza}.
 
 
 \needspace{12\baselineskip}
@@ -806,7 +708,6 @@ the variance edge-stop is optional. \texttt{GIDenoise.comp} keeps its outer à-t
 than unrolled, which costs a little scheduling freedom and in exchange holds register pressure down to
 70 VGPRs on the RX 7900 XTX and 59 on the RX 9070 XT, with no spilling and full occupancy on both
 (Table~\ref{tab:occupancy}); unrolled it allocates 191 and drops to 8 of 16 wavefronts.
-Section~\ref{sec:denoise-eval} measures the denoiser's cost against the quality it recovers.
 
 \section{TAA / temporal resolve}
 \label{sec:taa}
@@ -814,32 +715,27 @@ Section~\ref{sec:denoise-eval} measures the denoiser's cost against the quality 
 After the forward pass produces the shaded HDR image, a temporal anti-aliasing resolve \cite{karis2014taa}
 (\texttt{TemporalResolvePass}, \texttt{TemporalResolve.frag.hlsl}) accumulates it across frames to
 remove aliasing and to converge the residual noise the per-effect denoisers leave behind. The camera
-projection is jittered every frame by a Halton(2,3) sequence over a 16-phase cycle, so each frame
-samples slightly different sub-pixel positions. The resolve reprojects the previous output by the
-motion vectors (with a closest-depth dilation so thin features fetch the right velocity), reconstructs
-the history with a Catmull-Rom filter to reduce reprojection blur, and clips it against the current
-$3\times3$ neighborhood in YCoCg space using a Karis rounded-box bound, with the clip loosened for
-static pixels and tightened under motion.
+projection is jittered every frame by a Halton(2,3) sequence over a 16-phase cycle. The resolve
+reprojects the previous output by the motion vectors (with a closest-depth dilation so thin features
+fetch the right velocity), reconstructs the history with a Catmull-Rom filter to reduce reprojection
+blur, and clips it against the current $3\times3$ neighborhood in YCoCg space using a Karis
+rounded-box bound, loosened for static pixels and tightened under motion.
 
 The resolve runs in linear HDR and does accumulation only. This is a deliberate invariant: any
 perceptual or display-space operation (sharpening, contrast) is kept out of this pass and applied
 after tonemap, since a per-channel curve applied before tonemap turns an accumulation overshoot into
 a hue shift. Sharpening therefore lives in a separate post-tonemap pass, not here.
 
-Motion vectors are the shared prerequisite for all of this, and they are worth making concrete
-because three separate consumers depend on them: the SVGF temporal pass, the TAA resolve, and the
-screen-space effects that gather last frame's colour. The velocity pass renders the scene a second
-time and writes, per pixel, the difference between where a surface point lands on screen this frame
-and where the same point landed last frame, computed from the current and previous view-projection
-matrices. That vector is what lets a later pass ask "where was this pixel before", which is the only
-reason a temporal filter can reuse work instead of recomputing it.
+Motion vectors are the shared prerequisite of three consumers: the SVGF temporal pass, the TAA
+resolve, and the screen-space effects that gather last frame's colour. The velocity pass
+(Figure~\ref{fig:motion}) renders the scene a second time and writes per pixel the screen-space
+displacement of a surface point between the previous and current view-projection matrices.
 
 The failure mode this exposes is disocclusion. A pixel revealed from behind an occluder this frame
 has no previous position to point at, so its history is meaningless and reusing it would smear the
 occluder's colour across the newly visible surface. Every temporal stage in the engine therefore
 pairs the reprojection with a rejection test on depth and normal, and where that test fires the pixel
-falls back to the current frame alone, which is noisier but correct. Figure~\ref{fig:motion} shows
-the velocity buffer itself.
+falls back to the current frame alone, which is noisier but correct.
 
 \begin{figure}[tbp]
 \centering
@@ -858,13 +754,13 @@ najvi\v{s}e $1{,}6\%$, i nijedan uzorak nije zasi\'cen.}
 \section{Reproducibilnost i alati}
 \label{sec:alati}
 
-The measurements in Chapter~\ref{ch:analiza} are produced by instrumentation built into the engine,
-which is what makes them reproducible rather than one-off captures. Every effect is toggled and tuned
+The measurements in Chapter~\ref{ch:analiza} come from instrumentation built into the engine, which
+is what makes them reproducible rather than one-off captures. Every effect is toggled and tuned
 through a console-variable registry, so a benchmark configuration is a set of CVar values rather than
-a code change, and the same CVars can be set from the command line for headless runs. Each
-render-graph pass is bracketed by a GPU timestamp scope. Table~\ref{tab:tooling} lists the harnesses
-built on top. Four of them compare against a committed baseline and fail the run on a regression,
-which is what separates a gate from a report: a number nobody checks drifts.
+a code change, settable from the command line for headless runs, and each render-graph pass is
+bracketed by a GPU timestamp scope. Four of the harnesses built on top (Table~\ref{tab:tooling})
+compare against a committed baseline and fail the run on a regression, which is what separates a gate
+from a report: a number nobody checks drifts.
 
 \begin{table}[tbp]
 \caption[Merni alati]{Alati koji proizvode brojeve iz Glave~\ref{ch:analiza}. ,,Kapija`` zna\v{c}i da
@@ -892,23 +788,19 @@ Tracy + watchdog        & vremenska linija po sistemu, zastoji po frejmu & ne \\
 \section{Referentni path tracer}
 \label{sec:pathtracer}
 
-The correctness of the real-time effects is judged against a reference produced by a brute-force path
-tracer built into the engine (\texttt{PathTrace.comp.hlsl}). It is a unidirectional path tracer with
-next-event estimation to the sun, which is sampled as a finite disk through the same
-\texttt{SampleCone} routine and the same \texttt{render.shadow.sun\_angle\_deg} half-angle that the
-real-time soft-shadow path uses, so the reference and the technique under test agree on the geometry
-of the light source and any penumbra difference between them is attributable to sampling and
-reconstruction rather than to a different light model (the sky on a ray miss is added without the sun
-disk, to avoid double-counting), the same
-metallic-roughness microfacet BSDF as the forward shading (GGX specular over Lambertian diffuse),
-multi-bounce indirect with Russian-roulette termination, and progressive accumulation into a
-persistent HDR buffer while the camera is static. Because shadows, ambient occlusion, reflections, and
-indirect light all emerge from the same multi-bounce transport, one converged path trace is the ground
-truth for all of them at once. It is not a real-time path: it converges over many frames and exists
-only as the correctness anchor.
-
-Both sides of every comparison pass through the same tonemap chain, so toggling the path tracer is an
-apples-to-apples A/B rather than a comparison between an HDR and an LDR image.
+The reference is a brute-force unidirectional path tracer built into the engine
+(\texttt{PathTrace.comp.hlsl}): next-event estimation to the sun, the same metallic-roughness
+microfacet BSDF as the forward shading, multi-bounce indirect with Russian-roulette termination, and
+progressive accumulation into a persistent HDR buffer while the camera is static. The sun is sampled
+as a finite disk through the same \texttt{SampleCone} routine and the same
+\texttt{render.shadow.sun\_angle\_deg} half-angle as the real-time soft-shadow path, so any penumbra
+difference is attributable to sampling and reconstruction rather than to a different light model (the
+sky on a ray miss is added without the sun disk, to avoid double-counting). Because shadows, ambient
+occlusion, reflections, and indirect light all emerge from the same multi-bounce transport, one
+converged path trace is the ground truth for all of them at once. It converges over many frames and
+exists only as the correctness anchor. Both sides of every comparison pass through the same tonemap
+chain, so toggling the path tracer is an apples-to-apples A/B rather than a comparison between an HDR
+and an LDR image.
 
 \begin{figure}[tbp]
 \centering
@@ -921,9 +813,9 @@ mere sve real-time tehnike.}
 \section{Uslovi i pretpostavke}
 \label{sec:uslovi}
 
-The implementation makes several deliberate approximations to stay within a real-time budget. They
-are collected here so the results in Chapter~\ref{ch:analiza} are read in the right context; each is a
-simplification of the full problem, not a factor that distorts the relative measurements.
+The implementation makes several deliberate approximations to stay within a real-time budget, each a
+simplification of the full problem rather than a factor that distorts the relative measurements in
+Chapter~\ref{ch:analiza}.
 
 \begin{itemize}
   \item \textbf{Diffuse, single-bounce GI.} Global illumination computes one diffuse indirect bounce;
@@ -932,8 +824,7 @@ simplification of the full problem, not a factor that distorts the relative meas
     upsampled; reflections are traced at full resolution.
   \item \textbf{Low sample counts with reconstruction.} Effects use one or two rays per pixel and
     depend on temporal accumulation, and on the spatial SVGF filter for GI and AO, for a usable
-    image; the spatial filter is disabled for reflections (Section~
-ef{sec:denoise-eval}).
+    image; the spatial filter is disabled for reflections (Section~\ref{sec:denoise-eval}).
   \item \textbf{Approximate soft shadows.} In the default path ray-traced shadows use one hard or two
     soft rays per light, traced inline and applied directly with no denoiser, so the penumbra is a
     two-sample approximation of an area light cleaned up only by the temporal resolve, not a

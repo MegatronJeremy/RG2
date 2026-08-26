@@ -27,6 +27,18 @@
 \setlength{\emergencystretch}{3em} % avoid right-margin overhang on hard-to-break code lines
 \usepackage{needspace} % keep short atomic blocks (code listings) from splitting across pages
 
+% Float packing. The defaults assume a text-heavy document and reserve at least 20% of every page for
+% prose (\textfraction), which in a chapter with roughly one float per page pushes floats onto pages of
+% their own and leaves large gaps. These let a page carry more float and less filler; the content is
+% unchanged, only how densely it sets.
+\renewcommand{\topfraction}{0.92}
+\renewcommand{\bottomfraction}{0.75}
+\renewcommand{\textfraction}{0.08}
+\renewcommand{\floatpagefraction}{0.72}
+\setcounter{topnumber}{3}
+\setcounter{bottomnumber}{2}
+\setcounter{totalnumber}{4}
+
 % Widow/orphan control: don't strand a single line at the top/bottom of a page.
 % Safe here because the class is \raggedbottom (oneside): slack goes to the page bottom.
 \clubpenalty=10000
@@ -100,15 +112,13 @@
 \begin{abstract}
 This thesis integrates four ray-traced lighting effects (shadows, ambient occlusion, reflections,
 and diffuse global illumination) as inline ray-query (\texttt{VK_KHR_ray_query}) passes over a
-rasterized forward renderer in a custom Vulkan engine. The noisy ray-traced signals (shadow visibility, ambient occlusion,
-reflections, and global illumination) are reconstructed by a shared SVGF denoiser and stabilized by
-temporal anti-aliasing. Real-time
-rasterization approximates these global effects with screen-space and precomputed methods that fail
-on off-screen or dynamic information; hardware ray tracing makes per-pixel scene queries feasible.
-The per-effect GPU cost is isolated with an A/B configuration matrix, and reconstruction quality is
-measured with FLIP, PSNR, and SSIM against a converged path-traced reference across several viewpoints. The identical
-pipeline is compared across two vendors, AMD RDNA4 and NVIDIA Blackwell, isolating the effect of
-hardware and driver on the same code. The two vendors rank the effects differently: shadows dominate
+rasterized forward renderer in a custom Vulkan engine, where rasterization otherwise approximates
+these global effects with screen-space and precomputed methods that fail on off-screen or dynamic
+information. The noisy signals are reconstructed by a shared SVGF denoiser and stabilized by temporal
+anti-aliasing. The per-effect GPU cost is isolated with an A/B configuration matrix, and
+reconstruction quality is measured with FLIP, PSNR, and SSIM against a converged path-traced
+reference across several viewpoints, on two vendors' hardware (AMD RDNA4 and NVIDIA Blackwell)
+running identical code. The two vendors rank the effects differently: shadows dominate
 on the RX 9070 XT (\perfEffShadowsAMD{} ms) while on the RTX 5070 shadows, reflections, and global
 illumination cost the same to within the measurement spread, for measured real-time totals of
 \perfTotalAMD{} ms and \perfTotalNV{} ms over baselines of \perfBaseAMD{} and \perfBaseNV{} ms. The choice of shadow technique is

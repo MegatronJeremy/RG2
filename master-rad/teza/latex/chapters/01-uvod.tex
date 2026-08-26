@@ -3,18 +3,14 @@
 
 % Draft: English body, Serbian headings. PPK: 1-1.5 pages; ends with the thesis-structure paragraph.
 
-This chapter states the problem the thesis addresses, why real-time realistic lighting is hard, and
-how a hybrid ray-tracing approach fits an existing rasterizing engine. It closes with the research
-question, the contributions, and a map of the remaining chapters.
-
 \section{Problem i motivacija}
 
 Real-time rendering is dominated by rasterization, which resolves primary visibility (what is
 directly seen from the camera) very efficiently but has no native notion of what any surface point
-can see beyond itself. Yet exactly that information is what the effects that make an image look real
-depend on: indirect illumination bouncing between surfaces, contact shadows, glossy reflections, and
-ambient occlusion all answer questions of the form ``what else is visible from here.'' Because
-rasterization cannot answer those questions directly, real-time engines have long approximated them.
+can see beyond itself. The effects that make an image look real depend on exactly that: indirect
+illumination bouncing between surfaces, contact shadows, glossy reflections, and ambient occlusion
+all answer questions of the form ``what else is visible from here.'' Real-time engines have long
+approximated them.
 Screen-space methods (SSAO, screen-space reflections and global illumination) are cheap but see only
 what is currently on screen, so they fail wherever the needed geometry is off-screen or newly
 disoccluded \cite{mittring2007cryengine, bavoil2008hbao}. Precomputed methods bake lighting into
@@ -30,8 +26,8 @@ rendering equation \cite{kajiya1986rendering} by path tracing remains far too ex
 real-time at display resolution on this hardware, and any affordable ray budget (one or a few rays
 per pixel) produces heavy noise. The practical path, and the one this thesis takes, is therefore
 hybrid: rasterize primary visibility, add the secondary effects as ray-traced passes at low sample
-counts, and reconstruct a clean image with a denoiser \cite{schied2017svgf}. Figure~\ref{fig:teaser} shows the
-engine's hybrid output on the test scene.
+counts, and reconstruct a clean image with a denoiser \cite{schied2017svgf}
+(Figure~\ref{fig:teaser}).
 
 \begin{figure}[tbp]
 \centering
@@ -43,53 +39,45 @@ senkama, AO, refleksijama i GI (denoise-ovano).}
 
 \section{Za\v{s}to hibridni pristup i za\v{s}to ray query (a ne RT-pipeline)}
 
-Vulkan offers two ways to trace rays. The ray-tracing pipeline introduces dedicated shader stages
-(ray generation, closest-hit, miss, and others), a shader binding table, hardware scheduling of
-rays across those stages, and recursion. Inline ray queries (\texttt{VK_KHR_ray_query}) instead let
-any existing shader stage trace a ray inline: no separate pipeline, no shader binding table, no
-recursion, with the caller writing the short traversal loop itself.
+Vulkan offers two ways to trace rays, a dedicated ray-tracing pipeline and inline ray queries
+(\texttt{VK_KHR_ray_query}); Section~\ref{sec:vulkanrt} sets them side by side.
 
-This work uses inline ray queries. The reason is architectural fit: the engine is a rasterizing
-forward renderer, and inline queries let each effect drop in as an ordinary compute or fragment pass
+This work uses inline ray queries for architectural fit: the engine is a rasterizing forward
+renderer, and inline queries let each effect drop in as an ordinary compute or fragment pass
 without restructuring the renderer around a ray-tracing pipeline and its binding table. Effects can
 be added one at a time, which matches a hybrid design where rays are a targeted addition on top of
 rasterization rather than the primary architecture. The price is giving up hardware ray scheduling
-across shader stages and recursion, but the effects here are shallow (a single bounce) and short, so
-that price is small and is discussed again in Chapter~\ref{ch:zakljucak}.
+across shader stages and recursion, although the effects here are shallow (a single bounce) and
+short, so that price is small.
 
 \section{Cilj i istra\v{z}iva\v{c}ko pitanje}
 
 The goal is to implement four ray-traced lighting effects, shadows, ambient occlusion, reflections,
 and diffuse global illumination, through inline ray queries in a custom Vulkan engine, and to
-characterize each one. The central research question has three parts: the per-effect cost on the frame
-budget; how the ray count and the denoiser trade reconstruction quality against time; and how the
-identical Vulkan implementation performs across GPU vendors (AMD RDNA4 versus NVIDIA Blackwell). Concretely
-this breaks into measurable sub-questions: the per-effect GPU cost in milliseconds; the effect of
-samples per pixel on quality (PSNR/SSIM) and on time; the quality and cost of the denoiser with it
-enabled versus disabled; and the impact of tracing at half versus full resolution. The scope is
-deliberately bounded: a single scene class, two current-generation GPUs from different vendors (an AMD Radeon RX 9070 XT, RDNA4, and an NVIDIA
-GeForce RTX 5070, Blackwell),
-diffuse global illumination, and a converged path-traced reference for the quality metrics.
+characterize each one. The research question breaks into measurable sub-questions: the per-effect
+GPU cost in milliseconds; the effect of samples per pixel on quality (PSNR/SSIM) and on time; the
+quality and cost of the denoiser with it enabled versus disabled; the impact of tracing at half
+versus full resolution; and how the identical Vulkan implementation performs across GPU vendors
+(AMD RDNA4 versus NVIDIA Blackwell). The scope is deliberately bounded: a single scene class, two
+current-generation GPUs of comparable tier (Table~\ref{tab:gpus}), diffuse global illumination, and a
+converged path-traced reference for the quality metrics.
 
 \section{Doprinosi}
 
-The contributions of this thesis are: an integrated, openly licensed implementation of four hybrid
-ray-query lighting effects inside one custom Vulkan engine; a per-effect GPU cost breakdown produced
-by a reproducible A/B benchmark harness rather than ad-hoc captures; an evaluation of a
-self-implemented SVGF denoiser shared across the shadow, ambient-occlusion, global-illumination, and
-reflection signals, covering the quality it recovers, its cost, and its temporal stability; a reusable
-half-resolution, G-buffer-prepass, denoise-and-upsample pattern shared across the effects; and a cross-vendor performance comparison of
-the identical ray-query pipeline on AMD RDNA4 and NVIDIA Blackwell hardware, a fair same-code
-comparison that is rarely reported.
+The contributions are: an integrated, openly licensed implementation of four hybrid ray-query
+lighting effects inside one custom Vulkan engine; a per-effect GPU cost breakdown produced by a
+reproducible A/B benchmark harness rather than ad-hoc captures; an evaluation of a self-implemented
+SVGF denoiser shared across all four signals, covering the quality it recovers, its cost, and its
+temporal stability; a reusable half-resolution, G-buffer-prepass, denoise-and-upsample pattern; and
+a rarely reported same-code performance comparison of the identical ray-query pipeline on AMD RDNA4
+and NVIDIA Blackwell hardware.
 
 \section{Struktura rada}
 
-The remainder of the thesis follows the structure the assignment prescribes.
 Chapter~\ref{ch:pregled} reviews the theoretical background (rasterization versus ray tracing,
 acceleration structures, the Vulkan ray-tracing extensions) and the existing real-time solutions the
 evaluation compares against. Chapter~\ref{ch:implementacija} describes the implementation: the engine
 and render graph, the acceleration-structure build, the four effects, the SVGF denoiser, the temporal
-resolve, and the measurement tooling. Chapter~\ref{ch:analiza} evaluates the system, isolating the
-cost of each effect and measuring reconstruction quality against a reference and against the existing
-solutions from Chapter~\ref{ch:pregled}. Chapter~\ref{ch:zakljucak} summarizes the results, states
-the limitations, and outlines future work.
+resolve, and the measurement tooling. Chapter~\ref{ch:analiza} isolates the cost of each effect and
+measures reconstruction quality against a reference and against the existing solutions from
+Chapter~\ref{ch:pregled}. Chapter~\ref{ch:zakljucak} states the limitations and outlines future work.

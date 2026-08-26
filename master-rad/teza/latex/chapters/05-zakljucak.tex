@@ -4,19 +4,15 @@
 
 \section{Rezime (osvrt na ciljeve iz zadatka)}
 
-The goal set in the assignment was to implement four ray-traced lighting effects, shadows, ambient
-occlusion, reflections, and diffuse global illumination, through inline ray queries in a custom
-Vulkan engine, and to characterize the cost and quality of each. All four effects were implemented as
-described in Chapter~\ref{ch:implementacija}, sharing one hit-shading routine over a bindless geometry
-table and one reusable SVGF denoiser, and integrated into an existing rasterizing forward renderer
-rather than a standalone tracer. The evaluation in Chapter~\ref{ch:analiza} isolates the per-effect
-GPU cost with an A/B benchmark and measures reconstruction quality against a converged path-traced
-reference, and compares the identical pipeline
-across two GPU vendors (AMD RDNA4 and NVIDIA Blackwell).
-The headline numbers are collected in Table~\ref{tab:summary}. The two cards do not agree on which
-effect costs most: on the RX 9070 XT shadows dominate, while on the RTX 5070 shadows, reflections and
-global illumination sit within \perfNVSpread{} ms of one another, which is inside the run-to-run
-spread, so on that card they are indistinguishable in cost.
+The assignment's goal, four ray-traced lighting effects (shadows, ambient occlusion, reflections,
+and diffuse global illumination) through inline ray queries in a custom Vulkan engine, characterized
+for cost and quality, is met. All four share one hit-shading routine over a bindless geometry table
+and one reusable SVGF denoiser, and sit inside an existing rasterizing forward renderer rather than a
+standalone tracer (Chapter~\ref{ch:implementacija}). Table~\ref{tab:summary} collects the headline
+numbers from Chapter~\ref{ch:analiza}. The two cards do not agree on which effect costs most: on the
+RX 9070 XT shadows dominate, while on the RTX 5070 shadows, reflections and global illumination sit
+within \perfNVSpread{} ms of one another, inside the run-to-run spread, so on that card they are
+indistinguishable in cost.
 
 \begin{table}[tbp]
 \caption[Sa\v{z}etak izmerenih rezultata]{Sa\v{z}etak izmerenih rezultata. Cena po efektu je razlika
@@ -43,44 +39,41 @@ SSIM: raster $\rightarrow$ sve RT  & \multicolumn{2}{c}{\qRasterSsim{} $\rightar
 \end{tabular}
 \end{table}
 
-Two of the sweeps sharpen that picture. The ray-count knee sits at one ray per pixel: going from one
-to eight rays costs \rcGpuPct\% more GPU time for a \rcPsnrGain{} dB PSNR gain, because the denoiser and temporal
-accumulation already recover most of the achievable quality from a single sample
-(Section~\ref{sec:raycount}). The spatial denoiser's own contribution is likewise not where a static
-metric can see it: it moves PSNR, SSIM and FLIP by less than run-to-run noise, while cutting
-frame-to-frame RMS on a static view from \flickerOff{} to \flickerOn{}, a \flickerPct\% reduction, for \perfDenoiseAMD{} ms
-(Section~\ref{sec:denoise-eval}). The honest reading is that at this sample count the temporal history
-does the reconstruction and the spatial filter buys stability rather than static fidelity.
+The ray-count knee sits at one ray per pixel: going from one to eight rays costs \rcGpuPct\% more GPU
+time for a \rcPsnrGain{} dB PSNR gain, because the denoiser and temporal accumulation already recover
+most of the achievable quality from a single sample (Section~\ref{sec:raycount}). The spatial
+denoiser's own contribution is likewise not where a static metric can see it: it moves PSNR, SSIM and
+FLIP by less than run-to-run noise, while cutting frame-to-frame RMS on a static view from
+\flickerOff{} to \flickerOn{}, a \flickerPct\% reduction, for \perfDenoiseAMD{} ms
+(Section~\ref{sec:denoise-eval}). At this sample count the temporal history does the reconstruction
+and the spatial filter buys stability rather than static fidelity.
 
-The practical value is a demonstration that a hybrid
-ray-query pipeline gives correct off-screen lighting at an interactive budget without a full path
-tracer, which is directly applicable to real-time engines that want physically grounded indirect
-lighting, contact shadows, and reflections.
+The practical value is a hybrid ray-query pipeline that gives correct off-screen lighting at an
+interactive budget without a full path tracer.
 
 \section{Ograni\v{c}enja}
 
-The work has clear limitations, stating them sharpens what the results do and do not show. The
-measurements are taken on two GPUs of comparable market tier and a single scene class, so the absolute numbers do not
-generalize across hardware or content. Global illumination is limited to a single diffuse bounce, and
-shadows are hard or lightly softened rather than physically accurate area shadows. To stay within a
-real-time budget the ray counts are kept very low (one or two per pixel), which places heavy demand
-on the denoiser and exposes its failure modes: temporal ghosting and lag under fast motion,
-particularly for reflections, which reuse the diffuse-tuned temporal reprojection. The
-top-level acceleration structure is fully rebuilt on every dynamic frame rather than refit, which is
-heavier than necessary for small transform changes. Finally, using inline ray queries
-gives up the hardware ray scheduling and recursion that a ray-tracing pipeline would provide, a
-deliberate tradeoff for integration simplicity that would matter for deeper or more numerous bounces.
+The measurements are taken on two GPUs of comparable market tier and a single scene class, so the
+absolute numbers do not generalize across hardware or content. Global illumination is limited to a
+single diffuse bounce, and shadows are hard or lightly softened rather than physically accurate area
+shadows. To stay within a real-time budget the ray counts are kept very low (one or two per pixel),
+which places heavy demand on the denoiser and exposes its failure modes: temporal ghosting and lag
+under fast motion, particularly for reflections, which reuse the diffuse-tuned temporal reprojection.
+The top-level acceleration structure is fully rebuilt on every dynamic frame rather than refit, which
+is heavier than necessary for small transform changes. Inline ray queries give up the hardware ray
+scheduling and recursion a ray-tracing pipeline would provide, a deliberate tradeoff for integration
+simplicity that would matter for deeper or more numerous bounces.
 
 \section{Budu\'ci rad}
 
-Several directions extend the work. Sampling is the most immediate: replacing the naive per-light and
-cosine-hemisphere sampling with reservoir resampling (ReSTIR and ReSTIR GI) would improve quality at
-equal ray count, especially for many lights and for indirect paths
-\cite{bitterli2020restir, ouyang2021restirgi}. Reconstruction is the second: the engine already
-contains a temporal neural network used as an anti-aliasing resolve, and a natural next step is a
-learned denoiser or upscaler replacing or augmenting SVGF, together with the vendor-neutral,
-cross-vendor cooperative-matrix inference study that motivated an earlier version of this project. A
-third direction is scaling the denoised shadows to many lights more cheaply, with a MegaLights-style
+Sampling is the most immediate direction: replacing the naive per-light and cosine-hemisphere
+sampling with reservoir resampling (ReSTIR and ReSTIR GI) would improve quality at equal ray count,
+especially for many lights and for indirect paths \cite{bitterli2020restir, ouyang2021restirgi}. On
+reconstruction, the engine already contains a temporal neural network used as an anti-aliasing
+resolve, so a learned denoiser or upscaler replacing or augmenting SVGF is a natural next step,
+together with the vendor-neutral cooperative-matrix inference study that motivated an earlier version
+of this project. Denoised shadows could scale to many lights more cheaply with a MegaLights-style
 stochastic per-pixel light selection on the shared denoiser, rather than tracing every light every
-frame; a dedicated, penumbra-aware shadow denoiser in place of the shared one is a related refinement. Finally, the cross-vendor comparison here covers two current-generation cards; broadening it to more cards and
-older generations, plus a second rendering backend (DirectX 12), would extend the performance story further.
+frame; a dedicated, penumbra-aware shadow denoiser in place of the shared one is a related
+refinement. Broadening the cross-vendor comparison beyond two current-generation cards, plus a second
+rendering backend (DirectX 12), would extend the performance story further.
