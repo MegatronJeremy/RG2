@@ -20,3 +20,11 @@
 
 # Build output (regenerated from source; un-ignore if you want to commit the compiled thesis)
 /main.pdf
+
+# Scratch page renders from proofreading (pdftoppm over main.pdf). Regenerate on demand: committed
+# they are megabytes that go stale on the next build, and 7 MB of them once shipped this way.
+# figures/ is deliberately not covered: those PNGs are captures the thesis includes.
+/_sheets/
+/.chk/
+/trimchk*
+/chk.*
