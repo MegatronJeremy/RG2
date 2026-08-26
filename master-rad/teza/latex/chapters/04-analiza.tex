@@ -320,25 +320,14 @@ vreme \texttt{+gi} konfiguracije; kvalitet je meren iz atrijumskog pogleda naspr
 path-traced reference.}
 \label{tab:halfres}
 \centering
-\begin{tabular}{lrrr}
-\toprule
- & polovi\v{c}na (0.5) & puna (1.0) & razlika \\
-\midrule
-Ukupno GPU (ms)        & 9.86   & 15.35  & $+56\%$ \\
-\texttt{GI} prolaz (ms) & 1.08   & 4.09   & $\times 3.8$ \\
-\texttt{AO} prolaz (ms) & 0.17   & 0.63   & $\times 3.7$ \\
-\midrule
-PSNR (dB)              & 24.89  & 24.91  & $+0.02$ \\
-SSIM                   & 0.7516 & 0.7530 & $+0.0014$ \\
-FLIP                   & 0.1425 & 0.1423 & $-0.0002$ \\
-\bottomrule
-\end{tabular}
+\input{data/halfres.tex}
 \end{table}
 
-Full-resolution tracing costs 5.49 ms more per frame, a 56\% increase on a budget that was already
-approaching ten milliseconds, and returns 0.02 dB of PSNR. All three metrics move by less than the
-run-to-run spread, so the correct reading is not \rqt{full resolution is slightly better} but
-\rqt{the measurement cannot distinguish them at all}.
+Full-resolution tracing costs \hrDeltaMs{} ms more per frame, a \hrDeltaPct\% increase on a
+\hrHalfTotal{} ms budget, and returns \hrPsnrGain{} dB of PSNR: the two configurations are identical
+to the second decimal. SSIM and FLIP move by 0.0008 and 0.0002, both far inside the run-to-run
+spread. The reading is not \rqt{full resolution is slightly better} but \rqt{the measurement cannot
+distinguish them at all}.
 
 The reason is that the denoiser is the binding constraint, not the sample grid. Both configurations
 feed the same à-trous filter, whose edge-stopping kernel already blurs over a neighbourhood wider than

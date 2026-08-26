@@ -25,6 +25,7 @@ ENGINE = THESIS.parent / "Snowstorm-Engine"
 DATA = THESIS / "latex" / "data"
 FIGS = THESIS / "latex" / "figures"
 RESULTS = HERE / "raycount_denoise_results.json"
+HALFRES = HERE / "halfres_results.json"
 
 QUALITY = ENGINE / "Scripts" / "quality-baseline" / "amd-radeon-rx-9070-xt"
 MOTION = ENGINE / "Scripts" / "quality-motion-baseline" / "amd-radeon-rx-9070-xt"
@@ -146,6 +147,36 @@ def main():
         qmacros += [rf"\newcommand{{\m{name}Tflip}}{{{m['tflip']:.4f}}}",
                     rf"\newcommand{{\m{name}Jod}}{{{m['cvvdpJod']:.2f}}}",
                     rf"\newcommand{{\m{name}Lag}}{{{m['motionPenalty']:.3f}}}"]
+
+    # Half- versus full-resolution GI/AO tracing (sec:halfres). Previously hand-typed from an
+    # uncommitted sweep, which is how its stated +54% came to disagree with its own cells.
+    if not HALFRES.exists():
+        sys.exit(f"FAIL: {HALFRES.name} not found; run halfres_sweep.py first")
+    hr = json.loads(HALFRES.read_text(encoding="utf-8"))
+    half, full = (next(x for x in hr["scales"] if x["scale"] == s) for s in (0.5, 1.0))
+
+    def ratio(a, b):
+        return rf"$\times {b / a:.1f}$" if a else "--"
+
+    dtot = full["gpu_total_ms"] - half["gpu_total_ms"]
+    out["halfres.tex"] = tabular(
+        "lrrr",
+        r" & polovi\v{c}na (0.5) & puna (1.0) & razlika",
+        [rf"Ukupno GPU (ms) & {half['gpu_total_ms']:.2f} & {full['gpu_total_ms']:.2f} & "
+         rf"$+{100 * dtot / half['gpu_total_ms']:.0f}\%$ \\",
+         rf"\texttt{{GI}} prolaz (ms) & {half['passes']['GI']:.2f} & {full['passes']['GI']:.2f} & "
+         rf"{ratio(half['passes']['GI'], full['passes']['GI'])} \\",
+         rf"\texttt{{AO}} prolaz (ms) & {half['passes']['AO']:.2f} & {full['passes']['AO']:.2f} & "
+         rf"{ratio(half['passes']['AO'], full['passes']['AO'])} \\",
+         r"\midrule",
+         rf"PSNR (dB) & {half['psnr']:.2f} & {full['psnr']:.2f} & ${full['psnr'] - half['psnr']:+.2f}$ \\",
+         rf"SSIM & {half['ssim']:.4f} & {full['ssim']:.4f} & ${full['ssim'] - half['ssim']:+.4f}$ \\",
+         rf"FLIP & {half['flip']:.4f} & {full['flip']:.4f} & ${full['flip'] - half['flip']:+.4f}$ \\"])
+
+    qmacros += [rf"\newcommand{{\hrDeltaMs}}{{{dtot:.2f}}}",
+                rf"\newcommand{{\hrDeltaPct}}{{{100 * dtot / half['gpu_total_ms']:.0f}}}",
+                rf"\newcommand{{\hrHalfTotal}}{{{half['gpu_total_ms']:.2f}}}",
+                rf"\newcommand{{\hrPsnrGain}}{{{full['psnr'] - half['psnr']:.2f}}}"]
 
     de = d["denoise_eval"]
     off, on = de["quality_off"], de["quality_on"]
