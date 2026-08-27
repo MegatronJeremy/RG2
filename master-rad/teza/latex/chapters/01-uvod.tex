@@ -40,7 +40,7 @@ senkama, AO, refleksijama i GI (denoise-ovano).}
 \section{Za\v{s}to hibridni pristup i za\v{s}to ray query (a ne RT-pipeline)}
 
 Vulkan offers two ways to trace rays, a dedicated ray-tracing pipeline and inline ray queries
-(\texttt{VK_KHR_ray_query}); Section~\ref{sec:vulkanrt} sets them side by side.
+(\texttt{VK_KHR_ray_query}). Section~\ref{sec:vulkanrt} sets them side by side.
 
 This work uses inline ray queries for architectural fit: the engine is a rasterizing forward
 renderer, and inline queries let each effect drop in as an ordinary compute or fragment pass

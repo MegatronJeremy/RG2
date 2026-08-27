@@ -9,12 +9,12 @@ engine subsystem.
 \section{Snowstorm Engine (pregled)}
 \label{sec:engine}
 
-Snowstorm is a Vulkan engine the author wrote from scratch; this thesis uses it as the host for the
+Snowstorm is a Vulkan engine the author wrote from scratch. This thesis uses it as the host for the
 ray-tracing passes and does not treat the engine itself as the contribution. An EnTT-based
-entity-component-system produces the per-frame render work; a backend-agnostic \texttt{Render/} layer
+entity-component-system produces the per-frame render work. A backend-agnostic \texttt{Render/} layer
 sits over a Vulkan RHI (volk, Vulkan Memory Allocator, spirv-reflect for descriptor layouts) in
-\texttt{Platform/Vulkan/}; shaders are HLSL compiled to SPIR-V through dxc; the ImGui editor hosts the
-CVar console and the performance readouts (Section~\ref{sec:alati}).
+\texttt{Platform/Vulkan/}, shaders are HLSL compiled to SPIR-V through dxc, and the ImGui editor hosts
+the CVar console and the performance readouts (Section~\ref{sec:alati}).
 
 The one part load-bearing for the RT path is the bindless descriptor model, which lets a single
 hit-shading routine index any mesh's vertices, indices, and material without per-draw descriptor churn
@@ -58,7 +58,7 @@ ones) upsample, which is what lets one denoiser implementation serve all of them
 
 \begin{table}[tbp]
 \caption[Prolazi po frejmu, redom]{Prolazi po frejmu redom kojim se izvr\v{s}avaju. Tri efekta se
-rekonstrui\v{s}u pre osvetljavanja i ulaze u \texttt{Forward} kao teksture; senke su izuzetak i
+rekonstrui\v{s}u pre osvetljavanja i ulaze u \texttt{Forward} kao teksture, a senke su izuzetak i
 trasiraju se inline unutar \texttt{Forward} prolaza.}
 \label{tab:framegraph}
 \centering
@@ -87,7 +87,7 @@ Merenje & \texttt{Compare}, \texttt{Metrics} (PSNR, SSIM) \\
 
 Three of the four effects run as compute passes \emph{before} the forward pass, each writing a
 denoised texture that the forward shader then samples. They need the depth+normal G-buffer as their
-starting surface, so they follow \texttt{DepthNormal} but precede shading; running them ahead of
+starting surface, so they follow \texttt{DepthNormal} but precede shading. Running them ahead of
 forward lets it do a single lit combine (direct lighting plus the sampled indirect, AO, and
 reflection) instead of interleaving trace and shade. This split of screen-space compute effects
 feeding a forward combine follows how hybrid renderers such as Unreal's Lumen separate their screen
@@ -101,7 +101,7 @@ writing a buffer, filtering it, and reading it back. The cost is linear growth i
 the alternative stochastic path of Section~\ref{sec:senke} exists to address.
 
 GI and AO are traced at half resolution (\texttt{render.gi.scale}, \texttt{render.ao.scale}, both
-0.5 by default) and bilaterally upsampled before the forward pass samples them; reflections are
+0.5 by default) and bilaterally upsampled before the forward pass samples them, while reflections are
 traced at full resolution. Half-res tracing is the single biggest cost lever for the two hemispheric
 gather effects since it quarters the ray count, and Section~\ref{sec:cena} quantifies what it buys.
 Which effects tolerate it is not arbitrary: reconstructing three pixels in four from their neighbours
@@ -119,8 +119,8 @@ Ray queries trace against the two-level structure described in Section~\ref{sec:
 unique mesh owns one BLAS, built lazily on first use and cached on the mesh
 (\texttt{Mesh::GetOrBuildBLAS}) with the \texttt{PREFER_FAST_TRACE} flag over opaque triangle
 geometry referenced by device address (positions R32G32B32, 32-bit indices). Opaque meshes are
-flagged \texttt{OPAQUE} so traversal skips the any-hit stage; alpha-cutout (glTF MASK) materials fall
-back to a minimal any-hit alpha test unless an opacity micromap is available. The TLAS holds one
+flagged \texttt{OPAQUE} so traversal skips the any-hit stage, while alpha-cutout (glTF MASK) materials
+fall back to a minimal any-hit alpha test unless an opacity micromap is available. The TLAS holds one
 instance per (Transform, Mesh) entity, each carrying its $3\times4$ world transform, a visibility
 mask, its BLAS address, and an \texttt{instanceCustomIndex} set to the instance index so the hit
 shader can resolve the geometry from a table (Section~\ref{sec:efekti}).
@@ -137,7 +137,7 @@ the \texttt{PreRender} phase). There is no refit path: a dirty frame destroys an
 structure (\texttt{MODE_BUILD_KHR}) behind a device wait. The dirty check excludes the camera, so a
 scene whose geometry and transforms are static does not rebuild the TLAS even as the camera moves,
 which is the common case for the benchmark scene. A full rebuild on every dynamic frame is heavier
-than a refit would be; this is called out as a limitation in Chapter~\ref{ch:zakljucak} and was
+than a refit would be. This is called out as a limitation in Chapter~\ref{ch:zakljucak} and was
 chosen for implementation simplicity given that the test scenes are largely static.
 
 \paragraph{Opacity micromaps za cutout geometriju.} On a device exposing
@@ -147,7 +147,7 @@ material instead builds a second, non-opaque BLAS carrying an opacity micromap: 
 opaque/transparent/unknown classification at a fixed subdivision level, using the same bird-curve
 microtriangle indexing Khronos' reference implementation uses. Traversal then resolves opaque and
 transparent microtriangles in hardware, so the any-hit alpha test runs only on the unknown (edge)
-ones; without the extension every cutout microtriangle pays it. The bake runs once per mesh and is
+ones, whereas without the extension every cutout microtriangle pays it. The bake runs once per mesh and is
 cached alongside the plain BLAS. Because it samples the resident albedo texture, it is deferred until
 that texture has finished streaming in (an async load's placeholder is opaque, and baking against it
 would cache a solid cutout permanently), with the any-hit fallback used meanwhile. Support is
@@ -195,7 +195,7 @@ all four effects.
   \draw[->] (vtx) -- (out);
 \end{tikzpicture}
 \caption[Razre\v{s}avanje pogotka kroz bindless tabelu geometrije]{Od poga\dj enog trougla do
-osen\v{c}ene povr\v{s}i, bez shader binding table-a. \texttt{RayQuery} vra\'ca samo tri broja;
+osen\v{c}ene povr\v{s}i, bez shader binding table-a. \texttt{RayQuery} vra\'ca samo tri broja, a
 \texttt{ResolveHit} od njih stiže do geometrije i materijala kroz tabelu indeksiranu sa
 \texttt{instanceCustomIndex}. Indeks teksture nije uniforman unutar talasa, pa mora kroz
 \texttt{NonUniformResourceIndex}.}
@@ -213,7 +213,7 @@ ray count than an effect that must shade what it finds.
 
 \begin{table}[tbp]
 \caption[Parametri \v{c}etiri efekta]{Kako se \v{c}etiri efekta razlikuju pri istoj inline ray query
-operaciji. Broj zrakova i razmera su podrazumevane vrednosti odgovaraju\'cih CVar-ova; ,,prvi
+operaciji. Broj zrakova i razmera su podrazumevane vrednosti odgovaraju\'cih CVar-ova. ,,Prvi
 pogodak`` je \texttt{RAY\_FLAG\_ACCEPT\_FIRST\_HIT\_AND\_END\_SEARCH}, koji prekida obilazak \v{c}im
 na\dj e bilo koji presek.}
 \label{tab:effect-params}
@@ -232,8 +232,8 @@ GI           & 2           & najbli\v{z}i & osen\v{c}ena radijansa  & 0.5 \\
 
 The effects that shade their hits (reflections and GI) share one routine, \texttt{ShadeSurfaceHit} in
 \texttt{RTHitShading.hlsli}, which resolves the hit triangle through the bindless geometry table and
-evaluates a single bounce; shadows and AO need only a visibility answer and use the cheaper any-hit
-traversal. Primary shading in the forward pass is a standard metallic-roughness Cook-Torrance model
+evaluates a single bounce, while shadows and AO need only a visibility answer and use the cheaper
+any-hit traversal. Primary shading in the forward pass is a standard metallic-roughness Cook-Torrance model
 (GGX distribution, Smith geometry with the Schlick-GGX approximation, Schlick Fresnel, Lambertian
 diffuse), with the ambient term from a prefiltered environment cube and a precomputed BRDF lookup
 table.
@@ -253,7 +253,7 @@ setting (\texttt{render.ao.mode}, \texttt{render.reflections.mode}, \texttt{rend
 SSR and SSGI read the same depth+normal G-buffer and write into the same slot their ray-traced
 counterpart does (SSGI marches the depth buffer into the same half-res GI target, then flows through
 the same temporal/denoise/upsample/forward tail), so the two versions of a given effect differ only
-in how the signal is produced; they are the baselines of Section~\ref{sec:poredjenje}. SSGI's gather
+in how the signal is produced. They are the baselines of Section~\ref{sec:poredjenje}. SSGI's gather
 has no device-support check and runs on any GPU, while ray-traced GI (mode 2) is the one that
 degrades to off without ray-tracing support.
 
@@ -273,7 +273,7 @@ self-intersection (Listing~\ref{lst:shadow}).
 The alternative the engine keeps is the raster shadow map, also the default and the fallback on a
 device without ray tracing (Figure~\ref{fig:shadow-vs-map}). Intersecting the real geometry needs no
 depth-bias tuning at all, although its price grows with light count where the map amortises over the
-whole frame; Section~\ref{sec:analiza-shadow-strategy} measures that tradeoff.
+whole frame. Section~\ref{sec:analiza-shadow-strategy} measures that tradeoff.
 
 \begin{figure}[tbp]
 \centering
@@ -285,7 +285,7 @@ whole frame; Section~\ref{sec:analiza-shadow-strategy} measures that tradeoff.
 \end{minipage}
 \caption[Mapa senki naspram trasiranih senki]{Ista poza i isto svetlo, \texttt{render.shadows.mode}
 1 naspram 2. Rasterska mapa ima kona\v{c}nu rezoluciju i pomeraj dubine, pa se kontaktne senke
-razlivaju i ivice su mek\v{s}e nego \v{s}to geometrija nala\v{z}e; trasirana verzija ih razre\v{s}ava
+razlivaju i ivice su mek\v{s}e nego \v{s}to geometrija nala\v{z}e, a trasirana verzija ih razre\v{s}ava
 preko stvarne geometrije. Snimci su deterministi\v{c}ki (dva uzastopna snimka iste konfiguracije su
 identi\v{c}na do bita), pa je svaka razlika izme\dj u panela stvarna.}
 \label{fig:shadow-vs-map}
@@ -315,7 +315,7 @@ bool shadowed = (q.CommittedStatus() == COMMITTED_TRIANGLE_HIT);
 \end{lstlisting}
 
 Two quality levels are exposed through the \texttt{render.shadow.soft} CVar. The hard path casts one
-ray straight at the light; the soft path casts \texttt{SHADOW_RAY_COUNT = 2} rays sampling, uniformly
+ray straight at the light, while the soft path casts \texttt{SHADOW_RAY_COUNT = 2} rays sampling, uniformly
 by solid angle, the cone the source subtends at the shaded point (Figure~\ref{fig:shadow}), averaging
 the hits into a penumbra factor in $[0,1]$. The cone is parameterised by the cosine of its half-angle:
 $\cos(\tfrac{1}{2}\,\texttt{render.shadow.sun\_angle\_deg})$ for the sun, and
@@ -324,7 +324,7 @@ $d$, so a physically larger or nearer source gives a softer edge. Sampling the s
 than a tangent-plane disk is what makes the real-time penumbra agree with the path tracer's
 next-event estimation at any cone width, instead of only in the small-angle limit where the two
 parameterisations coincide. \texttt{SHADOW_RAY_COUNT} is a compile-time constant, a cost class rather
-than a live knob; \texttt{render.shadows.rays} applies to the stochastic path below, not to this one.
+than a live knob. \texttt{render.shadows.rays} applies to the stochastic path below, not to this one.
 Directions are decorrelated per pixel and per frame with an interleaved-gradient-noise hash, spreading
 the two-sample penumbra across frames for the temporal accumulator to resolve
 (Sections~\ref{sec:denoising} and \ref{sec:taa}).
@@ -349,7 +349,7 @@ the two-sample penumbra across frames for the temporal accumulator to resolve
 \end{tikzpicture}
 \caption{Meke senke: iz ta\v{c}ke $P$ se zraci uzorkuju ravnomerno po prostornom uglu unutar konusa
 koji izvor zaklapa oko pravca $L$, sa polovinom ugla $\theta/2$ odre\dj enom polupre\v{c}nikom
-izvora $r$ i rastojanjem; udeo neblokiranih zraka daje penumbru.}
+izvora $r$ i rastojanjem. Udeo neblokiranih zraka daje penumbru.}
 \label{fig:shadow}
 \end{figure}
 
@@ -403,7 +403,7 @@ the debug views expose the aggregate visibility buffer before and after filterin
 \includegraphics[width=0.48\textwidth]{figures/dbg_shadow_denoised.png}
 \caption{Stohasti\v{c}ki agregatni odnos vidljivosti pre (levo) i posle (desno) temporalne
 akumulacije i a-trous filtra (\texttt{render.debugview} 8 i 9). Belo je potpuno osvetljeno, crno
-potpuno u senci; levo se vidi da jedan uzorak po pikselu daje skoro binarni \v{s}um.}
+potpuno u senci. Levo se vidi da jedan uzorak po pikselu daje skoro binarni \v{s}um.}
 \label{fig:shadow-denoise-ab}
 \end{figure}
 
@@ -414,7 +414,7 @@ reconstructs world position from the depth G-buffer and casts \texttt{render.ao.
 (default 2, clamped to $[1,16]$) over the cosine-weighted hemisphere around the geometric normal,
 rotated per pixel by interleaved gradient noise, using the same
 \texttt{ACCEPT_FIRST_HIT_AND_END_SEARCH} visibility traversal as shadows. Rays are limited to
-\texttt{render.ao.radius}; a hit contributes \texttt{1 - saturate(t / AORadius)}, so nearer occluders
+\texttt{render.ao.radius}, and a hit contributes \texttt{1 - saturate(t / AORadius)}, so nearer occluders
 darken more, and the result is scaled by \texttt{render.ao.intensity} (Listing~\ref{lst:ao}).
 
 
@@ -456,7 +456,7 @@ bilaterally upsampled before the forward pass multiplies it into the ambient ter
   \fill (0,0) circle (1.7pt) node[below=3pt] {$P$};
 \end{tikzpicture}
 \caption{Uzorkovanje po hemisferi za AO: iz ta\v{c}ke $P$ se baca vi\v{s}e kratkih zraka po hemisferi
-oko normale $N$; udeo zraka koji u zadatom polupre\v{c}niku pogodi geometriju daje okluziju.}
+oko normale $N$. Udeo zraka koji u zadatom polupre\v{c}niku pogodi geometriju daje okluziju.}
 \label{fig:ao}
 \end{figure}
 
@@ -472,14 +472,14 @@ and runs traversal to completion.
 
 Glossy reflections are approximated by jittering each ray inside a cone whose half-angle scales with
 surface roughness (\texttt{roughness * ReflConeScale}), averaged over \texttt{render.reflections.rays}
-(default 1); a mirror surface (\texttt{roughness == 0}) collapses to one sharp ray. Hits are shaded
-by \texttt{ShadeSurfaceHit} (sun lighting with its own shadow ray, the hit surface's emissive term,
-image-based ambient); a miss samples the prefiltered sky cube. Unlike the GI pass below, reflections
+(default 1), while a mirror surface (\texttt{roughness == 0}) collapses to one sharp ray. Hits are
+shaded by \texttt{ShadeSurfaceHit} (sun lighting with its own shadow ray, the hit surface's emissive
+term, image-based ambient), and a miss samples the prefiltered sky cube. Unlike the GI pass below, reflections
 do not sample the scene's local point and spot lights at the hit: the same importance-sampled
 local-light estimator was measured here too and showed no quality gain for twice the GI side's cost,
-so it is compiled out of this pass entirely. The pass writes raw reflected radiance plus hit distance;
-the Fresnel term, the BRDF weighting, and \texttt{render.reflections.intensity} are applied afterward
-in the forward pass (Figure~\ref{fig:refl}).
+so it is compiled out of this pass entirely. The pass writes raw reflected radiance plus hit distance,
+while the Fresnel term, the BRDF weighting, and \texttt{render.reflections.intensity} are applied
+afterward in the forward pass (Figure~\ref{fig:refl}).
 
 \begin{figure}[tbp]
 \centering
@@ -492,7 +492,7 @@ in the forward pass (Figure~\ref{fig:refl}).
   \node[font=\scriptsize, align=center] at (2.0,1.05) {konus\\(hrapavost)};
   \fill (0,0) circle (1.7pt) node[below=3pt] {$P$};
 \end{tikzpicture}
-\caption{Refleksije: pravac odbijanja $R$ vektora pogleda $V$ oko normale $N$; glatka povr\v{s}ina
+\caption{Refleksije: pravac odbijanja $R$ vektora pogleda $V$ oko normale $N$. Glatka povr\v{s}ina
 daje jedan o\v{s}tar zrak, a hrapava uzorkuje konus oko $R$.}
 \label{fig:refl}
 \end{figure}
@@ -525,7 +525,7 @@ donosi prolaz.}
 \caption{Reflektovana radijansa pre kombinovanja (\texttt{render.debugview} 3): o\v{s}tar ogledalski
 zrak, \texttt{cone\_scale} 0 (levo), naspram konusa \v{s}irenog hrapavo\v{s}\'cu, \texttt{cone\_scale}
 3 (desno). U gotovoj slici se ova razlika ne vidi jer je refleksija mali aditivni \v{c}lan pored
-direktnog osvetljenja; u sopstvenom baferu ona je ceo sadr\v{z}aj.}
+direktnog osvetljenja, a u sopstvenom baferu ona je ceo sadr\v{z}aj.}
 \label{fig:refl-cone}
 \end{figure}
 
@@ -533,7 +533,7 @@ direktnog osvetljenja; u sopstvenom baferu ona je ceo sadr\v{z}aj.}
 
 Global illumination is the most expensive effect: a compute pass (\texttt{GI.comp.hlsl}) run at half
 resolution that computes one bounce of diffuse indirect light. It samples the hemisphere exactly as
-AO does, \texttt{render.gi.rays} rays (default 2) out to \texttt{render.gi.range}; the difference is
+AO does, \texttt{render.gi.rays} rays (default 2) out to \texttt{render.gi.range}. The difference is
 what a ray returns. A miss samples the sky cube, and each hit is shaded by
 \texttt{ShadeSurfaceHit}: the sun with its own shadow ray,
 the hit surface's emissive term, an image-based ambient fill, and, when \texttt{render.rt.hit_lights}
@@ -563,7 +563,7 @@ of Section~\ref{sec:denoising}.
   \foreach \a in {35,70,110,145} \fill[black!30] (\a:2.1) circle (2.4pt);
   \fill (0,0) circle (1.7pt) node[below=3pt] {$P$};
 \end{tikzpicture}
-\caption{Globalno osvetljenje: kosinusno uzorkovanje hemisfere oko $N$ iz ta\v{c}ke $P$; svaki zrak
+\caption{Globalno osvetljenje: kosinusno uzorkovanje hemisfere oko $N$ iz ta\v{c}ke $P$. Svaki zrak
 koji pogodi geometriju vra\'ca radijansu (jedno odbijanje).}
 \label{fig:gi}
 \end{figure}
@@ -604,7 +604,7 @@ configuration but identical code (Figure~\ref{fig:svgf}). The reuse is possible 
 estimate, its variance inputs, and the depth/normal G-buffer are the only signal-specific data. The
 hit-distance
 edge-stopping weight is wired up for every signal but left at zero by default, so that term is a
-no-op in the measured configuration; the stochastic shadow path instead sizes its kernel by occluder
+no-op in the measured configuration. The stochastic shadow path instead sizes its kernel by occluder
 distance directly, in the NRD SIGMA style, through \texttt{render.shadows.denoise.penumbra}.
 Reflections reuse GI's temporal shader, a limitation since a reflection history has view-dependent
 content that a diffuse-tuned reprojection does not perfectly handle.
@@ -635,8 +635,8 @@ relative-depth test rejects disoccluded pixels. The blend follows SVGF's history
 per-pixel accumulated history length, capped at 32 frames, sets the blend weight
 \texttt{max(alphaMin, 1 / historyLength)}, so a freshly disoccluded pixel weights the current frame
 heavily while a long-lived pixel averages many frames. First and second luminance moments accumulate
-with the same weight, and their difference is the temporal variance that guides the spatial filter;
-pixels too young for a stable temporal variance (history under four frames) fall back to a
+with the same weight, and their difference is the temporal variance that guides the spatial filter.
+Pixels too young for a stable temporal variance (history under four frames) fall back to a
 $7\times7$ spatial variance estimate.
 
 A neighborhood color clamp is added over stock SVGF: the reprojected history is clipped toward the
@@ -710,7 +710,7 @@ above is not in SVGF; GI and AO are filtered at half resolution where SVGF is fu
 the variance edge-stop is optional. \texttt{GIDenoise.comp} keeps its outer à-trous loop rolled rather
 than unrolled, which costs a little scheduling freedom and in exchange holds register pressure down to
 70 VGPRs on the RX 7900 XTX and 59 on the RX 9070 XT, with no spilling and full occupancy on both
-(Table~\ref{tab:occupancy}); unrolled it allocates 191 and drops to 8 of 16 wavefronts.
+(Table~\ref{tab:occupancy}). Unrolled it allocates 191 and drops to 8 of 16 wavefronts.
 
 \section{TAA / temporal resolve}
 \label{sec:taa}
@@ -745,7 +745,7 @@ falls back to the current frame alone, which is noisier but correct.
 \includegraphics[width=0.8\textwidth]{figures/dbg_motion.png}
 \caption{Bafer vektora kretanja (\texttt{render.debugview} 1) tokom determinis\-ti\v{c}ke orbite
 kamere. Crveno je vodoravna, zeleno uspravna komponenta pomeraja piksela izme\dj u dva uzastopna
-kadra; prikaz uzima apsolutnu vrednost i mno\v{z}i je sa 40, pa se vidi \emph{koliko} se piksel
+kadra. Prikaz uzima apsolutnu vrednost i mno\v{z}i je sa 40, pa se vidi \emph{koliko} se piksel
 pomera i po kojoj osi, ali ne i u kom smeru. Crno je izostanak pomeraja, ali i nebo, koje kroz ovaj
 prolaz uop\v{s}te ne upisuje vektore. Prikaz nije kalibrisan: kanali su normirani po \v{s}irini
 odnosno visini, pa im osvetljenost nije na istoj skali, a izlaz je jo\v{s} i sRGB kodiran. Kada se
@@ -767,8 +767,8 @@ from a report: a number nobody checks drifts.
 
 \begin{table}[tbp]
 \caption[Merni alati]{Alati koji proizvode brojeve iz Glave~\ref{ch:analiza}. ,,Kapija`` zna\v{c}i da
-alat pore\dj uje sa committovanim baseline-om i obara izvr\v{s}avanje pri regresiji; alati bez kapije
-samo izve\v{s}tavaju. Svi osim \texttt{rga-occupancy} zahtevaju stvarni GPU, pa se izvr\v{s}avaju
+alat pore\dj uje sa committovanim baseline-om i obara izvr\v{s}avanje pri regresiji, a alati bez
+kapije samo izve\v{s}tavaju. Svi osim \texttt{rga-occupancy} zahtevaju stvarni GPU, pa se izvr\v{s}avaju
 lokalno, ne na CI-u.}
 \label{tab:tooling}
 \centering
@@ -821,25 +821,25 @@ simplification of the full problem rather than a factor that distorts the relati
 Chapter~\ref{ch:analiza}.
 
 \begin{itemize}
-  \item \textbf{Diffuse, single-bounce GI.} Global illumination computes one diffuse indirect bounce;
-    multi-bounce and glossy indirect are out of scope.
+  \item \textbf{Diffuse, single-bounce GI.} Global illumination computes one diffuse indirect bounce,
+    while multi-bounce and glossy indirect are out of scope.
   \item \textbf{Half-resolution GI and AO.} GI and AO are traced at half resolution and bilaterally
-    upsampled; reflections are traced at full resolution.
+    upsampled. Reflections are traced at full resolution.
   \item \textbf{Low sample counts with reconstruction.} Effects use one or two rays per pixel and
     depend on temporal accumulation, and on the spatial SVGF filter for GI and AO, for a usable
-    image; the spatial filter is disabled for reflections (Section~\ref{sec:denoise-eval}).
+    image. The spatial filter is disabled for reflections (Section~\ref{sec:denoise-eval}).
   \item \textbf{Approximate soft shadows.} In the default path ray-traced shadows use one hard or two
     soft rays per light, traced inline and applied directly with no denoiser, so the penumbra is a
     two-sample approximation of an area light cleaned up only by the temporal resolve, not a
     converged soft shadow. The opt-in stochastic path does reconstruct its aggregate visibility
     through the shared denoiser, at the cost of resolving only one light per pixel per frame.
   \item \textbf{Inline ray queries only.} No ray-tracing pipeline, shader binding table, or
-    recursion; all hit lighting is a single bounce evaluated in \texttt{ShadeSurfaceHit}.
+    recursion. All hit lighting is a single bounce evaluated in \texttt{ShadeSurfaceHit}.
   \item \textbf{Single-sample local-light NEE, GI only.} A GI secondary hit adds at most one of the
     scene's point and spot lights, importance-picked per hit rather than summed over all of them, so
     it remains a noisy, single-sample estimator of full next-event estimation rather than an exact
-    sum; reflections' hits are not extended with local lights at all (\texttt{render.rt.hit_lights}
+    sum. Reflections' hits are not extended with local lights at all (\texttt{render.rt.hit_lights}
     measured no quality gain there for twice the GI-side cost).
   \item \textbf{Full TLAS rebuild per dynamic frame.} The top-level structure is rebuilt, not refit,
-    on any frame the scene changes; a fully static scene skips the rebuild.
+    on any frame the scene changes, although a fully static scene skips the rebuild.
 \end{itemize}

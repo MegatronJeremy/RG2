@@ -22,7 +22,7 @@ f_r(\mathbf{x}, \omega_i, \omega_o)\, L_i(\mathbf{x}, \omega_i)\, (\omega_i \cdo
 \label{eq:rendering}
 \end{equation}
 where $f_r$ is the BRDF, $L_i$ the incident radiance, and $\mathbf{n}$ the surface normal.
-Rasterization resolves the emitted and direct terms efficiently through projection; the integral
+Rasterization resolves the emitted and direct terms efficiently through projection, but the integral
 needs incident radiance from every direction and therefore scene-wide visibility, which is exactly
 what it cannot express and what ray tracing evaluates by sampling. A hybrid renderer uses each where
 it is strong (Figure~\ref{fig:rastervsrt}) \cite{akenine2018rtr}.
@@ -97,8 +97,8 @@ from clocks, cache, or driver.
   \end{scope}
 \end{tikzpicture}
 \caption[Gde \v{z}ivi petlja obilaska]{Preseci zrak-kutija i zrak-trougao su na obe arhitekture
-fiksna funkcija; razlikuje se ko vodi petlju obilaska. Na NVIDIA-i je i ona u hardveru, pa \v{s}ejder
-preda zrak i sa\v{c}eka pogodak; na RDNA arhitekturama petlja te\v{c}e u \v{s}ejderu, koji po
+fiksna funkcija, a razlikuje se ko vodi petlju obilaska. Na NVIDIA-i je i ona u hardveru, pa \v{s}ejder
+preda zrak i sa\v{c}eka pogodak, dok na RDNA arhitekturama petlja te\v{c}e u \v{s}ejderu, koji po
 posve\'cenom \v{c}voru poziva jedinicu za preseke, pa obilazak tro\v{s}i iste izvr\v{s}ne resurse kao
 i sen\v{c}enje. Dijagram obja\v{s}njava za\v{s}to je razlika u ceni o\v{c}ekivana, ne koliko iznosi.}
 \label{fig:traversal}
@@ -107,7 +107,7 @@ i sen\v{c}enje. Dijagram obja\v{s}njava za\v{s}to je razlika u ceni o\v{c}ekivan
 transform referencing a BLAS. The split lets many instances share one BLAS and lets the TLAS, which
 changes as objects move, be rebuilt per frame while the heavier BLAS persists
 (Figure~\ref{fig:tlasblas}). Either can be fully rebuilt (highest traversal quality) or refit (box
-extents updated for small deformations, cheaper but lower quality); dynamic scenes trade these off
+extents updated for small deformations, cheaper but lower quality). Dynamic scenes trade these off
 each frame.
 
 \begin{figure}[tbp]
@@ -173,8 +173,8 @@ Pogodno za          & pun path tracer & ograni\v{c}eni efekti na rasteru \\
 
 The effects implemented here have a long line of real-time approximations
 (Table~\ref{tab:postojeca}), in two tiers. The screen-space family is implemented in this engine and
-measured head to head against the ray-traced path in Chapter~\ref{ch:analiza}; the voxel, probe, and
-reservoir methods are surveyed for positioning only, neither implemented nor measured here, so no
+measured head to head against the ray-traced path in Chapter~\ref{ch:analiza}, while the voxel,
+probe, and reservoir methods are surveyed for positioning only, neither implemented nor measured here, so no
 quantitative claim is made about them.
 
 The tiers fail differently. Screen-space methods fail on \emph{missing information}: they see only
@@ -182,7 +182,7 @@ what is currently on screen, so an off-screen occluder or reflector is simply ab
 class of error a ray query removes by consulting the real scene. Voxel and probe methods do see the
 whole scene and fail instead on \emph{resolution}: their world representation is coarser than the
 effect they reconstruct, which shows up as light leaking through thin walls or as smoothed-away
-contact darkening. No amount of sampling fixes the first; a finer grid, at a cost, mitigates the
+contact darkening. No amount of sampling fixes the first, but a finer grid, at a cost, mitigates the
 second.
 
 \begin{table}[tbp]
@@ -247,5 +247,5 @@ estimated per-pixel variance, so it smooths noisy regions while preserving conve
 alternatives are its adaptive successor A-SVGF \cite{schied2018asvgf}, NVIDIA's production Real-Time
 Denoisers (ReBLUR and ReLAX) \cite{nvidia_nrd}, and machine-learning denoisers such as Intel's Open
 Image Denoise \cite{intel_oidn}. Over the denoised result, temporal anti-aliasing accumulates jittered
-frames to remove aliasing and to converge the remaining noise \cite{karis2014taa}; its interaction
+frames to remove aliasing and to converge the remaining noise \cite{karis2014taa}. Its interaction
 with the per-effect denoisers is part of the implementation in Chapter~\ref{ch:implementacija}.

@@ -16,7 +16,7 @@ indistinguishable in cost.
 
 \begin{table}[tbp]
 \caption[Sa\v{z}etak izmerenih rezultata]{Sa\v{z}etak izmerenih rezultata. Cena po efektu je razlika
-ukupnog GPU vremena izme\dj u susednih konfiguracija; kvalitet je prosek preko tri pogleda naspram
+ukupnog GPU vremena izme\dj u susednih konfiguracija. Kvalitet je prosek preko tri pogleda naspram
 konvergirane path-traced reference na RX 9070 XT.}
 \label{tab:summary}
 \centering
@@ -74,6 +74,6 @@ resolve, so a learned denoiser or upscaler replacing or augmenting SVGF is a nat
 together with the vendor-neutral cooperative-matrix inference study that motivated an earlier version
 of this project. Denoised shadows could scale to many lights more cheaply with a MegaLights-style
 stochastic per-pixel light selection on the shared denoiser, rather than tracing every light every
-frame; a dedicated, penumbra-aware shadow denoiser in place of the shared one is a related
+frame. A dedicated, penumbra-aware shadow denoiser in place of the shared one is a related
 refinement. Broadening the cross-vendor comparison beyond two current-generation cards, plus a second
 rendering backend (DirectX 12), would extend the performance story further.

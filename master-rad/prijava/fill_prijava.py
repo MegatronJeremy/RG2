@@ -19,15 +19,15 @@ OUTPUT = HERE / "Obrazlozenje_teme_Vuk_Djordjevic.docx"
 STUDENT = "Вук Ђорђевић"
 INDEX = "2024 / 3102"
 MODUL = "Рачунарска техника и информатика"
-TITLE_SR = "Хибридно осветљење у реалном времену применом праћења зрака"
-TITLE_EN = "Real-Time Hybrid Lighting Using Ray Tracing"
+TITLE_SR = "Реализација и анализа хибридног осветљења у реалном времену применом праћења зрака"
+TITLE_EN = "Implementation and Analysis of Real-Time Hybrid Lighting Using Ray Tracing"
 # The form is dated the day it is filled, so this defaults to today rather than a literal that goes
 # stale every morning. Override for a specific submission date: SS_PRIJAVA_DATE="04. 09. 2026."
 DATE_ONLY = os.environ.get("SS_PRIJAVA_DATE") or datetime.date.today().strftime("%d. %m. %Y.")
 
 # The form's own Напомене require this to be stated at topic registration when the thesis itself is
 # written in English: "Уколико се рад пише на енглеском, то се мора нагласити приликом пријаве теме
-# мастер рада." Член 30 of the Правилник permits the English text; this is the declaration of it.
+# мастер рада." Член 30 of the Правилник permits the English text, and this states it.
 JEZIK = ("Текст мастер рада се пише на енглеском језику, у складу са чланом 30. Правилника о мастер "
          "академским студијама.")
 
@@ -60,7 +60,7 @@ CILJ = [
 METODOLOGIJA = [
     "Истраживање је експериментално и почива на поновљивим мерењима. Цена сваке појаве изолује се "
     "низом конфигурација у којима се укључује тачно једна нова појава, па је разлика у времену "
-    "између суседних конфигурација њена цена; време се мери временским жиговима на графичком "
+    "између суседних конфигурација њена цена. Време се мери временским жиговима на графичком "
     "процесору.",
     "Квалитет се мери у односу на конвергирану референцу добијену праћењем путање зрака, "
     "перцептивном мером разлике слика и класичним мерама сличности, усредњено преко више тачака "
