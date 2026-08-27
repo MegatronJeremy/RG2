@@ -48,7 +48,18 @@ geometry, and this evaluation does not isolate it further.
 \paragraph{Scena i kontrole.} The test scene is Sponza, a standard interior with strong indirect
 bounce, lit by five enabled lights: four point torches and one directional sun. Three spot lights and
 two further point lights are authored but disabled, and the distinction matters because the default
-shadow path costs one ray per light per pixel. Every measurement in this chapter renders at
+shadow path costs one ray per light per pixel.
+
+One property of the raster path bounds every technique that uses it: the engine allocates at most two
+omni shadow maps (\texttt{MAX\_SHADOW\_POINTS}, six depth passes each), so two of the four enabled
+point lights render unshadowed. Ray-traced shadows have no such cap, tracing one ray per light, so
+every technique in Table~\ref{tab:quality} except \texttt{sve RT} sits on a weaker shadow baseline
+than a renderer without that limit, which flatters the ray-traced side. The effect is bounded and
+small: the shadow technique alone moves PSNR 0.65 dB of the 15.68 dB between raster and all effects,
+and FLIP 0.024 of 0.349, so the lift in Section~\ref{sec:poredjenje} is dominated by global
+illumination rather than by this cap.
+
+Every measurement in this chapter renders at
 $1915 \times 1064$, with the camera held static for every A/B comparison, since a moving camera
 desynchronizes the frame sequence between two runs and fabricates differences that are timing
 artifacts. The shader cache is cleared before any GPU metric is trusted, since a stale cache produces

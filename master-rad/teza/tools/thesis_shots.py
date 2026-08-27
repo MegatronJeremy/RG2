@@ -85,11 +85,18 @@ SHOTS = [
     ("cone_glossy", GRAZING, {**BASE_ENV, "SS_RENDER_REFLECTIONS_MODE": "2", "SS_RENDER_DEBUGVIEW": "3",
                               "SS_RENDER_REFLECTIONS_MAX_ROUGHNESS": "1.0",
                               "SS_RENDER_REFLECTIONS_CONE_SCALE": "3"}, False),
-    ("refl_off", GRAZING, {**BASE_ENV}, False),
-    ("refl_rt", GRAZING, {**BASE_ENV, "SS_RENDER_REFLECTIONS_MODE": "2",
+    # These four isolate ONE effect, so everything else should be the configuration the thesis
+    # recommends rather than whatever the defaults happen to be. Shadows are traced here: the raster
+    # path caps at MAX_SHADOW_POINTS = 2 while Sponza has four enabled shadow-casting point lights, so
+    # leaving it at the default renders two torches with no shadow at all and puts an artifact in a
+    # figure whose subject is something else entirely.
+    ("refl_off", GRAZING, {**BASE_ENV, "SS_RENDER_SHADOWS_MODE": "2"}, False),
+    ("refl_rt", GRAZING, {**BASE_ENV, "SS_RENDER_SHADOWS_MODE": "2",
+                          "SS_RENDER_REFLECTIONS_MODE": "2",
                           "SS_RENDER_REFLECTIONS_MAX_ROUGHNESS": "1.0"}, False),
-    ("gi_off", ATRIUM, {**BASE_ENV}, False),
-    ("gi_on", ATRIUM, {**BASE_ENV, "SS_RENDER_GI_MODE": "2"}, False),
+    ("gi_off", ATRIUM, {**BASE_ENV, "SS_RENDER_SHADOWS_MODE": "2"}, False),
+    ("gi_on", ATRIUM, {**BASE_ENV, "SS_RENDER_SHADOWS_MODE": "2",
+                       "SS_RENDER_GI_MODE": "2"}, False),
     ("pt_ref", ATRIUM, {"SS_RENDER_PATHTRACE": "1", "SS_RENDER_PATHTRACE_CLAMP": "0",
                         "SS_RENDER_PATHTRACE_WEIGHTCLAMP": "0"}, True),
 
