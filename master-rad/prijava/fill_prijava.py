@@ -19,8 +19,8 @@ OUTPUT = HERE / "Obrazlozenje_teme_Vuk_Djordjevic.docx"
 STUDENT = "Вук Ђорђевић"
 INDEX = "2024 / 3102"
 MODUL = "Рачунарска техника и информатика"
-TITLE_SR = "Реализација и анализа хибридног осветљења у реалном времену применом праћења зрака"
-TITLE_EN = "Implementation and Analysis of Real-Time Hybrid Lighting Using Ray Tracing"
+TITLE_SR = "Хибридно осветљење у реалном времену применом праћења зрака"
+TITLE_EN = "Real-Time Hybrid Lighting Using Ray Tracing"
 # The form is dated the day it is filled, so this defaults to today rather than a literal that goes
 # stale every morning. Override for a specific submission date: SS_PRIJAVA_DATE="04. 09. 2026."
 DATE_ONLY = os.environ.get("SS_PRIJAVA_DATE") or datetime.date.today().strftime("%d. %m. %Y.")
