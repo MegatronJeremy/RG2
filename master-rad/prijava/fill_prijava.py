@@ -3,6 +3,8 @@
 The template marks every field to be completed in red (FF0000); this replaces those runs with
 black body text, keeping the faculty letterhead, styles, and paragraph properties intact.
 """
+import datetime
+import os
 import re
 import shutil
 import sys
@@ -19,7 +21,9 @@ INDEX = "2024 / 3102"
 MODUL = "Рачунарска техника и информатика"
 TITLE_SR = "Хибридно осветљење у реалном времену применом праћења зрака"
 TITLE_EN = "Real-Time Hybrid Lighting Using Ray Tracing"
-DATE_ONLY = "26. 08. 2026."
+# The form is dated the day it is filled, so this defaults to today rather than a literal that goes
+# stale every morning. Override for a specific submission date: SS_PRIJAVA_DATE="04. 09. 2026."
+DATE_ONLY = os.environ.get("SS_PRIJAVA_DATE") or datetime.date.today().strftime("%d. %m. %Y.")
 
 # The form's own Напомене require this to be stated at topic registration when the thesis itself is
 # written in English: "Уколико се рад пише на енглеском, то се мора нагласити приликом пријаве теме
