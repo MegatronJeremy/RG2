@@ -8,7 +8,9 @@
 \usepackage[utf8]{inputenc}
 \usepackage{lmodern}
 \usepackage[a4paper, top=30mm, bottom=30mm, left=20mm, right=20mm]{geometry} % PPK margins
-\usepackage[serbian]{babel}
+% English last, so it is the document language: the body is English and was previously being
+% hyphenated by Serbian patterns. Serbian stays loaded for the Serbian abstract and keywords.
+\usepackage[serbian,english]{babel}
 
 \usepackage{graphicx}
 \usepackage{amsmath}
@@ -46,16 +48,22 @@
 \displaywidowpenalty=10000
 \usepackage{fancyhdr}
 
-% Serbian structural names (PPK); pin them so the class's English defaults never leak through.
+% Structural names. The thesis is written in English (Clan 30), so these follow the body rather than
+% the faculty's Serbian default. The title page stays Serbian: etf.cls hardcodes it and it carries the
+% faculty's identity, not the thesis content.
+\addto\captionsenglish{%
+  \renewcommand{\contentsname}{Contents}%
+  \renewcommand{\listfigurename}{List of Figures}%
+  \renewcommand{\listtablename}{List of Tables}%
+  \renewcommand{\bibname}{Bibliography}%
+  \renewcommand{\figurename}{Figure}%
+  \renewcommand{\tablename}{Table}%
+  \renewcommand{\abstractname}{Abstract}%
+  \renewcommand{\chaptername}{Chapter}%
+}
+% Serbian equivalents, used only while the Serbian abstract is selected.
 \addto\captionsserbian{%
-  \renewcommand{\contentsname}{Sadr\v{z}aj}%
-  \renewcommand{\listfigurename}{Spisak slika}%
-  \renewcommand{\listtablename}{Spisak tabela}%
-  \renewcommand{\bibname}{Literatura}%
-  \renewcommand{\figurename}{Slika}%
-  \renewcommand{\tablename}{Tabela}%
   \renewcommand{\abstractname}{Sa\v{z}etak}%
-  \renewcommand{\chaptername}{Glava}%
 }
 
 % PPK: page number in the bottom-right corner, on every page including chapter-opening (plain) pages.
@@ -129,9 +137,40 @@ from FLIP \qRasterFlip{} / PSNR \qRasterPsnr{} dB / SSIM \qRasterSsim{} (raster)
 \end{abstract}
 
 \begin{keywords}
+real-time ray tracing; ray query; Vulkan; global illumination; ambient occlusion; reflections; SVGF;
+denoising; hybrid rendering; cross-vendor; AMD RDNA4; NVIDIA Blackwell
+\end{keywords}
+
+% Clan 30 permits the thesis in English and defers the rest to the Faculty Statute, which is not in
+% this repository, so the Serbian abstract stays as well: it is the usual practice for an English
+% thesis here and it costs one page.
+\selectlanguage{serbian}
+\begin{abstract}
+Ovaj rad integri\v{s}e \v{c}etiri efekta osvetljenja zasnovana na pra\'cenju zrakova (senke,
+ambijentalnu okluziju, refleksije i difuzno globalno osvetljenje) kao inline ray query
+(\texttt{VK_KHR_ray_query}) prolaze iznad rasterizacionog forward prolaza, u endzinu koji je autor
+sam napisao nad Vulkan-om. Rasterizacija te globalne efekte ina\v{c}e pribli\v{z}ava postupcima u
+prostoru ekrana i unapred izra\v{c}unatim postupcima, koji otkazuju na geometriji van ekrana i na
+dinami\v{c}koj sceni. \v{S}umoviti signali se rekonstrui\v{s}u zajedni\v{c}kim SVGF filtrom i
+stabilizuju temporalnim anti-aliasing-om. Cena svakog efekta na grafi\v{c}kom procesoru izoluje se
+A/B matricom konfiguracija, a kvalitet rekonstrukcije meri se merama FLIP, PSNR i SSIM u odnosu na
+konvergiranu path-traced referencu, preko vi\v{s}e ta\v{c}aka gledi\v{s}ta, na hardveru dva
+proizvo\dj a\v{c}a (AMD RDNA4 i NVIDIA Blackwell) uz isti kod. Dva proizvo\dj a\v{c}a rangiraju
+efekte razli\v{c}ito: na RX 9070 XT senke dominiraju sa \perfEffShadowsAMD{} ms, dok na RTX 5070
+senke, refleksije i globalno osvetljenje ko\v{s}taju isto u granicama mernog rasipanja, uz izmerene
+ukupne vrednosti od \perfTotalAMD{} ms i \perfTotalNV{} ms nad osnovama od \perfBaseAMD{} i
+\perfBaseNV{} ms. Izbor tehnike za senke je tako\dj e zavisan od arhitekture: stohasti\v{c}ki
+producent je jeftiniji od inline trasiranja po svetlu na AMD-u, a 2,6 puta skuplji na NVIDIA-i.
+Uklju\v{c}ivanje sva \v{c}etiri efekta podi\v{z}e kvalitet rekonstrukcije sa FLIP \qRasterFlip{} /
+PSNR \qRasterPsnr{} dB / SSIM \qRasterSsim{} (raster) na FLIP \qAllRtFlip{} / PSNR \qAllRtPsnr{} dB /
+SSIM \qAllRtSsim{} u odnosu na path-traced referencu.
+\end{abstract}
+
+\begin{keywords}
 ray tracing u realnom vremenu; ray query; Vulkan; globalno osvetljenje; ambijentalna okluzija;
 refleksije; SVGF; uklanjanje \v{s}uma; hibridno renderovanje; cross-vendor; AMD RDNA4; NVIDIA Blackwell
 \end{keywords}
+\selectlanguage{english}
 
 % PPK: front matter in roman numerals; arabic count restarts at Uvod.
 \pagenumbering{roman}

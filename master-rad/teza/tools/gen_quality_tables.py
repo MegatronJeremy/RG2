@@ -37,27 +37,27 @@ MOTION_LABELS = {
     "ssao": "SSAO",
     "rtao": "RT AO",
     "ssr": "SSR",
-    "rtrefl": "RT refleksije",
-    "rtshadow": "RT senke",
+    "rtrefl": "RT reflections",
+    "rtshadow": "RT shadows",
     "ssgi": "SSGI",
     "rtgi": "RT GI",
-    "megalights": r"stohasti\v{c}ke senke",
-    "megalights-nospec": r"stohasti\v{c}ke senke (bez spec.)",
-    "all-rt": r"sve RT (all-RT)",
+    "megalights": "stochastic shadows",
+    "megalights-nospec": "stochastic shadows (no spec.)",
+    "all-rt": "all RT (all-RT)",
 }
-PROBES = [("dolly", "naprednica"), ("strafe", "bo\\v{c}no"),
-          ("reversal", "zaokret"), ("static", r"parkirana")]
+PROBES = [("dolly", "dolly"), ("strafe", "strafe"),
+          ("reversal", "reversal"), ("static", "parked")]
 
 # thesis row order and label, keyed by the technique slug the gate writes
 TECHNIQUES = [
-    ("raster", r"raster (bez efekata)"),
+    ("raster", "raster (no effects)"),
     ("ssao", "SSAO"),
     ("rtao", "RT AO"),
     ("ssr", "SSR"),
-    ("rtrefl", "RT refleksije"),
+    ("rtrefl", "RT reflections"),
     ("ssgi", "SSGI"),
     ("rtgi", "RT GI"),
-    ("all-rt", r"sve RT (all-RT)"),
+    ("all-rt", "all RT (all-RT)"),
 ]
 
 
@@ -86,7 +86,7 @@ def main():
     out = {
         "raycount.tex": tabular(
             "@{}rrrrr@{}",
-            r"Zraka/piksel & PSNR (dB) & SSIM & FLIP & GPU ukupno (ms)",
+            r"Rays/pixel & PSNR (dB) & SSIM & FLIP & GPU total (ms)",
             [rf"{r['spp']} & {r['psnr']:.2f} & {r['ssim']:.4f} & {r['flip']:.4f} & {r['gpu_total_ms']:.2f} \\"
              for r in rc]),
     }
@@ -107,7 +107,7 @@ def main():
                 if slug == "all-rt" else rf"{f:.3f} & {p:.2f} & {s:.3f}")
         rows.append(rf"{label:<20} & {cell} \\")
     out["quality.tex"] = tabular(
-        "lrrr", r"Tehnika & FLIP $\downarrow$ & PSNR (dB) $\uparrow$ & SSIM $\uparrow$", rows)
+        "lrrr", r"Technique & FLIP $\downarrow$ & PSNR (dB) $\uparrow$ & SSIM $\uparrow$", rows)
 
     for slug, name in (("raster", "Raster"), ("rtgi", "RtGi"), ("all-rt", "AllRt")):
         f, p, s = means[slug]
@@ -125,7 +125,7 @@ def main():
     order = sorted(mot, key=lambda t: mot[t]["flip"])
     out["motion.tex"] = tabular(
         "lrrrr",
-        r"Tehnika & FLIP $\downarrow$ & tFLIP $\downarrow$ & ka\v{s}njenje $\downarrow$ & JOD $\uparrow$",
+        r"Technique & FLIP $\downarrow$ & tFLIP $\downarrow$ & lag $\downarrow$ & JOD $\uparrow$",
         [rf"{MOTION_LABELS.get(t, t):<32} & {mot[t]['flip']:.3f} & {mot[t]['tflip']:.4f} & "
          rf"{mot[t]['motionPenalty']:.3f} & {mot[t]['cvvdpJod']:.2f} \\" for t in order])
 
@@ -137,9 +137,9 @@ def main():
                           for p, _lab in PROBES)
     out["motion-probes.tex"] = tabular(
         "llrrrr",
-        "Tehnika & mera & " + " & ".join(lab for _p, lab in PROBES),
+        "Technique & metric & " + " & ".join(lab for _p, lab in PROBES),
         [rf"{MOTION_LABELS[t]} & tFLIP & {probe_row(t, 'tflip')} \\" + "\n"
-         + rf"{MOTION_LABELS[t]} & ka\v{{s}}njenje & {probe_row(t, 'motionPenalty')} \\"
+         + rf"{MOTION_LABELS[t]} & lag & {probe_row(t, 'motionPenalty')} \\"
          for t in ("raster", "all-rt")])
 
     for slug, name in (("all-rt", "AllRt"), ("rtgi", "RtGi"), ("raster", "Raster")):
@@ -161,12 +161,12 @@ def main():
     dtot = full["gpu_total_ms"] - half["gpu_total_ms"]
     out["halfres.tex"] = tabular(
         "lrrr",
-        r" & polovi\v{c}na (0.5) & puna (1.0) & razlika",
-        [rf"Ukupno GPU (ms) & {half['gpu_total_ms']:.2f} & {full['gpu_total_ms']:.2f} & "
+        r" & half (0.5) & full (1.0) & difference",
+        [rf"Total GPU (ms) & {half['gpu_total_ms']:.2f} & {full['gpu_total_ms']:.2f} & "
          rf"$+{100 * dtot / half['gpu_total_ms']:.0f}\%$ \\",
-         rf"\texttt{{GI}} prolaz (ms) & {half['passes']['GI']:.2f} & {full['passes']['GI']:.2f} & "
+         rf"\texttt{{GI}} pass (ms) & {half['passes']['GI']:.2f} & {full['passes']['GI']:.2f} & "
          rf"{ratio(half['passes']['GI'], full['passes']['GI'])} \\",
-         rf"\texttt{{AO}} prolaz (ms) & {half['passes']['AO']:.2f} & {full['passes']['AO']:.2f} & "
+         rf"\texttt{{AO}} pass (ms) & {half['passes']['AO']:.2f} & {full['passes']['AO']:.2f} & "
          rf"{ratio(half['passes']['AO'], full['passes']['AO'])} \\",
          r"\midrule",
          rf"PSNR (dB) & {half['psnr']:.2f} & {full['psnr']:.2f} & ${full['psnr'] - half['psnr']:+.2f}$ \\",
@@ -182,8 +182,8 @@ def main():
     off, on = de["quality_off"], de["quality_on"]
     out["denoise-eval.tex"] = tabular(
         "@{}lrrr@{}", r"Denoiser & PSNR (dB) & SSIM & FLIP",
-        [rf"isklju\v{{c}}en & {off['psnr']:.2f} & {off['ssim']:.4f} & {off['flip']:.4f} \\",
-         rf"uklju\v{{c}}en & {on['psnr']:.2f} & {on['ssim']:.4f} & {on['flip']:.4f} \\"])
+        [rf"off & {off['psnr']:.2f} & {off['ssim']:.4f} & {off['flip']:.4f} \\",
+         rf"on & {on['psnr']:.2f} & {on['ssim']:.4f} & {on['flip']:.4f} \\"])
 
     knee = rc[-1]["gpu_total_ms"] / rc[0]["gpu_total_ms"] - 1.0
     macros = [

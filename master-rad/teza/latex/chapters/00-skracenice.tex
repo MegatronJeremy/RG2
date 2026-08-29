@@ -1,60 +1,58 @@
-\chapter*{Spisak skra\'cenica}
-\addcontentsline{toc}{chapter}{Spisak skra\'cenica}
+\chapter*{List of abbreviations}
+\addcontentsline{toc}{chapter}{List of abbreviations}
 
 \begin{description}
-  \item[AO] Ambient Occlusion (ambijentalna okluzija): potamnjenje tamo gde okolna geometrija
-    zaklanja difuznu svetlost, npr. u uglovima i pukotinama
-  \item[\`a-trous] filter koji u svakoj iteraciji udvostru\v{c}uje razmak izme\dj u uzoraka, pa
-    \v{s}iri\ doseg posti\v{z}e bez kvadratnog rasta cene
-  \item[BLAS] Bottom-Level Acceleration Structure: BVH nad trouglovima jedne mre\v{z}e, u
-    objektnom prostoru
-  \item[BRDF] Bidirectional Reflectance Distribution Function: funkcija koja opisuje koliko
-    svetlosti povr\v{s}ina odbija iz jednog pravca u drugi
-  \item[BVH] Bounding Volume Hierarchy: stablo ugnje\v{z}denih kutija koje zraku omogu\'cava da
-    preska\v{c}e ve\'cinu trouglova
-  \item[CVar] Console Variable (konzolna promenljiva)
+  \item[AO] Ambient Occlusion: darkening where nearby geometry blocks diffuse light, e.g. in
+    corners and crevices
+  \item[\`a-trous] a filter that doubles the spacing between samples on every iteration, so it
+    reaches wider without a quadratic rise in cost
+  \item[BLAS] Bottom-Level Acceleration Structure: a BVH over the triangles of one mesh, in object
+    space
+  \item[BRDF] Bidirectional Reflectance Distribution Function: describes how much light a surface
+    reflects from one direction into another
+  \item[BVH] Bounding Volume Hierarchy: a tree of nested boxes that lets a ray skip most triangles
+  \item[CVar] Console Variable
   \item[DDGI] Dynamic Diffuse Global Illumination
-  \item[disokluzija] pojava piksela koji u prethodnom kadru nije bio vidljiv, pa za njega ne
-    postoji istorija koju bi temporalni filter mogao da iskoristi
+  \item[disocclusion] a pixel that was not visible in the previous frame, so no history exists for a
+    temporal filter to reuse
   \item[ECS] Entity-Component-System
-  \item[FLIP] perceptualna metrika razlike slika (NVIDIA); ni\v{z}e je bolje
-  \item[G-buffer] me\dj ubafer sa geometrijskim podacima po pikselu (dubina, normala), popunjen
-    pre osvetljavanja
-  \item[GI] Global Illumination (globalno osvetljenje): svetlost koja do povr\v{s}ine sti\v{z}e
-    posle bar jednog odbijanja
+  \item[FLIP] perceptual image-difference metric (NVIDIA), lower is better
+  \item[G-buffer] intermediate buffer with per-pixel geometric data (depth, normal), filled before
+    shading
+  \item[GI] Global Illumination: light that reaches a surface after at least one bounce
   \item[HLSL] High-Level Shading Language
-  \item[LDS] Local Data Share: deljena memorija radne grupe na AMD GPU-ovima
+  \item[LDS] Local Data Share: workgroup shared memory on AMD GPUs
   \item[MIS] Multiple Importance Sampling
-  \item[NEE] Next-Event Estimation: u path tracer-u, direktno uzorkovanje izvora svetla iz svake
-    ta\v{c}ke puta umesto \v{c}ekanja da ga zrak slu\v{c}ajno pogodi
-  \item[OMM] Opacity Micromap: mapa prozirnosti po mikro-trouglu, koja traversal-u dozvoljava da
-    presko\v{c}i alpha test
-  \item[penumbra] mek prelaz izme\dj u osvetljenog dela i pune senke (umbre), \v{s}irok utoliko
-    vi\v{s}e ukoliko je izvor svetla ve\'ci ili okluder dalji
-  \item[PSNR] Peak Signal-to-Noise Ratio: logaritamska mera srednje kvadratne gre\v{s}ke; vi\v{s}e
-    je bolje, ali sistematski favorizuje zamu\'cenu sliku
-  \item[RDNA] Radeon DNA (AMD GPU arhitektura)
-  \item[reprojekcija] preslikavanje piksela iz teku\'ceg u prethodni kadar preko vektora kretanja,
-    da bi se ponovo upotrebio ranije izra\v{c}unat rezultat
+  \item[NEE] Next-Event Estimation: in a path tracer, sampling a light source directly from every
+    path vertex instead of waiting for a ray to hit it by chance
+  \item[OMM] Opacity Micromap: per-micro-triangle opacity map that lets traversal skip the alpha
+    test
+  \item[penumbra] the soft transition between the lit region and full shadow (the umbra), wider the
+    larger the light source or the further the occluder
+  \item[PSNR] Peak Signal-to-Noise Ratio: a logarithmic measure of mean squared error, higher is
+    better although it systematically favours the blurrier image
+  \item[RDNA] Radeon DNA (AMD GPU architecture)
+  \item[reprojection] mapping a pixel from the current frame into the previous one through motion
+    vectors, to reuse a previously computed result
   \item[ReSTIR] Reservoir Spatiotemporal Importance Resampling
   \item[RIS] Resampled Importance Sampling
-  \item[RT] Ray Tracing (trasiranje zrakova)
+  \item[RT] Ray Tracing
   \item[RTXGI] RTX Global Illumination
-  \item[spp] samples per pixel (uzoraka po pikselu)
+  \item[spp] samples per pixel
   \item[SPIR-V] Standard Portable Intermediate Representation (Vulkan)
   \item[SSAO] Screen-Space Ambient Occlusion
   \item[SSGI] Screen-Space Global Illumination
-  \item[SSIM] Structural Similarity Index Measure: pore\dj enje lokalne strukture, ne apsolutnih
-    vrednosti; vi\v{s}e je bolje
+  \item[SSIM] Structural Similarity Index Measure: compares local structure rather than absolute
+    values, higher is better
   \item[SSR] Screen-Space Reflections
-  \item[SVGF] Spatiotemporal Variance-Guided Filtering: denoiser koji temporalnu akumulaciju
-    kombinuje sa prostornim filtrom vo\dj enim procenjenom varijansom
+  \item[SVGF] Spatiotemporal Variance-Guided Filtering: a denoiser combining temporal accumulation
+    with a spatial filter guided by estimated variance
   \item[TAA] Temporal Anti-Aliasing
-  \item[TLAS] Top-Level Acceleration Structure: BVH nad instancama, gde svaka instanca nosi
-    transformaciju i pokaziva\v{c} na BLAS
-  \item[tonemap] preslikavanje HDR vrednosti u opseg prikaza
-  \item[VGPR] Vector General-Purpose Register: registri po niti; njihov broj odre\dj uje koliko
-    talasa mo\v{z}e istovremeno da bude u letu (zauzetost)
-  \item[zauzetost] (occupancy) broj istovremeno aktivnih talasa po SIMD jedinici; vi\v{s}a
-    zauzetost bolje sakriva ka\v{s}njenje memorije
+  \item[TLAS] Top-Level Acceleration Structure: a BVH over instances, where each instance carries a
+    transform and a pointer to a BLAS
+  \item[tonemap] mapping HDR values into the display range
+  \item[VGPR] Vector General-Purpose Register: per-thread registers whose count determines how many
+    waves can be in flight at once (occupancy)
+  \item[occupancy] the number of simultaneously active waves per SIMD unit: higher occupancy hides
+    memory latency better
 \end{description}

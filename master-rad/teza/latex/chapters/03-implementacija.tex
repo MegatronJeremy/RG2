@@ -1,4 +1,4 @@
-\chapter{Opis implementacije}
+\chapter{Implementation}
 \label{ch:implementacija}
 
 
@@ -6,7 +6,7 @@ This chapter describes how the four ray-traced effects and the shared denoiser a
 the Snowstorm engine, with the emphasis on the ray tracing itself and its cost rather than on every
 engine subsystem.
 
-\section{Snowstorm Engine (pregled)}
+\section{Snowstorm Engine (overview)}
 \label{sec:engine}
 
 Snowstorm is a Vulkan engine the author wrote from scratch. This thesis uses it as the host for the
@@ -24,7 +24,7 @@ triangle's attributes and its material at trace time. The Vulkan physical device
 by index or name through a CVar, so the same binary runs on either GPU, which the cross-vendor
 evaluation of Chapter~\ref{ch:analiza} depends on.
 
-\section{Render graf i struktura frejma}
+\section{Render graph and frame structure}
 \label{sec:rendergraph}
 
 The renderer is organized as a \texttt{RenderGraph}: passes are appended in order, each declaring the
@@ -57,29 +57,29 @@ ones) upsample, which is what lets one denoiser implementation serve all of them
 (Section~\ref{sec:denoising}).
 
 \begin{table}[tbp]
-\caption[Prolazi po frejmu, redom]{Prolazi po frejmu redom kojim se izvr\v{s}avaju. Tri efekta se
-rekonstrui\v{s}u pre osvetljavanja i ulaze u \texttt{Forward} kao teksture, a senke su izuzetak i
-trasiraju se inline unutar \texttt{Forward} prolaza.}
+\caption[Per-frame passes, in order]{Per-frame passes in execution order. Three effects are
+reconstructed before shading and enter \texttt{Forward} as textures, although shadows are the
+exception and are traced inline inside the \texttt{Forward} pass.}
 \label{tab:framegraph}
 \centering
 \small
 \begin{tabular}{@{}>{\raggedright\arraybackslash}p{2.9cm}@{\hspace{4mm}}>{\raggedright\arraybackslash}p{9.4cm}@{}}
 \toprule
-\textbf{Faza} & \textbf{Prolazi, redom} \\
+\textbf{Stage} & \textbf{Passes, in order} \\
 \midrule
-G-buffer & \texttt{DepthNormal} (dubina + geometrijska normala), \texttt{Velocity} (vektori kretanja) \\
+G-buffer & \texttt{DepthNormal} (depth + geometric normal), \texttt{Velocity} (motion vectors) \\
 \addlinespace[2pt]
-GI (1/2 rez.) & \texttt{GI} $\rightarrow$ \texttt{GITemporal} $\rightarrow$ \texttt{GIDenoise} $\rightarrow$ \texttt{GIUpsample} \\
+GI (1/2 res.) & \texttt{GI} $\rightarrow$ \texttt{GITemporal} $\rightarrow$ \texttt{GIDenoise} $\rightarrow$ \texttt{GIUpsample} \\
 \addlinespace[2pt]
-AO (1/2 rez.) & \texttt{AO} $\rightarrow$ \texttt{AOTemporal} $\rightarrow$ \texttt{AODenoise} $\rightarrow$ \texttt{AOUpsample} \\
+AO (1/2 res.) & \texttt{AO} $\rightarrow$ \texttt{AOTemporal} $\rightarrow$ \texttt{AODenoise} $\rightarrow$ \texttt{AOUpsample} \\
 \addlinespace[2pt]
-Refleksije (puna) & \texttt{Reflection} $\rightarrow$ \texttt{ReflectionTemporal} (a-trous za refleksije je podrazumevano isklju\v{c}en) \\
+Reflections (full) & \texttt{Reflection} $\rightarrow$ \texttt{ReflectionTemporal} (the a-trous filter for reflections is off by default) \\
 \addlinespace[2pt]
-Osvetljavanje & \texttt{Forward} (\texttt{DefaultLit}): early-Z prepass, nebo, inline zraci senke, i kombinovanje sa GI/AO/refleksijama \\
+Shading & \texttt{Forward} (\texttt{DefaultLit}): early-Z prepass, sky, inline shadow rays, and the combine with GI/AO/reflections \\
 \addlinespace[2pt]
 Post & \texttt{Upscale} $\rightarrow$ \texttt{TemporalResolve} (TAA) $\rightarrow$ tonemap $\rightarrow$ FXAA $\rightarrow$ \texttt{Sharpen} \\
 \addlinespace[2pt]
-Merenje & \texttt{Compare}, \texttt{Metrics} (PSNR, SSIM) \\
+Measurement & \texttt{Compare}, \texttt{Metrics} (PSNR, SSIM) \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -112,7 +112,7 @@ shadow boundary is a step function and a reflection is view-dependent, so there 
 can legitimately see something completely different, and halving the resolution destroys the detail
 that made the effect worth tracing rather than blurring noise.
 
-\section{Izgradnja struktura ubrzanja (BLAS/TLAS)}
+\section{Building the acceleration structures (BLAS/TLAS)}
 \label{sec:accel}
 
 Ray queries trace against the two-level structure described in Section~\ref{sec:accel-pregled}. Each
@@ -140,7 +140,7 @@ which is the common case for the benchmark scene. A full rebuild on every dynami
 than a refit would be. This is called out as a limitation in Chapter~\ref{ch:zakljucak} and was
 chosen for implementation simplicity given that the test scenes are largely static.
 
-\paragraph{Opacity micromaps za cutout geometriju.} On a device exposing
+\paragraph{Opacity micromaps for cutout geometry.} On a device exposing
 \texttt{VK\_EXT\_opacity\_micromap} (\texttt{render.omm}, on by default when supported), a cutout
 material instead builds a second, non-opaque BLAS carrying an opacity micromap: a compute pass
 (\texttt{OmmBake.comp}) bakes the material's albedo alpha into a per-microtriangle
@@ -174,19 +174,19 @@ all four effects.
 \begin{tikzpicture}[>={Stealth[]}, font=\small, node distance=4mm,
   box/.style={draw, rounded corners, align=left, inner sep=4pt, text width=4.4cm},
   src/.style={box, fill=black!7}]
-  \node[src] (hit) {\textbf{Poga\dj eni trougao}\\\footnotesize \texttt{instanceId}, \texttt{prim},
+  \node[src] (hit) {\textbf{Hit triangle}\\\footnotesize \texttt{instanceId}, \texttt{prim},
     \texttt{bary}};
-  \node[box, below=8mm of hit] (rec) {\textbf{\texttt{GeoRecord}}\\\footnotesize adrese vertex i index
-    bafera, indeks teksture, materijal};
-  \node[box, right=16mm of rec] (idx) {\textbf{Index bafer}\\\footnotesize tri indeksa na
+  \node[box, below=8mm of hit] (rec) {\textbf{\texttt{GeoRecord}}\\\footnotesize vertex and index
+    buffer addresses, texture index, material};
+  \node[box, right=16mm of rec] (idx) {\textbf{Index buffer}\\\footnotesize three indices at
     \texttt{IndexAddress + prim*12}};
-  \node[box, below=8mm of rec] (vtx) {\textbf{Vertex bafer}\\\footnotesize atributi, interpolirani
-    baricentrima};
-  \node[box, right=16mm of vtx] (tex) {\textbf{Bindless niz tekstura}\\\footnotesize
+  \node[box, below=8mm of rec] (vtx) {\textbf{Vertex buffer}\\\footnotesize attributes, interpolated
+    by barycentrics};
+  \node[box, right=16mm of vtx] (tex) {\textbf{Bindless texture array}\\\footnotesize
     \texttt{NonUniformResourceIndex}};
-  \node[src, below=8mm of vtx] (out) {\textbf{\texttt{HitSurface}}\\\footnotesize albedo, normala,
-    metalnost, hrapavost};
-  \draw[->] (hit) -- node[right, font=\scriptsize] {tabela po adresi} (rec);
+  \node[src, below=8mm of vtx] (out) {\textbf{\texttt{HitSurface}}\\\footnotesize albedo, normal,
+    metallic, roughness};
+  \draw[->] (hit) -- node[right, font=\scriptsize] {table by address} (rec);
   \draw[->] (rec) -- (idx);
   \draw[->] (rec) -- (vtx);
   \draw[->] (idx) -- (vtx);
@@ -194,15 +194,15 @@ all four effects.
   \draw[->] (tex) -- (out);
   \draw[->] (vtx) -- (out);
 \end{tikzpicture}
-\caption[Razre\v{s}avanje pogotka kroz bindless tabelu geometrije]{Od poga\dj enog trougla do
-osen\v{c}ene povr\v{s}i, bez shader binding table-a. \texttt{RayQuery} vra\'ca samo tri broja, a
-\texttt{ResolveHit} od njih stiže do geometrije i materijala kroz tabelu indeksiranu sa
-\texttt{instanceCustomIndex}. Indeks teksture nije uniforman unutar talasa, pa mora kroz
+\caption[Hit resolution through the bindless geometry table]{From the hit triangle to the shaded
+surface, with no shader binding table. \texttt{RayQuery} returns only three numbers, and from them
+\texttt{ResolveHit} reaches the geometry and the material through a table indexed by
+\texttt{instanceCustomIndex}. The texture index is not uniform within a wave, so it has to go through
 \texttt{NonUniformResourceIndex}.}
 \label{fig:hitresolve}
 \end{figure}
 
-\section{\v{C}etiri efekta preko inline ray query}
+\section{Four effects over inline ray queries}
 \label{sec:efekti}
 
 All four effects share the same core operation: construct a ray, create a \texttt{RayQuery} against
@@ -212,20 +212,20 @@ can stop at the first hit, which is both the cheaper traversal and the reason it
 ray count than an effect that must shade what it finds.
 
 \begin{table}[tbp]
-\caption[Parametri \v{c}etiri efekta]{Kako se \v{c}etiri efekta razlikuju pri istoj inline ray query
-operaciji. Broj zrakova i razmera su podrazumevane vrednosti odgovaraju\'cih CVar-ova. ,,Prvi
-pogodak`` je \texttt{RAY\_FLAG\_ACCEPT\_FIRST\_HIT\_AND\_END\_SEARCH}, koji prekida obilazak \v{c}im
-na\dj e bilo koji presek.}
+\caption[Parameters of the four effects]{How the four effects differ under the same inline ray query
+operation. Ray count and scale are the defaults of the corresponding CVars. ``First hit'' is
+\texttt{RAY\_FLAG\_ACCEPT\_FIRST\_HIT\_AND\_END\_SEARCH}, which stops traversal as soon as it finds
+any intersection.}
 \label{tab:effect-params}
 \centering
 \begin{tabular}{lllll}
 \toprule
-Efekat & zraka/piksel & obilazak & rezultat pogotka & razmera \\
+Effect & rays/pixel & traversal & hit result & scale \\
 \midrule
-senke        & 4 po svetlu & prvi pogodak & vidljivost (0/1)        & 1.0 \\
-AO           & 2           & prvi pogodak & okluzija + rastojanje   & 0.5 \\
-refleksije   & 1           & najbli\v{z}i & osen\v{c}ena radijansa  & 1.0 \\
-GI           & 2           & najbli\v{z}i & osen\v{c}ena radijansa  & 0.5 \\
+shadows      & 4 per light & first hit & visibility (0/1)  & 1.0 \\
+AO           & 2           & first hit & occlusion + distance & 0.5 \\
+reflections  & 1           & closest   & shaded radiance   & 1.0 \\
+GI           & 2           & closest   & shaded radiance   & 0.5 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -257,7 +257,7 @@ in how the signal is produced. They are the baselines of Section~\ref{sec:poredj
 has no device-support check and runs on any GPU, while ray-traced GI (mode 2) is the one that
 degrades to off without ray-tracing support.
 
-\subsection{Senke (RT shadows)}
+\subsection{Shadows (RT shadows)}
 \label{sec:senke}
 
 Shadows are traced inline in the forward pass, once per light per pixel, at full resolution and
@@ -278,22 +278,22 @@ whole frame. Section~\ref{sec:analiza-shadow-strategy} measures that tradeoff.
 \begin{figure}[tbp]
 \centering
 \begin{minipage}{0.48\textwidth}\centering
-\includegraphics[width=\linewidth]{figures/shadow_map.png}\\{\small mapa senki (raster)}
+\includegraphics[width=\linewidth]{figures/shadow_map.png}\\{\small shadow map (raster)}
 \end{minipage}\hfill
 \begin{minipage}{0.48\textwidth}\centering
-\includegraphics[width=\linewidth]{figures/shadow_rt.png}\\{\small trasirane senke}
+\includegraphics[width=\linewidth]{figures/shadow_rt.png}\\{\small ray-traced shadows}
 \end{minipage}
-\caption[Mapa senki naspram trasiranih senki]{Ista poza i isto svetlo, \texttt{render.shadows.mode}
-1 naspram 2. Rasterska mapa ima kona\v{c}nu rezoluciju i pomeraj dubine, pa se kontaktne senke
-razlivaju i ivice su mek\v{s}e nego \v{s}to geometrija nala\v{z}e, a trasirana verzija ih razre\v{s}ava
-preko stvarne geometrije. Snimci su deterministi\v{c}ki (dva uzastopna snimka iste konfiguracije su
-identi\v{c}na do bita), pa je svaka razlika izme\dj u panela stvarna.}
+\caption[Shadow map versus ray-traced shadows]{The same pose and the same light,
+\texttt{render.shadows.mode} 1 versus 2. The raster map has finite resolution and a depth bias, so
+contact shadows bleed and edges are softer than the geometry dictates, while the traced version
+resolves them against the real geometry. The captures are deterministic (two consecutive captures of
+the same configuration are bit-identical), so every difference between the panels is real.}
 \label{fig:shadow-vs-map}
 \end{figure}
 
 
 \needspace{22\baselineskip}
-\begin{lstlisting}[caption={Inline ray-query test vidljivosti za senku (HLSL).}, label={lst:shadow}]
+\begin{lstlisting}[caption={Inline ray-query visibility test for a shadow (HLSL).}, label={lst:shadow}]
 RayQuery<RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> q;
 RayDesc ray;
 ray.Origin    = positionWS + Ng * 0.02 + L * 0.01;
@@ -335,7 +335,7 @@ the two-sample penumbra across frames for the temporal accumulator to resolve
   \draw[thick] (-2.6,0) -- (2.6,0);                      % surface
   % light-source disk (perpendicular to L), drawn as a circle
   \draw[fill=black!8] (2.7,2.4) circle (0.45);
-  \node[font=\scriptsize, align=center] at (2.7,3.25) {izvor\\(polupre\v{c}nik $r$)};
+  \node[font=\scriptsize, align=center] at (2.7,3.25) {source\\(radius $r$)};
   % direction to the light centre
   \draw[dashed] (0,0) -- (2.7,2.4);
   \node[font=\scriptsize] at (1.55,1.05) {$L$};
@@ -347,9 +347,9 @@ the two-sample penumbra across frames for the temporal accumulator to resolve
   \node[font=\scriptsize, black!55] at (3.02,2.52) {$\theta/2$};
   \fill (0,0) circle (1.7pt) node[below=3pt] {$P$};
 \end{tikzpicture}
-\caption{Meke senke: iz ta\v{c}ke $P$ se zraci uzorkuju ravnomerno po prostornom uglu unutar konusa
-koji izvor zaklapa oko pravca $L$, sa polovinom ugla $\theta/2$ odre\dj enom polupre\v{c}nikom
-izvora $r$ i rastojanjem. Udeo neblokiranih zraka daje penumbru.}
+\caption{Soft shadows: from point $P$ rays are sampled uniformly by solid angle inside the cone the
+source subtends around direction $L$, with half-angle $\theta/2$ set by the source radius $r$ and the
+distance. The fraction of unblocked rays gives the penumbra.}
 \label{fig:shadow}
 \end{figure}
 
@@ -373,14 +373,14 @@ horizon-rejected there.
 \centering
 \includegraphics[width=0.48\textwidth]{figures/shadow_hard.png}\hfill%
 \includegraphics[width=0.48\textwidth]{figures/shadow_soft.png}
-\caption{Tvrde (levo) naspram mekih (desno) ray-traced senki na osun\v{c}anoj traci poda: jedina
-razlika je \texttt{render.shadow.soft}. Uglovni pre\v{c}nik sunca je podignut na $3^\circ$, oko
-\v{s}est puta iznad fizi\v{c}kih $0{,}53^\circ$, jer je na stvarnoj vrednosti penumbra u\v{z}a od
-onoga \v{s}to se vidi u \v{s}tampi.}
+\caption{Hard (left) versus soft (right) ray-traced shadows on the sunlit floor strip: the only
+difference is \texttt{render.shadow.soft}. The sun's angular diameter is raised to $3^\circ$, about
+six times the physical $0.53^\circ$, since at the true value the penumbra is narrower than what
+print resolves.}
 \label{fig:shadow-hs}
 \end{figure}
 
-\paragraph{Stohasti\v{c}ka alternativa.} Tracing one ray per light per pixel is exact but scales
+\paragraph{The stochastic alternative.} Tracing one ray per light per pixel is exact but scales
 linearly with light count, which does not survive a scene lit by hundreds of sources. The engine
 therefore implements a second strategy, enabled by \texttt{render.shadows.stochastic} and off by
 default, following the MegaLights approach: each pixel uses resampled importance sampling to pick
@@ -401,13 +401,13 @@ the debug views expose the aggregate visibility buffer before and after filterin
 \centering
 \includegraphics[width=0.48\textwidth]{figures/dbg_shadow_raw.png}\hfill%
 \includegraphics[width=0.48\textwidth]{figures/dbg_shadow_denoised.png}
-\caption{Stohasti\v{c}ki agregatni odnos vidljivosti pre (levo) i posle (desno) temporalne
-akumulacije i a-trous filtra (\texttt{render.debugview} 8 i 9). Belo je potpuno osvetljeno, crno
-potpuno u senci. Levo se vidi da jedan uzorak po pikselu daje skoro binarni \v{s}um.}
+\caption{The stochastic aggregate visibility ratio before (left) and after (right) temporal
+accumulation and the a-trous filter (\texttt{render.debugview} 8 and 9). White is fully lit, black
+fully shadowed. The left panel shows that one sample per pixel is nearly binary noise.}
 \label{fig:shadow-denoise-ab}
 \end{figure}
 
-\subsection{Ambijentalna okluzija (AO)}
+\subsection{Ambient occlusion (AO)}
 
 Ambient occlusion is a compute pass (\texttt{AO.comp.hlsl}) run at half resolution. Each pixel
 reconstructs world position from the depth G-buffer and casts \texttt{render.ao.rays} short rays
@@ -419,7 +419,7 @@ darken more, and the result is scaled by \texttt{render.ao.intensity} (Listing~\
 
 
 \needspace{17\baselineskip}
-\begin{lstlisting}[caption={AO uzorkovanje hemisfere (HLSL, karakteristi\v{c}an ise\v{c}ak).}, label={lst:ao}]
+\begin{lstlisting}[caption={AO hemisphere sampling (HLSL, representative excerpt).}, label={lst:ao}]
 float occlusion = 0.0;
 for (uint k = 0; k < RayCount; ++k)
 {
@@ -452,15 +452,15 @@ bilaterally upsampled before the forward pass multiplies it into the ambient ter
   \foreach \a in {30,60,90,120,150} \draw[->, black!60] (0,0) -- (\a:1.9);
   \draw[fill=black!12] (0.85,0.55) rectangle (1.3,1.25);
   \draw[thin] (1.3,1.1) -- (2.05,1.6);
-  \node[font=\scriptsize, anchor=west] at (2.05,1.6) {okluder};
+  \node[font=\scriptsize, anchor=west] at (2.05,1.6) {occluder};
   \fill (0,0) circle (1.7pt) node[below=3pt] {$P$};
 \end{tikzpicture}
-\caption{Uzorkovanje po hemisferi za AO: iz ta\v{c}ke $P$ se baca vi\v{s}e kratkih zraka po hemisferi
-oko normale $N$. Udeo zraka koji u zadatom polupre\v{c}niku pogodi geometriju daje okluziju.}
+\caption{Hemisphere sampling for AO: from point $P$ several short rays are cast over the hemisphere
+around normal $N$. The fraction that hits geometry within the given radius gives the occlusion.}
 \label{fig:ao}
 \end{figure}
 
-\subsection{Refleksije (reflections)}
+\subsection{Reflections}
 
 Reflections are a compute pass (\texttt{Reflection.comp.hlsl}) run at full resolution, the only
 ray-traced effect not traced at half res, since reflection detail is view-dependent and does not
@@ -489,11 +489,11 @@ afterward in the forward pass (Figure~\ref{fig:refl}).
   \draw[->, black!55] (-2.05,2.05) -- (0,0); \node[font=\scriptsize] at (-1.55,1.35) {$V$};
   \foreach \a in {50,62,74} \draw[->, black!65] (0,0) -- (\a:2.15);
   \draw[dashed] (0,0) -- (62:2.3) node[above right, font=\scriptsize] {$R$};
-  \node[font=\scriptsize, align=center] at (2.0,1.05) {konus\\(hrapavost)};
+  \node[font=\scriptsize, align=center] at (2.0,1.05) {cone\\(roughness)};
   \fill (0,0) circle (1.7pt) node[below=3pt] {$P$};
 \end{tikzpicture}
-\caption{Refleksije: pravac odbijanja $R$ vektora pogleda $V$ oko normale $N$. Glatka povr\v{s}ina
-daje jedan o\v{s}tar zrak, a hrapava uzorkuje konus oko $R$.}
+\caption{Reflections: the reflected direction $R$ of the view vector $V$ about the normal $N$. A
+smooth surface gives one sharp ray, while a rough one samples a cone around $R$.}
 \label{fig:refl}
 \end{figure}
 
@@ -512,9 +512,9 @@ the whole content of its own intermediate.
 \centering
 \includegraphics[width=0.48\textwidth]{figures/refl_off.png}\hfill%
 \includegraphics[width=0.48\textwidth]{figures/refl_rt.png}
-\caption{Bez refleksija (levo) naspram ray-traced refleksija (desno), pri uglu gledanja blizu
-tangentnog gde je Fresnel-ov doprinos najve\'ci. Sjaj na draperijama i kamenu je razlika koju
-donosi prolaz.}
+\caption{Without reflections (left) versus ray-traced reflections (right), at a near-grazing view
+angle where the Fresnel contribution is largest. The sheen on the drapes and the stone is what the
+pass adds.}
 \label{fig:refl-onoff}
 \end{figure}
 
@@ -522,14 +522,14 @@ donosi prolaz.}
 \centering
 \includegraphics[width=0.48\textwidth]{figures/cone_sharp.png}\hfill%
 \includegraphics[width=0.48\textwidth]{figures/cone_glossy.png}
-\caption{Reflektovana radijansa pre kombinovanja (\texttt{render.debugview} 3): o\v{s}tar ogledalski
-zrak, \texttt{cone\_scale} 0 (levo), naspram konusa \v{s}irenog hrapavo\v{s}\'cu, \texttt{cone\_scale}
-3 (desno). U gotovoj slici se ova razlika ne vidi jer je refleksija mali aditivni \v{c}lan pored
-direktnog osvetljenja, a u sopstvenom baferu ona je ceo sadr\v{z}aj.}
+\caption{Reflected radiance before compositing (\texttt{render.debugview} 3): a sharp mirror ray,
+\texttt{cone\_scale} 0 (left), versus a roughness-widened cone, \texttt{cone\_scale} 3 (right). The
+difference is invisible in the finished image since the reflection is a small additive term next to
+direct lighting, although in its own buffer it is the whole content.}
 \label{fig:refl-cone}
 \end{figure}
 
-\subsection{Globalno osvetljenje (GI)}
+\subsection{Global illumination (GI)}
 
 Global illumination is the most expensive effect: a compute pass (\texttt{GI.comp.hlsl}) run at half
 resolution that computes one bounce of diffuse indirect light. It samples the hemisphere exactly as
@@ -563,8 +563,8 @@ of Section~\ref{sec:denoising}.
   \foreach \a in {35,70,110,145} \fill[black!30] (\a:2.1) circle (2.4pt);
   \fill (0,0) circle (1.7pt) node[below=3pt] {$P$};
 \end{tikzpicture}
-\caption{Globalno osvetljenje: kosinusno uzorkovanje hemisfere oko $N$ iz ta\v{c}ke $P$. Svaki zrak
-koji pogodi geometriju vra\'ca radijansu (jedno odbijanje).}
+\caption{Global illumination: cosine-weighted hemisphere sampling around $N$ from point $P$. Every
+ray that hits geometry returns radiance (one bounce).}
 \label{fig:gi}
 \end{figure}
 
@@ -577,8 +577,8 @@ Figure~\ref{fig:gi-onoff} shows the scene without and with ray-traced global ill
 \vspace{6pt}
 
 \includegraphics[width=0.82\textwidth]{figures/gi_on.png}
-\caption{Scena bez (gore) i sa (dole) globalnim osvetljenjem: jedan difuzni indirektni odboj daje
-prelivanje boja i popunu u senkama.}
+\caption{The scene without (top) and with (bottom) global illumination: one diffuse indirect bounce
+gives colour bleeding and fill in the shadows.}
 \label{fig:gi-onoff}
 \end{figure}
 
@@ -621,12 +621,12 @@ content that a diffuse-tuned reprojection does not perfectly handle.
   \node[box, below=of at]  (out){Denoised, then upsampled, into the Forward pass};
   \draw[->] (in) -- (tp); \draw[->] (tp) -- (at); \draw[->] (at) -- (out);
 \end{tikzpicture}
-\caption{SVGF denoiser: temporalna akumulacija sa procenom varijanse, zatim varijansom-vo\dj en
-\`a-trous prostorni filter, deljen izme\dj u GI, AO i refleksija.}
+\caption{SVGF denoiser: temporal accumulation with variance estimation, then a variance-guided
+\`a-trous spatial filter, shared between GI, AO and reflections.}
 \label{fig:svgf}
 \end{figure}
 
-\subsection{Temporalna akumulacija}
+\subsection{Temporal accumulation}
 
 The temporal pass (\texttt{GITemporal.comp.hlsl}, at trace resolution) reprojects the previous
 frame's result by the motion vectors (\texttt{prev_uv = uv - velocity}) and blends it with the
@@ -644,7 +644,7 @@ mean of a $3\times3$ current-frame neighborhood, weakened when the pixel is stat
 it moves. This TAA-style clamp suppresses ghosting on moving edges and in reflections, where
 depth/normal rejection alone is insufficient.
 
-\subsection{Prostorni \`a-trous filter}
+\subsection{The spatial \`a-trous filter}
 
 The spatial pass (\texttt{GIDenoise.comp.hlsl}) is the \`a-trous wavelet filter at the core of SVGF:
 each iteration is a $5\times5$ tap gather with a B3-spline kernel, and successive iterations double
@@ -667,17 +667,17 @@ geometry.
       }
       \fill[white] (-0.5,-0.5) rectangle (0.5,0.5);
       \draw[black, thick] (-0.5,-0.5) rectangle (0.5,0.5);
-      \node[font=\small] at (0,-10.4) {iteracija \it, korak \stride};
-      \node[font=\small] at (0,-12.6) {doseg $\pgfmathparse{int(4*\stride+1)}\pgfmathresult
+      \node[font=\small] at (0,-10.4) {iteration \it, stride \stride};
+      \node[font=\small] at (0,-12.6) {reach $\pgfmathparse{int(4*\stride+1)}\pgfmathresult
         \times \pgfmathparse{int(4*\stride+1)}\pgfmathresult$};
     \end{scope}
   }
 \end{tikzpicture}
-\caption[\`A-trous: rastu\'ci korak i doseg filtra]{Tri iteracije a-trous filtra, sve nad istim
-$17\times17$ isecem oko piksela koji se filtrira (beli kvadrat u sredini). Svaka iteracija uzima
-istih 25 uzoraka, samo sa dvostruko ve\'cim korakom, pa doseg raste a cena po iteraciji ostaje ista.
-Rupe izme\dj u uzoraka su ono \v{c}ime se pla\'ca doseg: kumulativno $29\times29$ za 75 uzoraka
-umesto 841.}
+\caption[\`A-trous: growing stride and filter reach]{Three iterations of the a-trous filter, all over
+the same $17\times17$ crop around the filtered pixel (the white square in the middle). Every
+iteration takes the same 25 taps, only at twice the stride, so the reach grows while the cost per
+iteration stays the same. The holes between taps are what pays for the reach: cumulatively
+$29\times29$ for 75 taps instead of 841.}
 \label{fig:atrous}
 \end{figure}
 
@@ -691,7 +691,7 @@ useful baseline in Chapter~\ref{ch:analiza}.
 
 
 \needspace{12\baselineskip}
-\begin{lstlisting}[caption={Edge-stopping te\v{z}ine za \`a-trous filter (SVGF jezgro, HLSL).}, label={lst:atrous}]
+\begin{lstlisting}[caption={Edge-stopping weights for the \`a-trous filter (the SVGF kernel, HLSL).}, label={lst:atrous}]
 float w_n = pow(saturate(dot(N, N_tap)), K_NORMAL);              // normal
 float w_z = exp(-abs(z - z_tap) / (K_DEPTH * abs(dzdx) + 1e-4)); // depth
 float w_l = exp(-abs(lum - lum_tap) /                            // variance-guided luminance
@@ -701,13 +701,13 @@ sum  += w * color_tap;
 wSum += w;
 \end{lstlisting}
 
-\subsection{Odstupanja od SVGF i cena}
+\subsection{Departures from SVGF, and their cost}
 
 The implementation departs from the paper in a few places, all noted so Chapter~\ref{ch:analiza}'s
 quality numbers are read correctly: the denoiser filters raw irradiance and remultiplies albedo after
 upsampling rather than demodulating inside the filter as SVGF does; the extra temporal color clamp
 above is not in SVGF; GI and AO are filtered at half resolution where SVGF is full-resolution; and
-the variance edge-stop is optional. \texttt{GIDenoise.comp} keeps its outer à-trous loop rolled rather
+the variance edge-stop is optional. \texttt{GIDenoise.comp} keeps its outer \`a-trous loop rolled rather
 than unrolled, which costs a little scheduling freedom and in exchange holds register pressure down to
 70 VGPRs on the RX 7900 XTX and 59 on the RX 9070 XT, with no spilling and full occupancy on both
 (Table~\ref{tab:occupancy}). Unrolled it allocates 191 and drops to 8 of 16 wavefronts.
@@ -743,18 +743,19 @@ falls back to the current frame alone, which is noisier but correct.
 \begin{figure}[tbp]
 \centering
 \includegraphics[width=0.8\textwidth]{figures/dbg_motion.png}
-\caption{Bafer vektora kretanja (\texttt{render.debugview} 1) tokom determinis\-ti\v{c}ke orbite
-kamere. Crveno je vodoravna, zeleno uspravna komponenta pomeraja piksela izme\dj u dva uzastopna
-kadra. Prikaz uzima apsolutnu vrednost i mno\v{z}i je sa 40, pa se vidi \emph{koliko} se piksel
-pomera i po kojoj osi, ali ne i u kom smeru. Crno je izostanak pomeraja, ali i nebo, koje kroz ovaj
-prolaz uop\v{s}te ne upisuje vektore. Prikaz nije kalibrisan: kanali su normirani po \v{s}irini
-odnosno visini, pa im osvetljenost nije na istoj skali, a izlaz je jo\v{s} i sRGB kodiran. Kada se
-to poni\v{s}ti, prose\v{c}an pomeraj u ovom kadru je oko $0{,}6\%$ dijagonale ekrana po kadru,
-najvi\v{s}e $1{,}6\%$, i nijedan uzorak nije zasi\'cen.}
+\caption{The motion vector buffer (\texttt{render.debugview} 1) during a deterministic camera orbit.
+Red is the horizontal, green the vertical component of the pixel displacement between two
+consecutive frames. The view takes the absolute value and multiplies it by 40, so it shows \emph{how
+much} a pixel moves and along which axis, but not in which direction. Black is the absence of
+displacement, and also the sky, which writes no vectors in this pass at all. The view is not
+calibrated: the channels are normalised by width and height respectively, so their brightness is not
+on the same scale, and the output is additionally sRGB encoded. Undoing that, the mean displacement
+in this frame is about $0.6\%$ of the screen diagonal per frame, at most $1.6\%$, and no sample is
+saturated.}
 \label{fig:motion}
 \end{figure}
 
-\section{Reproducibilnost i alati}
+\section{Reproducibility and tooling}
 \label{sec:alati}
 
 The measurements in Chapter~\ref{ch:analiza} come from instrumentation built into the engine, which
@@ -766,33 +767,34 @@ compare against a committed baseline and fail the run on a regression, which is 
 from a report: a number nobody checks drifts.
 
 \begin{table}[tbp]
-\caption[Merni alati]{Alati koji proizvode brojeve iz Glave~\ref{ch:analiza}. ,,Kapija`` zna\v{c}i da
-alat pore\dj uje sa committovanim baseline-om i obara izvr\v{s}avanje pri regresiji, a alati bez
-kapije samo izve\v{s}tavaju. Svi osim \texttt{rga-occupancy} zahtevaju stvarni GPU, pa se izvr\v{s}avaju
-lokalno, ne na CI-u.}
+\caption[Measurement tooling]{The tools that produce the numbers in Chapter~\ref{ch:analiza}.
+``Gate'' means the tool compares against a committed baseline and fails the run on a regression,
+while the ungated tools only report. All except \texttt{rga-occupancy} need a real GPU, so they run
+locally, not on CI.}
 \label{tab:tooling}
 \centering
 \begin{tabular}{lll}
 \toprule
-Alat & \v{S}ta meri & Kapija \\
+Tool & What it measures & Gate \\
 \midrule
-\texttt{perf-bench}     & GPU ms po prolazu, matrica konfiguracija & da \\
-\texttt{quality-bench}  & FLIP/PSNR/SSIM naspram path trace-a, stati\v{c}na kamera & da \\
-\texttt{quality-motion} & FLIP, tFLIP, ka\v{s}njenje i JOD du\v{z} rute & da \\
-\texttt{rga-occupancy}  & registarski pritisak i zauzetost, offline & da \\
-\texttt{quality-tune}   & pretraga CVar-ova prema referenci & ne \\
-\texttt{smoke-test}     & pad, zaglavljivanje, Vulkan validacija & pass/fail \\
-\texttt{shader-stats}   & registri iz drajvera, oba proizvo\dj a\v{c}a & ne \\
-Tracy + watchdog        & vremenska linija po sistemu, zastoji po frejmu & ne \\
+\texttt{perf-bench}     & GPU ms per pass, config matrix & yes \\
+\texttt{quality-bench}  & FLIP/PSNR/SSIM against the path trace, static camera & yes \\
+\texttt{quality-motion} & FLIP, tFLIP, lag and JOD along the route & yes \\
+\texttt{rga-occupancy}  & register pressure and occupancy, offline & yes \\
+\texttt{quality-tune}   & CVar search against the reference & no \\
+\texttt{smoke-test}     & crash, hang, Vulkan validation & pass/fail \\
+\texttt{shader-stats}   & driver-reported registers, both vendors & no \\
+Tracy + watchdog        & per-system timeline, per-frame stalls & no \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\section{Referentni path tracer}
+\section{The reference path tracer}
 \label{sec:pathtracer}
 
-The reference is a brute-force unidirectional path tracer built into the engine
-(\texttt{PathTrace.comp.hlsl}): next-event estimation to the sun, the same metallic-roughness
+The reference is a brute-force unidirectional path tracer built into the
+engine (\texttt{PathTrace\allowbreak.comp\allowbreak.hlsl}): next-event estimation to the sun, the
+same metallic-roughness
 microfacet BSDF as the forward shading, multi-bounce indirect with Russian-roulette termination, and
 progressive accumulation into a persistent HDR buffer while the camera is static. The sun is sampled
 as a finite disk through the same \texttt{SampleCone} routine and the same
@@ -808,12 +810,12 @@ and an LDR image.
 \begin{figure}[tbp]
 \centering
 \includegraphics[width=0.85\textwidth]{figures/pt_ref.png}
-\caption{Konvergirani referentni kadar iz ugra\dj enog path tracer-a, prema kome se u FLIP/PSNR/SSIM
-mere sve real-time tehnike.}
+\caption{The converged reference frame from the built-in path tracer, against which every real-time
+technique is measured in FLIP/PSNR/SSIM.}
 \label{fig:pt-ref}
 \end{figure}
 
-\section{Uslovi i pretpostavke}
+\section{Conditions and assumptions}
 \label{sec:uslovi}
 
 The implementation makes several deliberate approximations to stay within a real-time budget, each a

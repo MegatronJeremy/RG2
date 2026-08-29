@@ -28,17 +28,17 @@ ADAPTERS = [("amd-radeon-rx-9070-xt", "9070"), ("nvidia-geforce-rtx-5070", "5070
 
 # rung -> (Serbian effect label for the chart, Serbian label for the table)
 LADDER = [
-    ("shadows", "senke", "senke"),
-    ("+ao", "AO", "ambijentalna okluzija"),
-    ("+refl", "refl", "refleksije"),
-    ("+gi", "GI", "globalno osvetljenje (RT)"),
+    ("shadows", "shadows", "shadows"),
+    ("+ao", "AO", "ambient occlusion"),
+    ("+refl", "refl", "reflections"),
+    ("+gi", "GI", "global illumination (RT)"),
 ]
 PREV = {"shadows": "rt-off", "+ao": "shadows", "+refl": "+ao", "+gi": "+refl"}
 
 # passes worth a row in the per-pass table, as (prefix, label); a prefix collapses its numbered
 # iterations (ReflectionDenoise0..2) into one summed row
 PASSES = [
-    ("Forward", r"\texttt{Forward} (uklju\v{c}uje inline senke)"),
+    ("Forward", r"\texttt{Forward} (includes inline shadows)"),
     ("Reflection@", r"\texttt{Reflection}"),
     ("ReflectionDenoise", r"\texttt{ReflectionDenoise*}"),
     ("GI@", r"\texttt{GI}"),
@@ -106,12 +106,12 @@ def build():
     out["perf-cost.dat"] = "\n".join(lines) + "\n"
 
     # 2. per-effect table rows
-    rows = [rf"\texttt{{rt-off}}   & bazna linija (ukupno) & {rtoff['9070']:.3f} & {rtoff['5070']:.3f} \\"]
+    rows = [rf"\texttt{{rt-off}}   & baseline (total) & {rtoff['9070']:.3f} & {rtoff['5070']:.3f} \\"]
     for cfg, _, label in LADDER:
         tag = "+shadows" if cfg == "shadows" else cfg
         rows.append(rf"\texttt{{{tag}}} & {label} & {delta('9070', cfg):.3f} & {delta('5070', cfg):.3f} \\")
     rows.append(r"\midrule")
-    rows.append(rf"\texttt{{+gi}} & \textbf{{ukupno, svi efekti}} & "
+    rows.append(rf"\texttt{{+gi}} & \textbf{{total, all effects}} & "
                 rf"\textbf{{{totals[('9070', '+gi')]:.3f}}} & \textbf{{{totals[('5070', '+gi')]:.3f}}} \\")
     # ssgi repeats the +gi rung with the screen-space producer, so it is diffed against +refl and is
     # an alternative to the RT GI row rather than another step on the ladder.
@@ -119,17 +119,17 @@ def build():
     ss = {}
     for slug, col in ADAPTERS:
         ss[col] = load(slug, "ssgi")["totalGpuMs"] - totals[(col, "+refl")]
-    rows.append(rf"\texttt{{ssgi}} & globalno osvetljenje (screen-space, umesto +gi) & "
+    rows.append(rf"\texttt{{ssgi}} & screen-space GI (alternative to +gi) & "
                 rf"{ss['9070']:.3f} & {ss['5070']:.3f} \\")
-    out["perf-effects.tex"] = tabular("llrr", r"Konfiguracija & Efekat & ms (9070 XT) & ms (5070)", rows)
+    out["perf-effects.tex"] = tabular("llrr", r"Configuration & Effect & ms (9070 XT) & ms (5070)", rows)
 
     # the two shadow strategies, both expressed as cost over rt-off
     st = {}
     for slug, col in ADAPTERS:
         st[col] = load(slug, "shadows-stoch")["totalGpuMs"] - rtoff[col]
-    out["perf-shadow-strategy.tex"] = tabular("lrr", r"Strategija & ms (9070 XT) & ms (5070)", [
-        rf"inline, po svetlu (podrazumevano) & {delta('9070', 'shadows'):.3f} & {delta('5070', 'shadows'):.3f} \\",
-        rf"stohasti\v{{c}}ka, RIS + denoiser & {st['9070']:.3f} & {st['5070']:.3f} \\",
+    out["perf-shadow-strategy.tex"] = tabular("lrr", r"Strategy & ms (9070 XT) & ms (5070)", [
+        rf"inline, per light (default) & {delta('9070', 'shadows'):.3f} & {delta('5070', 'shadows'):.3f} \\",
+        rf"stochastic, RIS + denoiser & {st['9070']:.3f} & {st['5070']:.3f} \\",
     ])
 
     # 3. per-pass table rows, from the +gi rung on both adapters
@@ -140,7 +140,7 @@ def build():
         a, b = pass_ms(p9, key), pass_ms(p5, key)
         if a or b:
             prows.append(rf"{label} & {a:.3f} & {b:.3f} \\")
-    out["perf-passes.tex"] = tabular("lrr", r"Prolaz & ms (9070 XT) & ms (5070)", prows)
+    out["perf-passes.tex"] = tabular("lrr", r"Pass & ms (9070 XT) & ms (5070)", prows)
 
     # 4. the scalars the prose quotes, so they are not retyped either
     four9 = sum(delta("9070", c) for c, _, _ in LADDER)

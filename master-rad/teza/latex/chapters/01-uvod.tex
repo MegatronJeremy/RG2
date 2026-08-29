@@ -1,9 +1,9 @@
-\chapter{Uvod}
+\chapter{Introduction}
 \label{ch:uvod}
 
-% Draft: English body, Serbian headings. PPK: 1-1.5 pages; ends with the thesis-structure paragraph.
+% Draft: English. PPK: 1-1.5 pages; ends with the thesis-structure paragraph.
 
-\section{Problem i motivacija}
+\section{Problem and motivation}
 
 Real-time rendering is dominated by rasterization, which resolves primary visibility (what is
 directly seen from the camera) very efficiently but has no native notion of what any surface point
@@ -32,12 +32,12 @@ counts, and reconstruct a clean image with a denoiser \cite{schied2017svgf}
 \begin{figure}[tbp]
 \centering
 \includegraphics[width=0.9\textwidth]{figures/teaser.png}
-\caption{Hibridni izlaz end\v{z}ina na test sceni: rasterizovani forward prolaz sa ray-traced
-senkama, AO, refleksijama i GI (denoise-ovano).}
+\caption{Hybrid engine output on the test scene: rasterized forward pass with ray-traced
+shadows, AO, reflections and GI (denoised).}
 \label{fig:teaser}
 \end{figure}
 
-\section{Za\v{s}to hibridni pristup i za\v{s}to ray query (a ne RT-pipeline)}
+\section{Why a hybrid approach and why ray query (not the RT pipeline)}
 
 Vulkan offers two ways to trace rays, a dedicated ray-tracing pipeline and inline ray queries
 (\texttt{VK_KHR_ray_query}). Section~\ref{sec:vulkanrt} sets them side by side.
@@ -50,7 +50,7 @@ rasterization rather than the primary architecture. The price is giving up hardw
 across shader stages and recursion, although the effects here are shallow (a single bounce) and
 short, so that price is small.
 
-\section{Cilj i istra\v{z}iva\v{c}ko pitanje}
+\section{Goal and research question}
 
 The goal is to implement four ray-traced lighting effects, shadows, ambient occlusion, reflections,
 and diffuse global illumination, through inline ray queries in a custom Vulkan engine, and to
@@ -62,7 +62,7 @@ versus full resolution; and how the identical Vulkan implementation performs acr
 current-generation GPUs of comparable tier (Table~\ref{tab:gpus}), diffuse global illumination, and a
 converged path-traced reference for the quality metrics.
 
-\section{Doprinosi}
+\section{Contributions}
 
 The contributions are: an integrated, openly licensed implementation of four hybrid ray-query
 lighting effects inside one custom Vulkan engine; a per-effect GPU cost breakdown produced by a
@@ -72,7 +72,7 @@ temporal stability; a reusable half-resolution, G-buffer-prepass, denoise-and-up
 a rarely reported same-code performance comparison of the identical ray-query pipeline on AMD RDNA4
 and NVIDIA Blackwell hardware.
 
-\section{Struktura rada}
+\section{Thesis structure}
 
 Chapter~\ref{ch:pregled} reviews the theoretical background (rasterization versus ray tracing,
 acceleration structures, the Vulkan ray-tracing extensions) and the existing real-time solutions the

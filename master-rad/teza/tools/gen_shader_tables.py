@@ -47,8 +47,8 @@ def _engine_module(name):
 
 # (RGA permutation name, runtime shader file, stage, thesis label)
 ROWS = [
-    ("DefaultLit.frag[inlineshadow]", "DefaultLit.frag.hlsl", "fragment", r"\texttt{DefaultLit.frag} (inline senke)"),
-    ("DefaultLit.frag[noinlineshadow]", "DefaultLit.frag.hlsl", "fragment", r"\texttt{DefaultLit.frag} (bez inline senki)"),
+    ("DefaultLit.frag[inlineshadow]", "DefaultLit.frag.hlsl", "fragment", r"\texttt{DefaultLit.frag} (inline shadows)"),
+    ("DefaultLit.frag[noinlineshadow]", "DefaultLit.frag.hlsl", "fragment", r"\texttt{DefaultLit.frag} (no inline shadows)"),
     ("GI.comp[norestir]", "GI.comp.hlsl", "compute", r"\texttt{GI.comp}"),
     ("Reflection.comp", "Reflection.comp.hlsl", "compute", r"\texttt{Reflection.comp}"),
     ("AO.comp", "AO.comp.hlsl", "compute", r"\texttt{AO.comp}"),
@@ -117,7 +117,7 @@ def main():
         "\\begin{tabular}{lrrrr}\n\\toprule\n"
         "& \\multicolumn{2}{c}{RX 9070 XT (RDNA4)} & \\multicolumn{2}{c}{RTX 5070 (Blackwell)} \\\\\n"
         "\\cmidrule(lr){2-3}\\cmidrule(lr){4-5}\n"
-        "\\v{S}ejder & VGPR & talasa/SIMD & registara & warp-ova/SM \\\\\n\\midrule\n"
+        "Shader & VGPR & waves/SIMD & registers & warps/SM \\\\\n\\midrule\n"
         + body + "\n\\bottomrule\n\\end{tabular}\n"
     )
 

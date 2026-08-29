@@ -1,8 +1,8 @@
-\chapter{Pregled postoje\'cih re\v{s}enja i tehnologija}
+\chapter{Review of existing solutions and technologies}
 \label{ch:pregled}
 
 
-\section{Rasterizacija naspram trasiranja zrakova}
+\section{Rasterization versus ray tracing}
 \label{sec:rastervsrt}
 
 Rasterization projects each triangle onto the image plane and resolves visibility with a depth
@@ -31,30 +31,30 @@ it is strong (Figure~\ref{fig:rastervsrt}) \cite{akenine2018rtr}.
 \centering
 \begin{tikzpicture}[>={Stealth[]}, scale=0.9]
   \begin{scope}
-    \node[font=\small] at (1.9,3.1) {Rasterizacija};
-    \fill (0,1.3) circle (1.6pt) node[left, font=\scriptsize] {oko};
-    \draw[thick] (1,0.35) -- (1,2.35); \node[font=\scriptsize] at (1,0.05) {ravan slike};
+    \node[font=\small] at (1.9,3.1) {Rasterization};
+    \fill (0,1.3) circle (1.6pt) node[left, font=\scriptsize] {eye};
+    \draw[thick] (1,0.35) -- (1,2.35); \node[font=\scriptsize] at (1,0.05) {image plane};
     \draw[fill=black!8] (3.4,0.7) -- (4.0,2.1) -- (2.8,1.95) -- cycle;
     \draw[black!55] (0,1.3) -- (3.4,0.7);
     \draw[black!55] (0,1.3) -- (4.0,2.1);
     \draw[black!55] (0,1.3) -- (2.8,1.95);
-    \node[font=\scriptsize] at (3.5,2.4) {trougao};
+    \node[font=\scriptsize] at (3.5,2.4) {triangle};
   \end{scope}
   \begin{scope}[xshift=6.4cm]
-    \node[font=\small] at (1.9,3.1) {Trasiranje zrakova};
-    \fill (0,1.3) circle (1.6pt) node[left, font=\scriptsize] {oko};
-    \draw[thick] (1,0.35) -- (1,2.35); \node[font=\scriptsize] at (1,0.05) {ravan slike};
+    \node[font=\small] at (1.9,3.1) {Ray tracing};
+    \fill (0,1.3) circle (1.6pt) node[left, font=\scriptsize] {eye};
+    \draw[thick] (1,0.35) -- (1,2.35); \node[font=\scriptsize] at (1,0.05) {image plane};
     \fill[black!8] (3.5,1.3) circle (0.5);
     \draw[->, black!70] (0,1.3) -- (2.95,1.3);
-    \node[font=\scriptsize] at (2.0,1.55) {zrak};
+    \node[font=\scriptsize] at (2.0,1.55) {ray};
   \end{scope}
 \end{tikzpicture}
-\caption{Rasterizacija (projekcija trouglova na ravan slike) naspram trasiranja zrakova (zrak kroz
-piksel u scenu do najbli\v{z}eg preseka).}
+\caption{Rasterization (projecting triangles onto the image plane) versus ray tracing (a ray through
+a pixel into the scene to the nearest intersection).}
 \label{fig:rastervsrt}
 \end{figure}
 
-\section{Strukture ubrzanja: BVH, TLAS/BLAS}
+\section{Acceleration structures: BVH, TLAS/BLAS}
 \label{sec:accel-pregled}
 
 Testing every ray against every triangle is $O(\text{rays} \times \text{triangles})$ and hopeless at
@@ -81,26 +81,27 @@ from clocks, cache, or driver.
   unit/.style={draw, rounded corners, align=center, minimum width=2.6cm, minimum height=9mm},
   fixed/.style={unit, fill=black!8}]
   \begin{scope}
-    \node[font=\small\bfseries] at (1.9,3.5) {NVIDIA (RT jezgra)};
-    \node[unit] (sm) at (1.9,2.5) {SM / \v{s}ejder};
+    \node[font=\small\bfseries] at (1.9,3.5) {NVIDIA (RT cores)};
+    \node[unit] (sm) at (1.9,2.5) {SM / shader};
     \node[fixed, below=12mm of sm, minimum height=14mm, text width=2.4cm] (rtc)
-      {RT jezgro:\\obilazak \emph{i} preseci};
-    \draw[->] ([xshift=-9mm]sm.south) -- node[left, font=\scriptsize] {1 zrak} ([xshift=-9mm]rtc.north);
-    \draw[<-] ([xshift=9mm]sm.south) -- node[right, font=\scriptsize] {pogodak} ([xshift=9mm]rtc.north);
+      {RT core:\\traversal \emph{and} intersections};
+    \draw[->] ([xshift=-9mm]sm.south) -- node[left, font=\scriptsize] {1 ray} ([xshift=-9mm]rtc.north);
+    \draw[<-] ([xshift=9mm]sm.south) -- node[right, font=\scriptsize] {hit} ([xshift=9mm]rtc.north);
   \end{scope}
   \begin{scope}[xshift=6.6cm]
     \node[font=\small\bfseries] at (1.9,3.5) {AMD RDNA (ray query)};
-    \node[unit, text width=2.4cm] (cu) at (1.9,2.5) {CU / \v{s}ejder:\\petlja obilaska};
-    \node[fixed, below=12mm of cu, text width=2.4cm] (isect) {jedinica za preseke};
-    \draw[->] ([xshift=-9mm]cu.south) -- node[left, font=\scriptsize] {po \v{c}voru} ([xshift=-9mm]isect.north);
-    \draw[<-] ([xshift=9mm]cu.south) -- node[right, font=\scriptsize] {rezultat} ([xshift=9mm]isect.north);
+    \node[unit, text width=2.4cm] (cu) at (1.9,2.5) {CU / shader:\\traversal loop};
+    \node[fixed, below=12mm of cu, text width=2.4cm] (isect) {intersection unit};
+    \draw[->] ([xshift=-9mm]cu.south) -- node[left, font=\scriptsize] {per node} ([xshift=-9mm]isect.north);
+    \draw[<-] ([xshift=9mm]cu.south) -- node[right, font=\scriptsize] {result} ([xshift=9mm]isect.north);
   \end{scope}
 \end{tikzpicture}
-\caption[Gde \v{z}ivi petlja obilaska]{Preseci zrak-kutija i zrak-trougao su na obe arhitekture
-fiksna funkcija, a razlikuje se ko vodi petlju obilaska. Na NVIDIA-i je i ona u hardveru, pa \v{s}ejder
-preda zrak i sa\v{c}eka pogodak, dok na RDNA arhitekturama petlja te\v{c}e u \v{s}ejderu, koji po
-posve\'cenom \v{c}voru poziva jedinicu za preseke, pa obilazak tro\v{s}i iste izvr\v{s}ne resurse kao
-i sen\v{c}enje. Dijagram obja\v{s}njava za\v{s}to je razlika u ceni o\v{c}ekivana, ne koliko iznosi.}
+\caption[Where the traversal loop lives]{Ray-box and ray-triangle intersections are fixed-function on
+both architectures, and what differs is who drives the traversal loop. On NVIDIA the loop is in
+hardware too, so the shader hands over a ray and waits for a hit, while on RDNA architectures the loop
+runs in the shader, which calls the intersection unit per visited node, so traversal consumes the same
+execution resources as shading. The diagram explains why a cost difference is expected, not how large
+it is.}
 \label{fig:traversal}
 \end{figure} Vulkan exposes the BVH as a two-level structure: a bottom-level acceleration structure
 (BLAS) holds a mesh's triangles in object space, and a top-level one (TLAS) holds instances, each a
@@ -115,28 +116,28 @@ each frame.
 \begin{tikzpicture}[>={Stealth[]},
   inst/.style={draw, rounded corners, font=\small, align=center, minimum width=2.9cm, minimum height=9mm},
   blas/.style={draw, rounded corners, font=\small, align=center, minimum width=3.2cm, minimum height=10mm, fill=black!5}]
-  \node[inst] (i0) {Instance 0--24\\\footnotesize statika Sponze};
-  \node[inst, right=10mm of i0] (i1) {Instance 25--28\\\footnotesize \v{c}etiri rotiraju\'ca objekta};
+  \node[inst] (i0) {Instances 0--24\\\footnotesize Sponza static geometry};
+  \node[inst, right=10mm of i0] (i1) {Instances 25--28\\\footnotesize four rotating objects};
   \begin{scope}[on background layer]
     \node[draw, dashed, rounded corners, fit=(i0)(i1), inner sep=7pt,
-          label=above:{\small TLAS: 29 instanci (rebuild po ,,dirty'' frejmu)}] (tlas) {};
+          label=above:{\small TLAS: 29 instances (rebuild on a ``dirty'' frame)}] (tlas) {};
   \end{scope}
-  \node[blas, below=17mm of i0] (bA) {25 BLAS-ova\\\footnotesize po jedan po mre\v{z}i};
-  \node[blas, below=17mm of i1] (bB) {1 BLAS\\\footnotesize deljen 4 puta};
+  \node[blas, below=17mm of i0] (bA) {25 BLASes\\\footnotesize one per mesh};
+  \node[blas, below=17mm of i1] (bB) {1 BLAS\\\footnotesize shared 4 times};
   \draw[->] (i0) -- (bA);
   \draw[->] ([xshift=-9mm]i1.south) -- (bB);
   \draw[->] ([xshift=-3mm]i1.south) -- (bB);
   \draw[->] ([xshift=3mm]i1.south) -- (bB);
   \draw[->] ([xshift=9mm]i1.south) -- (bB);
 \end{tikzpicture}
-\caption[Dvonivo struktura ubrzanja (TLAS/BLAS)]{Dvonivo struktura ubrzanja, sa izmerenim brojevima iz scene
-\texttt{Sponza-Motion.world}: TLAS dr\v{z}i 29 instanci (transform + pokaziva\v{c} na BLAS) nad 26
-BLAS-ova, jer \v{c}etiri rotiraju\'ca objekta dele istu mre\v{z}u, dok svaka od 25 stati\v{c}kih mre\v{z}a
-ima svoj. BLAS dr\v{z}i geometriju u lokalnom prostoru.}
+\caption[Two-level acceleration structure (TLAS/BLAS)]{Two-level acceleration structure, with measured
+numbers from the \texttt{Sponza-Motion.world} scene: the TLAS holds 29 instances (a transform plus a
+pointer to a BLAS) over 26 BLASes, since four rotating objects share the same mesh while each of the
+25 static meshes has its own. A BLAS holds geometry in local space.}
 \label{fig:tlasblas}
 \end{figure}
 
-\section{Trasiranje zrakova u Vulkan-u: RT-pipeline naspram ray query}
+\section{Ray tracing in Vulkan: RT pipeline versus ray query}
 \label{sec:vulkanrt}
 
 Vulkan ray tracing rests on three extensions: \texttt{VK_KHR_acceleration_structure} to build and
@@ -151,24 +152,24 @@ are bounded additions to an existing rasterizing renderer rather than a standalo
 in Section~\ref{sec:rendergraph}.
 
 \begin{table}[tbp]
-\caption{Ray-tracing pipeline naspram inline ray query u Vulkan-u.}
+\caption{Ray-tracing pipeline versus inline ray query in Vulkan.}
 \label{tab:pipeline-vs-rayquery}
 \centering
 \begin{tabular}{lll}
 \toprule
-Aspekt & RT pipeline & Ray query \\
+Aspect & RT pipeline & Ray query \\
 \midrule
-Shader stages       & namenski (raygen, hit, miss) & bilo koji postoje\'ci stage \\
-Shader binding table & potreban & nije potreban \\
-Rekurzija           & podr\v{z}ana & nije podr\v{z}ana \\
-Hardversko rasporedjivanje & da & ne (poziva\v{c} pi\v{s}e petlju) \\
-Integracija         & zahteva zaseban pipeline & drop-in u postoje\'ci prolaz \\
-Pogodno za          & pun path tracer & ograni\v{c}eni efekti na rasteru \\
+Shader stages        & dedicated (raygen, hit, miss) & any existing stage \\
+Shader binding table & required & not required \\
+Recursion            & supported & not supported \\
+Hardware scheduling  & yes & no (the caller writes the loop) \\
+Integration          & requires a separate pipeline & drop-in into an existing pass \\
+Suited for           & full path tracer & bounded effects on a rasterizer \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\section{Postoje\'ca real-time re\v{s}enja za GI i RT efekte}
+\section{Existing real-time solutions for GI and RT effects}
 \label{sec:postojeca}
 
 The effects implemented here have a long line of real-time approximations
@@ -186,48 +187,48 @@ contact darkening. No amount of sampling fixes the first, but a finer grid, at a
 second.
 
 \begin{table}[tbp]
-\caption[Postoje\'ci pristupi i njihova ograni\v{c}enja]{Porodice postoje\'cih re\v{s}enja za iste
-efekte. Prva dve vrste ne vide scenu van ekrana, druge dve je vide ali grublje nego \v{s}to efekat
-tra\v{z}i. Poslednje dve su celoviti sistemi, a ne pojedina\v{c}ne tehnike.}
+\caption[Existing approaches and their limits]{Families of existing solutions for the same effects.
+The first three rows do not see the scene off screen, the next two see it but more coarsely than the
+effect requires. The last two are complete systems rather than individual techniques.}
 \label{tab:postojeca}
 \centering
 \small
 \begin{tabularx}{\textwidth}{@{}l>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X@{}}
 \toprule
-Pristup & Kako radi & \v{S}ta gubi \\
+Approach & How it works & What it misses \\
 \midrule
 SSAO / HBAO \cite{mittring2007cryengine, bavoil2008hbao}
-  & uzorkuje dubinski bafer oko piksela, odnosno integrali horizontni ugao
-  & samo ono \v{s}to je na ekranu; tanka geometrija koju dubina ne predstavlja \\
+  & samples the depth buffer around the pixel, or integrates the horizon angle
+  & everything off screen, plus thin geometry the depth buffer does not represent \\
 \addlinespace[2pt]
 SSR
-  & mar\v{s}ira odbijeni zrak kroz dubinski bafer do preseka
-  & isto, plus otkrivanje geometrije pri kretanju kamere \\
+  & marches the reflected ray through the depth buffer to an intersection
+  & the same, plus disocclusion under camera motion \\
 \addlinespace[2pt]
 SSGI
-  & mar\v{s}ira po hemisferi kroz dubinski bafer i skuplja boju \emph{prethodnog} kadra
-  & jedan odboj, samo sa ekrana; kasni jedan kadar i gubi svetlo iza kamere \\
+  & marches over the hemisphere through the depth buffer and gathers the \emph{previous} frame's color
+  & one bounce, from the screen only, lagging one frame and losing light behind the camera \\
 \addlinespace[2pt]
-Vokselski GI \cite{crassin2011vxgi}
-  & voksel mre\v{z}a sa radijansom, cone tracing kroz nju
-  & gruba rezolucija: curenje svetla kroz tanke zidove, memorija i revokselizacija \\
+Voxel GI \cite{crassin2011vxgi}
+  & a voxel grid carrying radiance, cone traced through it
+  & coarse resolution: light leaking through thin walls, memory and revoxelization \\
 \addlinespace[2pt]
 Probe / DDGI \cite{majercik2019ddgi, nvidia_rtxgi}
-  & mre\v{z}a sondi sa iradijansom i raspodelom vidljivosti
-  & niska frekvencija: gubi kontaktno zatamnjenje i fini indirektni detalj \\
+  & a grid of probes with irradiance and a visibility distribution
+  & low frequency: loses contact darkening and fine indirect detail \\
 \addlinespace[2pt]
 Lumen \cite{epic_lumen}
-  & softversko trasiranje SDF-ova uz hardversko gde postoji, radiance cache
-  & celovit sistem; ovde je merilo, ne meta \\
+  & software tracing of SDFs plus hardware tracing where available, with a radiance cache
+  & a complete system, a reference point here rather than a target \\
 \addlinespace[2pt]
 ReSTIR \cite{bitterli2020restir, ouyang2021restirgi}
-  & prostorno-vremensko preuzorkovanje rezervoara
-  & stanje struke; ovde budu\'ci rad (Glava~\ref{ch:zakljucak}) \\
+  & spatiotemporal reservoir resampling
+  & state of the art, here future work (Chapter~\ref{ch:zakljucak}) \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\section{Uklanjanje \v{s}uma (denoising) za RT}
+\section{Denoising for RT}
 \label{sec:denoise-pregled}
 
 The integral in Equation~\eqref{eq:rendering} has no closed form, so it is estimated by Monte Carlo

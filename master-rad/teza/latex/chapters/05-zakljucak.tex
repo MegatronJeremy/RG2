@@ -1,8 +1,8 @@
-\chapter{Zaklju\v{c}ak}
+\chapter{Conclusion}
 \label{ch:zakljucak}
 
 
-\section{Rezime (osvrt na ciljeve iz zadatka)}
+\section{Summary against the assignment's goals}
 
 The assignment's goal, four ray-traced lighting effects (shadows, ambient occlusion, reflections,
 and diffuse global illumination) through inline ray queries in a custom Vulkan engine, characterized
@@ -15,26 +15,26 @@ within \perfNVSpread{} ms of one another, inside the run-to-run spread, so on th
 indistinguishable in cost.
 
 \begin{table}[tbp]
-\caption[Sa\v{z}etak izmerenih rezultata]{Sa\v{z}etak izmerenih rezultata. Cena po efektu je razlika
-ukupnog GPU vremena izme\dj u susednih konfiguracija. Kvalitet je prosek preko tri pogleda naspram
-konvergirane path-traced reference na RX 9070 XT.}
+\caption[Summary of measured results]{Summary of measured results. Per-effect cost is the difference
+in total GPU time between adjacent configurations. Quality is the average over three viewpoints
+against the converged path-traced reference on the RX 9070 XT.}
 \label{tab:summary}
 \centering
 \begin{tabular}{lrr}
 \toprule
  & RX 9070 XT & RTX 5070 \\
 \midrule
-osnova bez RT (ms)      & \perfBaseAMD{}        & \perfBaseNV{} \\
-senke (ms)              & \perfEffShadowsAMD{}  & \perfEffShadowsNV{} \\
+no-RT baseline (ms)     & \perfBaseAMD{}        & \perfBaseNV{} \\
+shadows (ms)            & \perfEffShadowsAMD{}  & \perfEffShadowsNV{} \\
 AO (ms)                 & \perfEffAoAMD{}       & \perfEffAoNV{} \\
-refleksije (ms)         & \perfEffReflAMD{}     & \perfEffReflNV{} \\
+reflections (ms)        & \perfEffReflAMD{}     & \perfEffReflNV{} \\
 GI (ms)                 & \perfEffGiAMD{}       & \perfEffGiNV{} \\
 \midrule
-ukupno, sva \v{c}etiri (ms) & \perfTotalAMD{}   & \perfTotalNV{} \\
+total, all four (ms)    & \perfTotalAMD{}       & \perfTotalNV{} \\
 \midrule
-FLIP: raster $\rightarrow$ sve RT  & \multicolumn{2}{c}{\qRasterFlip{} $\rightarrow$ \qAllRtFlip{}} \\
-PSNR (dB): raster $\rightarrow$ sve RT & \multicolumn{2}{c}{\qRasterPsnr{} $\rightarrow$ \qAllRtPsnr{}} \\
-SSIM: raster $\rightarrow$ sve RT  & \multicolumn{2}{c}{\qRasterSsim{} $\rightarrow$ \qAllRtSsim{}} \\
+FLIP: raster $\rightarrow$ all RT  & \multicolumn{2}{c}{\qRasterFlip{} $\rightarrow$ \qAllRtFlip{}} \\
+PSNR (dB): raster $\rightarrow$ all RT & \multicolumn{2}{c}{\qRasterPsnr{} $\rightarrow$ \qAllRtPsnr{}} \\
+SSIM: raster $\rightarrow$ all RT  & \multicolumn{2}{c}{\qRasterSsim{} $\rightarrow$ \qAllRtSsim{}} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -51,7 +51,7 @@ and the spatial filter buys stability rather than static fidelity.
 The practical value is a hybrid ray-query pipeline that gives correct off-screen lighting at an
 interactive budget without a full path tracer.
 
-\section{Ograni\v{c}enja}
+\section{Limitations}
 
 The measurements are taken on two GPUs of comparable market tier and a single scene class, so the
 absolute numbers do not generalize across hardware or content. Global illumination is limited to a
@@ -64,7 +64,7 @@ is heavier than necessary for small transform changes. Inline ray queries give u
 scheduling and recursion a ray-tracing pipeline would provide, a deliberate tradeoff for integration
 simplicity that would matter for deeper or more numerous bounces.
 
-\section{Budu\'ci rad}
+\section{Future work}
 
 Sampling is the most immediate direction: replacing the naive per-light and cosine-hemisphere
 sampling with reservoir resampling (ReSTIR and ReSTIR GI) would improve quality at equal ray count,

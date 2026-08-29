@@ -2,10 +2,10 @@
 \toprule
 & \multicolumn{2}{c}{RX 9070 XT (RDNA4)} & \multicolumn{2}{c}{RTX 5070 (Blackwell)} \\
 \cmidrule(lr){2-3}\cmidrule(lr){4-5}
-\v{S}ejder & VGPR & talasa/SIMD & registara & warp-ova/SM \\
+Shader & VGPR & waves/SIMD & registers & warps/SM \\
 \midrule
-\texttt{DefaultLit.frag} (inline senke) & 127 & 10/16 & 80 & 25/48 \\
-\texttt{DefaultLit.frag} (bez inline senki) & 87 & 16/16 & 64 & 32/48 \\
+\texttt{DefaultLit.frag} (inline shadows) & 130 & 10/16 & 80 & 25/48 \\
+\texttt{DefaultLit.frag} (no inline shadows) & 87 & 16/16 & 64 & 32/48 \\
 \texttt{GI.comp} & 83 & 16/16 & 64 & 32/48 \\
 \texttt{Reflection.comp} & 81 & 16/16 & 64 & 32/48 \\
 \texttt{AO.comp} & 60 & 16/16 & 48 & 42/48 \\

@@ -1,5 +1,5 @@
 vgpr	waves	label
-127	10	DefaultLit[inlineshadow]
+130	10	DefaultLit[inlineshadow]
 87	16	DefaultLit[noinlineshadow]
 83	16	GI[norestir]
 81	16	Reflection
