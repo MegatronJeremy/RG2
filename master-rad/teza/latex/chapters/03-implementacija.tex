@@ -264,8 +264,9 @@ traversal, \texttt{ACCEPT_FIRST_HIT_AND_END_SEARCH}. That traversal is not fully
 since cutout geometry must be resolved in the shader: candidate hits on non-opaque triangles come back
 through \texttt{q.Proceed()}, where the material's alpha is tested and the hit committed only if it
 passes, and the first surviving hit marks the surface shadowed. The ray origin is offset along the
-geometric normal and toward the light (\texttt{positionWS + Ng*0.02 + L*0.01}) to avoid
-self-intersection (Listing~\ref{lst:shadow}).
+surface normal and toward the light (\texttt{positionWS + Ng*0.02 + L*0.01}) to avoid
+self-intersection (Listing~\ref{lst:shadow}). The offset uses the shading normal the forward pass
+already resolved, which is what the call site passes despite the parameter's name.
 
 The alternative the engine keeps is the raster shadow map, also the default and the fallback on a
 device without ray tracing (Figure~\ref{fig:shadow-vs-map}). Intersecting the real geometry needs no
@@ -387,11 +388,13 @@ print resolves.}
 \paragraph{The stochastic alternative.} Tracing every light at every pixel is exact but scales
 linearly with light count, which does not survive a scene lit by hundreds of sources. The engine
 therefore implements a second strategy, enabled by \texttt{render.shadows.stochastic} and off by
-default, following the MegaLights approach: each pixel uses resampled importance sampling to pick
-\emph{one} light with probability proportional to its unshadowed contribution, traces
-\texttt{render.shadows.rays} rays at that light alone, and writes a single aggregate visibility ratio.
-The estimate is unbiased but extremely noisy, since one pixel's sample says nothing about which light
-its neighbour chose, so this path necessarily runs as its own half-resolution chain,
+default, following the MegaLights approach: each pixel takes \texttt{render.shadows.rays} independent
+samples, and each sample separately uses resampled importance sampling to pick \emph{one} light with
+probability proportional to its unshadowed contribution and traces a single ray at it. Averaging the
+samples gives one aggregate visibility ratio, so the cost is set by the sample count rather than by
+the light count.
+The estimate is unbiased but extremely noisy, since one pixel's samples say nothing about which
+lights its neighbour drew, so this path necessarily runs as its own half-resolution chain,
 \texttt{RTShadow} $\rightarrow$ \texttt{ShadowTemporal} $\rightarrow$ \texttt{ShadowDenoise0..2}
 $\rightarrow$ \texttt{ShadowUpsample}, reusing the shared denoiser, with a parallel
 demodulated-specular chain for the specular occlusion term. Those passes carry their own GPU timestamp
@@ -399,7 +402,8 @@ scopes, which Section~\ref{sec:cena} accounts for separately from the forward pa
 constant in light count, which is the whole point: the inline path wins for a handful of lights and
 loses for many. Section~\ref{sec:analiza-shadow-strategy} measures the crossover on this scene, and
 the debug views expose the aggregate visibility buffer before and after filtering
-(Figure~\ref{fig:shadow-denoise-ab}), where one sample per pixel is nearly binary noise.
+(Figure~\ref{fig:shadow-denoise-ab}), where so few samples per pixel leave the raw ratio nearly
+binary noise.
 
 \begin{figure}[tbp]
 \centering
@@ -407,7 +411,8 @@ the debug views expose the aggregate visibility buffer before and after filterin
 \includegraphics[width=0.48\textwidth]{figures/dbg_shadow_denoised.png}
 \caption{The stochastic aggregate visibility ratio before (left) and after (right) temporal
 accumulation and the a-trous filter (\texttt{render.debugview} 8 and 9). White is fully lit, black
-fully shadowed. The left panel shows that one sample per pixel is nearly binary noise.}
+fully shadowed. The left panel shows how nearly binary the raw per-pixel ratio is at this sample
+count.}
 \label{fig:shadow-denoise-ab}
 \end{figure}
 
@@ -466,8 +471,8 @@ around normal $N$. The fraction that hits geometry within the given radius gives
 
 \subsection{Reflections}
 
-Reflections are a compute pass (\texttt{Reflection.comp.hlsl}) run at full resolution, the only
-ray-traced effect not traced at half res, since reflection detail is view-dependent and does not
+Reflections are a compute pass (\texttt{Reflection.comp.hlsl}) run at full resolution, unlike the
+half-resolution GI and AO gathers, since reflection detail is view-dependent and does not
 tolerate the blur that half-res tracing plus upsampling introduces. Each pixel reconstructs world
 position and reflects the view vector about the normal-mapped shading normal (read from a separate
 shading-normal G-buffer, not the geometric normal, so normal maps are mirrored correctly). It needs

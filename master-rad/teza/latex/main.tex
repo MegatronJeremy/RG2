@@ -96,8 +96,9 @@
 \lstset{basicstyle=\ttfamily\small, breaklines=true, columns=fullflexible,
         frame=single, captionpos=b, tabsize=2, showstringspaces=false}
 
-% PPK reference title quotes: „...“ (low-opening, high-closing), Serbian style.
-\newcommand{\rqt}[1]{\quotedblbase #1\textquotedblleft}
+% Reference title quotes. PPK specifies the Serbian „...“ pair; the thesis text is English, so the
+% titles take English quotes and the one macro switches the whole bibliography either way.
+\newcommand{\rqt}[1]{\textquotedblleft #1\textquotedblright}
 
 % Must match the title registered on the topic-application form (master-rad/prijava/).
 \title{Hibridno osvetljenje u realnom vremenu primenom pra\'cenja zraka}

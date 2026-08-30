@@ -74,7 +74,8 @@ while on AMD's RDNA architectures the traversal loop is driven by shader instruc
 hardware intersection tests \cite{amd_rdna_isa}, so traversal competes with shading for the same
 execution resources. That is a structural reason to \emph{expect} the same shader to cost differently
 on the two vendors, not an attribution. Section~\ref{sec:cena} measures a per-pass AMD/NVIDIA cost
-ratio spanning 0.62 to 1.96 in the \texttt{+gi} configuration, so the difference is not one global
+ratio spanning \perfRatioMin{} to \perfRatioMax{} in the \texttt{+gi} configuration, so the
+difference is not one global
 clock factor. This evaluation does not isolate how much of that gap comes from this mechanism rather
 than from clocks, cache, or driver.
 

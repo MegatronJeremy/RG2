@@ -76,6 +76,17 @@ def build():
         lines.append(f"{i}\t{cfg}\t{a:.4f}\t{b:.4f}")
     out["ladder.dat"] = "\n".join(lines) + "\n"
 
+    # The two shadow strategies, each as cost over rt-off on both adapters. The figure's point is that
+    # the lines cross, so the coordinates must come from the baselines: hand-typed ones would keep the
+    # crossing drawn after a re-capture moved it.
+    lines = ["i\tadapter\tinline\tstochastic"]
+    for i, (slug, name) in enumerate([(AMD, "9070XT"), (NV, "5070")]):
+        base = load(slug, "rt-off")["totalGpuMs"]
+        inline = load(slug, "shadows")["totalGpuMs"] - base
+        stoch = load(slug, "shadows-stoch")["totalGpuMs"] - base
+        lines.append(f"{i}\t{name}\t{inline:.4f}\t{stoch:.4f}")
+    out["shadow-strategy.dat"] = "\n".join(lines) + "\n"
+
     lines = ["i\ttech\tflip\tlo\thi"]
     for i, t in enumerate(TECHNIQUES):
         files = sorted((QUALITY / AMD).glob(f"*__{t}.json"))

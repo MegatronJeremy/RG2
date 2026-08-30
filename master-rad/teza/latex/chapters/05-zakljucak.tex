@@ -9,13 +9,14 @@ and diffuse global illumination) through inline ray queries in a custom Vulkan e
 for cost and quality, is met. All four share one hit-shading routine over a bindless geometry table
 and one reusable SVGF denoiser, and sit inside an existing rasterizing forward renderer rather than a
 standalone tracer (Chapter~\ref{ch:implementacija}). Table~\ref{tab:summary} collects the headline
-numbers from Chapter~\ref{ch:analiza}. The two cards do not agree on which effect costs most: on the
-RX 9070 XT shadows dominate, while on the RTX 5070 shadows, reflections and global illumination sit
-within \perfNVSpread{} ms of one another, inside the run-to-run spread, so on that card they are
-indistinguishable in cost. The disagreement reaches the engineering decision itself: with this
-scene's five lights the stochastic shadow strategy is the cheaper of the two on the RX 9070 XT
-(1.723 against 2.272 ms) and 2.6x the more expensive on the RTX 5070 (3.362 against 1.294 ms), so a
-renderer that hard-codes either is wrong on one of these two cards
+numbers from Chapter~\ref{ch:analiza}. The two cards do not agree on which effect costs most: the
+most expensive is \perfTopEffectAMD{} on the RX 9070 XT and \perfTopEffectNV{} on the RTX 5070, and
+each winner is separated from every other effect by more than the run-to-run spread, so the
+disagreement is a result rather than a tie being broken by noise. It reaches the engineering decision
+itself: with this scene's five lights the stochastic shadow strategy is the cheaper of the two on the
+RX 9070 XT (\perfShadowStochAMD{} against \perfShadowInlineAMD{} ms) and \perfShadowRatioNV{}x the
+more expensive on the RTX 5070 (\perfShadowStochNV{} against \perfShadowInlineNV{} ms), so a renderer
+that hard-codes either is wrong on one of these two cards
 (Section~\ref{sec:analiza-shadow-strategy}).
 
 \begin{table}[tbp]
@@ -68,7 +69,8 @@ RX 9070 XT and \perfFourEffectsNV{} ms on the RTX 5070, without a full path trac
 The measurements are taken on two GPUs of comparable market tier and a single scene class, so the
 absolute numbers do not generalize across hardware or content. Global illumination is limited to a
 single diffuse bounce, and shadows are hard or lightly softened rather than physically accurate area
-shadows. To stay within a real-time budget the ray counts are kept very low (one or two per pixel),
+shadows. To stay within a real-time budget the ray counts are kept very low (one or two per pixel per
+effect, and two per light for inline shadows),
 which places heavy demand on the denoiser and exposes its failure modes: temporal ghosting and lag
 under fast motion, particularly for reflections, which reuse the diffuse-tuned temporal reprojection.
 The top-level acceleration structure is fully rebuilt on every dynamic frame rather than refit, which
@@ -78,12 +80,13 @@ simplicity that would matter for deeper or more numerous bounces.
 
 \section{Future work}
 
-Sampling is the most immediate direction: replacing the naive per-light and cosine-hemisphere
-sampling with reservoir resampling (ReSTIR and ReSTIR GI) would improve quality at equal ray count,
-especially for many lights and for indirect paths \cite{bitterli2020restir, ouyang2021restirgi}. On
-reconstruction, a learned denoiser or upscaler replacing or augmenting SVGF is a natural next step.
-Denoised shadows could scale to many lights more cheaply with a MegaLights-style
-stochastic per-pixel light selection on the shared denoiser, rather than tracing every light every
-frame. A dedicated, penumbra-aware shadow denoiser in place of the shared one is a related
-refinement. Broadening the cross-vendor comparison beyond two current-generation cards, plus a second
+Sampling is the most immediate direction. The stochastic shadow path already resamples within a
+frame, so the missing piece is reservoir reuse across neighbouring pixels and across frames (ReSTIR,
+and ReSTIR GI for the indirect paths), which is what buys quality at equal ray count when the light
+count is high \cite{bitterli2020restir, ouyang2021restirgi}. The cosine-weighted hemisphere sampling
+behind GI and AO is untouched by that work and remains naive. On reconstruction, a learned denoiser
+or upscaler replacing or augmenting SVGF is a natural next step. The stochastic shadow strategy
+itself is a prototype rather than a finished technique: making it the default would first require
+removing the artifacts it shows under camera motion where two point lights overlap. A dedicated,
+penumbra-aware shadow denoiser in place of the shared one is a related refinement. Broadening the cross-vendor comparison beyond two current-generation cards, plus a second
 rendering backend (DirectX 12), would extend the performance story further.

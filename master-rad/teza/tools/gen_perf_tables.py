@@ -87,11 +87,12 @@ def pass_ms(passes, key):
 
 def build():
     out = {}
-    totals, rtoff, res = {}, {}, {}
+    totals, rtoff, res, spreads = {}, {}, {}, {}
     for slug, col in ADAPTERS:
         for cfg in ("rt-off", "shadows", "+ao", "+refl", "+gi"):
             d = load(slug, cfg)
             totals[(col, cfg)] = d["totalGpuMs"]
+            spreads[(col, cfg)] = d.get("totalSpreadPct", 0.0) / 100.0 * d["totalGpuMs"]
         rtoff[col] = totals[(col, "rt-off")]
         gi = load(slug, "+gi")
         res[col] = (gi.get("width"), gi.get("height"), gi.get("frames"))
@@ -163,6 +164,57 @@ def build():
         macros.append(rf"\newcommand{{\perfEff{name}NV}}{{{delta('5070', cfg):.3f}}}")
     nv3 = [delta("5070", c) for c in ("shadows", "+refl", "+gi")]
     macros.append(rf"\newcommand{{\perfNVSpread}}{{{max(nv3) - min(nv3):.3f}}}")
+
+    # Which effect is most expensive is a claim the prose makes per adapter, and re-baselining can flip
+    # it: on the 5070 it moved from shadows to GI. A per-effect cost is a DIFFERENCE of two configs, so
+    # it carries both configs' run spread; effects closer together than that combined spread are not
+    # ordered by the measurement. Generating the winner (and the closest unresolved gap) keeps the
+    # sentence honest across a re-capture instead of silently falsifying it.
+    EFFECT_LABEL = {"shadows": "shadows", "+ao": "ambient occlusion",
+                    "+refl": "reflections", "+gi": "global illumination"}
+    for col, tag in (("9070", "AMD"), ("5070", "NV")):
+        unc = {cfg: (spreads[(col, PREV[cfg])] ** 2 + spreads[(col, cfg)] ** 2) ** 0.5
+               for cfg, _, _ in LADDER}
+        costs = {cfg: delta(col, cfg) for cfg, _, _ in LADDER}
+        top = max(costs, key=costs.__getitem__)
+        resolved = all(costs[top] - costs[c] > (unc[top] ** 2 + unc[c] ** 2) ** 0.5
+                       for c in costs if c != top)
+        macros.append(rf"\newcommand{{\perfTopEffect{tag}}}{{{EFFECT_LABEL[top]}}}")
+        macros.append(rf"\newcommand{{\perfTopResolved{tag}}}{{{'yes' if resolved else 'no'}}}")
+        pairs = [(abs(costs[a] - costs[b]), (unc[a] ** 2 + unc[b] ** 2) ** 0.5, a, b)
+                 for i, a in enumerate(costs) for b in list(costs)[i + 1:]]
+        tight = [p for p in pairs if p[0] <= p[1]]
+        macros.append(rf"\newcommand{{\perfUnresolvedPairs{tag}}}{{{len(tight)}}}")
+        if tight:
+            d, _, a, b = min(tight)
+            macros.append(rf"\newcommand{{\perfUnresolved{tag}}}{{{EFFECT_LABEL[a]} and {EFFECT_LABEL[b]}}}")
+            macros.append(rf"\newcommand{{\perfUnresolvedGap{tag}}}{{{d:.3f}}}")
+    # Whole-frame AMD-minus-NVIDIA gap at each end of the ladder, quoted in the ladder figure's caption.
+    macros.append(rf"\newcommand{{\perfGapBase}}{{{rtoff['9070'] - rtoff['5070']:.2f}}}")
+    macros.append(rf"\newcommand{{\perfGapGi}}"
+                  rf"{{{totals[('9070', '+gi')] - totals[('5070', '+gi')]:.2f}}}")
+
+    # Span of the per-pass AMD/NVIDIA cost ratio. The chapter's point is that this is a RANGE rather
+    # than one clock factor, so both ends are quoted in two places and both move on every re-capture.
+    ratios = [pass_ms(p9, n) / pass_ms(p5, n) for n in p9
+              if n in p5 and pass_ms(p9, n) and pass_ms(p5, n)
+              and max(pass_ms(p9, n), pass_ms(p5, n)) >= 0.05]
+    macros.append(rf"\newcommand{{\perfRatioMin}}{{{min(ratios):.2f}}}")
+    macros.append(rf"\newcommand{{\perfRatioMax}}{{{max(ratios):.2f}}}")
+
+    # The shadow-strategy pair, which the prose quotes on both adapters plus the margin each way. The
+    # ranking inverts between vendors, so these four are the chapter's load-bearing numbers and were
+    # the ones a re-capture silently falsified while they were typed by hand.
+    for col, tag in (("9070", "AMD"), ("5070", "NV")):
+        inline, stoch = delta(col, "shadows"), st[col]
+        macros.append(rf"\newcommand{{\perfShadowInline{tag}}}{{{inline:.3f}}}")
+        macros.append(rf"\newcommand{{\perfShadowStoch{tag}}}{{{stoch:.3f}}}")
+        macros.append(rf"\newcommand{{\perfShadowGap{tag}}}{{{abs(inline - stoch):.3f}}}")
+        macros.append(rf"\newcommand{{\perfShadowRatio{tag}}}"
+                      rf"{{{max(inline, stoch) / min(inline, stoch):.1f}}}")
+        macros.append(rf"\newcommand{{\perfShadowWinner{tag}}}"
+                      rf"{{{'stochastic' if stoch < inline else 'inline'}}}")
+
     # The a-trous chain's own cost, summed over its three iterations. Read from the timestamp scopes
     # rather than a whole-frame A/B, which for this filter is smaller than the run-to-run spread.
     for tag, passes in (("AMD", p9), ("NV", p5)):
