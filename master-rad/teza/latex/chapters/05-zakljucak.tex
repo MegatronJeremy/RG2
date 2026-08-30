@@ -45,7 +45,8 @@ SSIM: raster $\rightarrow$ all RT  & \multicolumn{2}{c}{\qRasterSsim{} $\rightar
 \end{table}
 
 The ray-count knee sits at one ray per pixel: going from one to eight rays costs \rcGpuPct\% more GPU
-time for a \rcPsnrGain{} dB PSNR gain, inside the run-to-run spread of the metric, because the
+time for a \rcPsnrGain{} dB PSNR gain, which is real (about three times the measurement floor) but
+far too small to justify the cost, because the
 denoiser and temporal accumulation already recover most of the achievable quality from a single
 sample (Section~\ref{sec:raycount}). Spatial sample density behaves the same way: tracing GI and AO
 at full rather than half resolution costs \hrDeltaMs{} ms, a \hrDeltaPct\% increase on an

@@ -110,12 +110,13 @@ Several results below turn on a difference being too small to read, so the floor
 measured against needs a number. Recapturing the whole matrix after a denoiser change gives one
 without a dedicated experiment: five of the techniques (\texttt{raster}, \texttt{ssao},
 \texttt{ssr}, \texttt{rtao}, \texttt{rtrefl}) do not run the filter that changed, so whatever their
-scores moved by is repeatability rather than effect. Across three viewpoints their FLIP moved by at
-most \textbf{0.0024}, and the three techniques that do run it moved up to 0.0096. \emph{Below about
-0.003 FLIP, this protocol cannot distinguish two configurations}, and that is the threshold the null
-results in Sections~\ref{sec:raycount}, \ref{sec:halfres} and \ref{sec:denoise-eval} are read
-against. The estimate comes from one such recapture rather than from a repeated-measures study, so
-treat it as the right order of magnitude and not a confidence interval.
+scores moved by is repeatability rather than effect. Across three viewpoints and fifteen captures
+their FLIP moved by at most \textbf{0.0024} and their PSNR by at most \textbf{0.060 dB}, while the
+three techniques that do run the filter moved up to 0.0096 FLIP. \emph{Below roughly 0.003 FLIP or
+0.06 dB PSNR, this protocol cannot distinguish two configurations.} Every small difference claimed
+below is read against those two numbers, and the sections that follow state where a difference clears
+them and where it does not. The estimate comes from one such recapture rather than from a
+repeated-measures study, so treat it as the right order of magnitude and not a confidence interval.
 
 \section{Per-effect cost (GPU ms)}
 \label{sec:cena}
@@ -354,10 +355,15 @@ frame and roughly a third of the full four-effect one.}
 \input{data/raycount.tex}
 \end{table}
 
-Eight times the ray budget buys no measurable image quality. Going from 1 to 8 rays per pixel costs
-\rcGpuPct\% more GPU time (\rcGpuLow{} to \rcGpuHigh{} ms) for a \rcPsnrGain{} dB PSNR gain and a
-FLIP change from \rcFlipLow{} to \rcFlipHigh{}, both within run-to-run noise on this metric. The
-curve is already flat at one ray per pixel. The denoiser and temporal accumulation already recover most of the achievable quality
+The quality knee sits at one ray per pixel, although not because the extra rays do nothing. Going
+from 1 to 8 rays costs \rcGpuPct\% more GPU time (\rcGpuLow{} to \rcGpuHigh{} ms) and returns a
+\rcPsnrGain{} dB PSNR gain with FLIP moving from \rcFlipLow{} to \rcFlipHigh{}. Both differences
+clear the floors of Section~\ref{sec:metodologija} (0.06 dB and 0.003), so the gain is real rather
+than noise, and calling it one would overstate the result. What makes one ray the operating point is
+the exchange rate: eight times the ray budget buys 0.2 dB, roughly three times the measurement floor,
+for \rcGpuPct\% of the frame. FLIP also fails to improve monotonically along the sweep, rising from
+0.1449 at two rays to 0.1458 at four before falling again, so the ordering between adjacent
+settings is not resolved even where the endpoints are. The denoiser and temporal accumulation already recover most of the achievable quality
 from a single ray, so additional samples per pixel are not where this engine's ray budget should go.
 This is consistent with the SVGF design goal (spatiotemporal
 filtering to make 1 sample per pixel viable) rather than a property specific to this
@@ -472,10 +478,11 @@ chain does to the same frame. The temporal history is doing essentially all of
 the visible convergence at this settled frame, and the filter's own contribution shows up in temporal
 stability instead. A frame-to-frame RMS delta on the same static view (frame $N$ against $N{+}1$ at
 steady state, a flicker proxy under a static camera, not motion) drops from \flickerOff{} with
-the denoiser off to \flickerOn{} with it on, a \flickerPct\% reduction. That proxy understates the
-filter, since a static camera cannot exercise a temporal one: measured under motion in
-Section~\ref{sec:motion}, the fully reconstructed configuration is 2.5 times more temporally stable
-than plain rasterization. The flicker reduction is sensitive to
+the denoiser off to \flickerOn{} with it on, a \flickerPct\% reduction. That proxy is the only
+denoiser-specific stability number here, and it likely understates the filter, since a static camera
+cannot exercise a temporal one. Section~\ref{sec:motion} measures stability properly under motion,
+but it varies the technique rather than the filter, so it bounds what the whole reconstruction chain
+achieves and not what this pass contributes to it. The flicker reduction is sensitive to
 one protocol detail: unless temporal history is cleared before sampling, the unfiltered case is
 credited with noise that accumulated while assets were still streaming, which inflates the apparent
 reduction to near 40\%, so figures captured with and without that clear are not comparable. The

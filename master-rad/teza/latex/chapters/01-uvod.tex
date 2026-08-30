@@ -66,12 +66,14 @@ versus full resolution; and how the identical Vulkan implementation performs acr
 current-generation GPUs of comparable tier (Table~\ref{tab:gpus}), diffuse global illumination, and a
 converged path-traced reference for the quality metrics.
 
-Three of the answers run against intuition. Eight times the ray budget buys a PSNR gain that sits
-inside run-to-run noise, so the curve is already flat at one ray per pixel
+Three of the answers run against intuition. Eight times the ray budget buys \rcPsnrGain{} dB of PSNR,
+about three times the measurement floor and so a real gain, although far too small to be worth
+\rcGpuPct\% more GPU time, which puts the operating point at one ray per pixel
 (Section~\ref{sec:raycount}). The denoiser earns its cost in temporal stability rather than in static
-fidelity (Section~\ref{sec:motion}). And a single shader crossing a 96-register allocation boundary
-falls from 16 concurrently resident waves to 10, which is where the inline shadow query's cost
-becomes visible statically (Section~\ref{sec:occupancy}).
+fidelity (Section~\ref{sec:motion}). And the shader carrying the inline shadow query allocates 130
+registers against 87 without it, crossing an allocation boundary that drops it from 16 concurrently
+resident waves to 10, which is where that query's cost becomes visible statically
+(Section~\ref{sec:occupancy}).
 
 \section{Contributions}
 
