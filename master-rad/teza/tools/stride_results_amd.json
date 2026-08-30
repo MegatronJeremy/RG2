@@ -1,0 +1,49 @@
+{
+  "device": "AMD Radeon RX 9070 XT",
+  "arms": [
+    {
+      "arm": "default",
+      "denoise_penumbra": "0.1",
+      "scale": "1.0",
+      "totalGpuMs": 3.9632,
+      "chain": {
+        "ShadowDenoise0": 0.2165,
+        "ShadowDenoise1": 0.2165,
+        "ShadowDenoise2": 0.2262
+      }
+    },
+    {
+      "arm": "uniform-full",
+      "denoise_penumbra": "0",
+      "scale": "1.0",
+      "totalGpuMs": 3.8769,
+      "chain": {
+        "ShadowDenoise0": 0.2125,
+        "ShadowDenoise1": 0.2068,
+        "ShadowDenoise2": 0.204
+      }
+    },
+    {
+      "arm": "uniform-half",
+      "denoise_penumbra": "0",
+      "scale": "0.5",
+      "totalGpuMs": 3.4134,
+      "chain": {
+        "ShadowDenoise0": 0.2437,
+        "ShadowDenoise1": 0.1984,
+        "ShadowDenoise2": 0.1657
+      }
+    },
+    {
+      "arm": "penumbra-half",
+      "denoise_penumbra": "0.1",
+      "scale": "0.5",
+      "totalGpuMs": 3.4811,
+      "chain": {
+        "ShadowDenoise0": 0.184,
+        "ShadowDenoise1": 0.1981,
+        "ShadowDenoise2": 0.2313
+      }
+    }
+  ]
+}

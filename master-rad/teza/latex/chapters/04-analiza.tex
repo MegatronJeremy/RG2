@@ -41,7 +41,9 @@ through the any-hit alpha-test fallback otherwise (Section~\ref{sec:accel}). The
 exposes the extension and the 9070 XT driver does not, despite comparable hardware capability, so the
 two vendors resolve masked geometry through genuinely different acceleration-structure code here. The
 disparity only changes how a masked microtriangle is classified during traversal, not ray direction,
-hit position or shading, so it cannot explain a quality-metric difference. It is a small,
+hit position or shading, so it cannot explain a quality-metric difference: the bake is conservative,
+sending every microtriangle whose samples disagree to an \texttt{UNKNOWN} state that still runs the
+exact any-hit alpha test, so the extension changes what traversal costs and not what it finds. It is a small,
 one-directional, driver-dependent contributor to the per-effect GPU-ms gap wherever a ray hits cutout
 geometry, and this evaluation does not isolate it further.
 
@@ -91,9 +93,9 @@ measurement.
 
 \paragraph{Quality measurement.} Reconstruction quality is measured by \texttt{quality-bench} against
 the converged path-traced reference of Section~\ref{sec:pathtracer}. Each real-time technique's
-tonemapped present is scored against it by \textbf{FLIP} (perceptual), \textbf{PSNR} and
-\textbf{SSIM}. FLIP is primary because it models what a human observer notices rather than raw
-per-pixel error. PSNR structurally favours a blurrier image and SSIM compares local structure rather
+tonemapped present is scored against it by \textbf{FLIP} (perceptual) \cite{andersson2020flip},
+\textbf{PSNR} and \textbf{SSIM} \cite{wang2004ssim}. FLIP is primary because it models what a human
+observer notices rather than raw per-pixel error. PSNR structurally favours a blurrier image and SSIM compares local structure rather
 than absolute values, so all three are reported and no single metric's bias decides a conclusion.
 Scores are averaged over three fixed orientations from one interior position (down the nave, tilted
 to the floor, tilted to the upper gallery), chosen to stress ambient occlusion, global illumination
@@ -309,8 +311,11 @@ and GPU time against the ray count.
 
 \begin{table}[htb]
 \centering
-\caption{GI quality and GPU cost as a function of rays per pixel (denoiser and temporal resolve
-enabled, RX 9070 XT).}
+\caption[GI quality and GPU cost against rays per pixel]{GI quality and GPU cost as a function of
+rays per pixel (denoiser and temporal resolve enabled, RX 9070 XT). The GPU total is a GI-only
+configuration with the other three effects disabled, so it is a smaller frame than the
+\texttt{+gi} total of Table~\ref{tab:cena}: the same absolute increase is \rcGpuPct\% of this
+frame and roughly a third of the full four-effect one.}
 \label{tab:raycount}
 \input{data/raycount.tex}
 \end{table}
@@ -416,8 +421,11 @@ result against the path-traced reference, at a fixed 2 rays per pixel, RX 9070 X
 
 \begin{table}[htb]
 \centering
-\caption{The SVGF denoiser's contribution against the path-traced reference (2 rays/pixel, temporal
-resolve enabled in both cases).}
+\caption[The SVGF denoiser's contribution on a static frame]{The SVGF denoiser's contribution against
+the path-traced reference (2 rays/pixel, temporal resolve enabled in both cases). The two rows differ
+by less than the run-to-run spread of these metrics, so this table shows the filter making \emph{no
+measurable difference} to a settled static frame, not making it worse. What it does buy is measured
+below and under motion in Section~\ref{sec:motion}.}
 \label{tab:denoise-eval}
 \input{data/denoise-eval.tex}
 \end{table}
@@ -609,7 +617,8 @@ moving the static metrics by less than measurement noise, an argument made there
 section moves the camera.
 
 Flying a fixed route, capturing frames along it and scoring each against a converged path trace of
-the same instant produces a caution about the method before any fact about the renderer: across the
+the same instant is the protocol BMFR established for animated sequences
+\cite{koskela2019bmfr}. It produces a caution about the method before any fact about the renderer: across the
 eleven techniques, the per-frame FLIP measured this way correlates with the static FLIP of
 Section~\ref{sec:poredjenje} at $r = +0.99$, very nearly the same measurement taken twice. A
 converged per-frame path trace is a sequence of independent still images with no temporal structure,
@@ -637,9 +646,10 @@ spatially.
 \begin{table}[tbp]
 \caption[Stability under motion per technique]{Stability under motion, averaged over the route's four
 probe points (RX 9070 XT), ranked by FLIP. tFLIP measures how much the technique changes between
-adjacent frames in excess of how much the reference itself changes, and lag is the moving frame
-against its own converged still frame at the same pose. JOD is ColorVideoVDP, the only measure here
-that models temporal contrast sensitivity directly.}
+adjacent frames in excess of how much the reference itself changes, which is TecoGAN's tLP
+construction \cite{chu2020tecogan} with FLIP substituted for LPIPS, and lag is the moving frame
+against its own converged still frame at the same pose. JOD is ColorVideoVDP
+\cite{mantiuk2024cvvdp}, the only measure here that models temporal contrast sensitivity directly.}
 \label{tab:motion}
 \centering
 \input{data/motion.tex}
@@ -703,9 +713,12 @@ being measured. Sharing the reference makes the reference error common to both s
 cancels.
 
 Two limits bound the claim. The residual disagreement is not zero, and the largest of it sits on the
-ambient-occlusion and shadow rows, which are also the effects whose rays interact with the cutout
-geometry where the two drivers genuinely differ (Section~\ref{sec:metodologija}). That is consistent
-with the opacity-micromap disparity being the mechanism, although this experiment does not isolate it.
+ambient-occlusion and shadow rows. The opacity-micromap disparity of
+Section~\ref{sec:metodologija} is the tempting explanation, since those are the effects whose rays
+interact with cutout geometry, but it is the wrong one: the micromap bake is conservative, assigning
+any microtriangle whose samples disagree to an \texttt{UNKNOWN} state that falls back to the exact
+any-hit alpha test, so a hit is resolved identically with and without the extension and only the
+traversal cost changes. The residual is therefore not attributed here.
 And the reference is shared here because both adapters were measured on one machine with a warm cache.
 On two machines each would trace its own, and the comparison would require transferring the reference
 rather than recomputing it.

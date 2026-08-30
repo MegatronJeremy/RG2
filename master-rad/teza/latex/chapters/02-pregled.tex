@@ -178,8 +178,9 @@ Suited for           & full path tracer & bounded effects on a rasterizer \\
 \end{table}
 
 Hardware scheduling means the RT unit can regroup rays that have diverged mid-traversal so that
-threads in a wave are again working on similar hits. An inline query cannot, so divergent rays inside
-one wave run at the pace of the slowest.
+threads in a wave are again working on similar hits, which NVIDIA exposes from the Ada generation
+onward as shader execution reordering \cite{nvidia_ada}. An inline query cannot, so divergent rays
+inside one wave run at the pace of the slowest.
 
 \section{Existing real-time solutions for GI and RT effects}
 \label{sec:postojeca}

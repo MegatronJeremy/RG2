@@ -1,0 +1,49 @@
+{
+  "device": "NVIDIA GeForce RTX 5070",
+  "arms": [
+    {
+      "arm": "default",
+      "denoise_penumbra": "0.1",
+      "scale": "1.0",
+      "totalGpuMs": 4.5867,
+      "chain": {
+        "ShadowDenoise0": 0.3544,
+        "ShadowDenoise1": 0.3315,
+        "ShadowDenoise2": 0.3384
+      }
+    },
+    {
+      "arm": "uniform-full",
+      "denoise_penumbra": "0",
+      "scale": "1.0",
+      "totalGpuMs": 4.6103,
+      "chain": {
+        "ShadowDenoise0": 0.3605,
+        "ShadowDenoise1": 0.3291,
+        "ShadowDenoise2": 0.3283
+      }
+    },
+    {
+      "arm": "uniform-half",
+      "denoise_penumbra": "0",
+      "scale": "0.5",
+      "totalGpuMs": 1.9224,
+      "chain": {
+        "ShadowDenoise0": 0.0878,
+        "ShadowDenoise1": 0.0897,
+        "ShadowDenoise2": 0.1201
+      }
+    },
+    {
+      "arm": "penumbra-half",
+      "denoise_penumbra": "0.1",
+      "scale": "0.5",
+      "totalGpuMs": 2.0921,
+      "chain": {
+        "ShadowDenoise0": 0.0897,
+        "ShadowDenoise1": 0.1072,
+        "ShadowDenoise2": 0.1591
+      }
+    }
+  ]
+}

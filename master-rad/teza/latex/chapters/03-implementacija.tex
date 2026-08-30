@@ -56,6 +56,39 @@ same four-stage shape, trace, accumulate over time, filter spatially, and (for t
 ones) upsample, which is what lets one denoiser implementation serve all of them
 (Section~\ref{sec:denoising}).
 
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}[>={Stealth[]}, font=\small, node distance=0mm,
+  stage/.style={draw, rounded corners, align=center, minimum height=8mm, inner xsep=3pt},
+  rt/.style={stage, fill=black!7, minimum width=2.3cm},
+  lbl/.style={font=\scriptsize\itshape}]
+
+  \node[stage] (gbuf) at (0,0) {G-buffer\\[-1pt]\footnotesize depth + normals};
+
+  \node[rt, right=9mm of gbuf, yshift=13mm] (gi) {GI\\[-1pt]\footnotesize half res.};
+  \node[rt, right=9mm of gbuf] (ao) {AO\\[-1pt]\footnotesize half res.};
+  \node[rt, right=9mm of gbuf, yshift=-13mm] (refl) {Reflections\\[-1pt]\footnotesize full res.};
+
+  \node[stage, right=9mm of ao, minimum height=30mm, text width=2.1cm] (fwd)
+    {Forward\\shading\\[2pt]\footnotesize + inline\\\footnotesize shadow rays};
+  \node[stage, right=8mm of fwd, text width=1.7cm] (post) {TAA\\tonemap\\post};
+
+  \foreach \t in {gi,ao,refl} {
+    \draw[->] (gbuf.east) -- (\t.west);
+    \draw[->] (\t.east) -- (fwd.west);
+  }
+  \draw[->] (fwd.east) -- (post.west);
+
+  \node[lbl, above=1mm of gi] {trace $\rightarrow$ accumulate $\rightarrow$ filter $\rightarrow$ upsample};
+  \node[lbl, below=1mm of refl] {shaded grey = ray-traced};
+\end{tikzpicture}
+\caption[The frame at a glance]{The frame at a glance. A rasterized G-buffer feeds three ray-traced
+effects that are reconstructed to textures before shading, while the fourth (shadows) is traced
+inline inside the forward pass. Each grey chain has the same four-stage shape, which is what lets one
+denoiser serve all of them. Table~\ref{tab:framegraph} gives the same thing pass by pass.}
+\label{fig:overview}
+\end{figure}
+
 \begin{table}[tbp]
 \caption[Per-frame passes, in order]{Per-frame passes in execution order. Three effects are
 reconstructed before shading and enter \texttt{Forward} as textures, although shadows are the
@@ -323,8 +356,8 @@ than a tangent-plane disk is what makes the real-time penumbra agree with the pa
 next-event estimation at any cone width, instead of only in the small-angle limit where the two
 parameterisations coincide. \texttt{SHADOW_RAY_COUNT} is a compile-time constant, a cost class rather
 than a live knob. \texttt{render.shadows.rays} applies to the stochastic path below, not to this one.
-Directions are drawn from spatiotemporal blue noise, whose error sits at high frequencies, two
-decorrelated dimensions per light, spreading
+Directions are drawn from spatiotemporal blue noise \cite{wolfe2022stbn}, whose error sits at high
+frequencies, two decorrelated dimensions per light, spreading
 the two-sample penumbra across frames for the temporal accumulator to resolve
 (Sections~\ref{sec:denoising} and \ref{sec:taa}). The choice of noise sequence matters here for two
 reasons that a per-frame image cannot show. A hash re-rolled every frame is white in time, so the
@@ -388,8 +421,9 @@ print resolves.}
 \paragraph{The stochastic alternative.} Tracing every light at every pixel is exact but scales
 linearly with light count, which does not survive a scene lit by hundreds of sources. The engine
 therefore implements a second strategy, enabled by \texttt{render.shadows.stochastic} and off by
-default, following the MegaLights approach: each pixel takes \texttt{render.shadows.rays} independent
-samples, and each sample separately uses resampled importance sampling to pick \emph{one} light with
+default, following the MegaLights approach \cite{epic_megalights}: each pixel takes
+\texttt{render.shadows.rays} independent
+samples, and each sample separately uses resampled importance sampling \cite{talbot2005ris} to pick \emph{one} light with
 probability proportional to its unshadowed contribution and traces a single ray at it. Averaging the
 samples gives one aggregate visibility ratio, so the cost is set by the sample count rather than by
 the light count.

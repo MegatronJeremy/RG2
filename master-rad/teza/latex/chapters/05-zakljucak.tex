@@ -67,7 +67,10 @@ RX 9070 XT and \perfFourEffectsNV{} ms on the RTX 5070, without a full path trac
 \section{Limitations}
 
 The measurements are taken on two GPUs of comparable market tier and a single scene class, so the
-absolute numbers do not generalize across hardware or content. Global illumination is limited to a
+absolute numbers do not generalize across hardware or content. Content coverage is the weakest part
+of the evaluation by a published standard: ITU-T P.910 \cite{itu_p910} asks for at least four source
+sequences spanning a range of spatial and temporal complexity, against the one scene and two routes
+used here, so an artifact specific to other content would not be found by this protocol. Global illumination is limited to a
 single diffuse bounce, and shadows are hard or lightly softened rather than physically accurate area
 shadows. To stay within a real-time budget the ray counts are kept very low (one or two per pixel per
 effect, and two per light for inline shadows),
