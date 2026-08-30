@@ -186,7 +186,8 @@ same three fall within \perfNVSpread{} ms of each other, inside the run-to-run s
 card they are indistinguishable in cost. Ambient occlusion is cheapest on both. Together the four add
 \perfFourEffectsAMD{} ms (9070 XT) and \perfFourEffectsNV{} ms (5070) over their respective
 baselines, for measured real-time totals of \perfTotalAMD{} ms (\perfBaseAMD{} ms baseline) and
-\perfTotalNV{} ms (\perfBaseNV{} ms baseline).
+\perfTotalNV{} ms (\perfBaseNV{} ms baseline). Both totals sit inside the 16.7 ms budget of a 60 Hz
+frame, which is what makes the real-time claim a measurement rather than a label.
 
 The half-resolution trace plus denoise is what keeps GI and AO cheap despite their hemispheric
 gather. On both cards the screen-space GI producer is cheaper than ray-traced GI at the same rung
@@ -227,8 +228,10 @@ not the finished image.}
 \label{fig:effect-gallery}
 \end{figure}
 
+Global illumination is the only one of the four effects that substantially changes the picture.
 Toggling shadows, ambient occlusion or reflections individually moves the final image by a mean of
-only 2.1 to 2.5 levels out of 255 at this viewpoint, while global illumination moves it by 23.9. The
+2.1 to 2.5 levels out of 255 at this viewpoint, while global illumination moves it by 23.9, a factor
+of ten. The
 ambient-occlusion buffer is close to white over most of the frame because Sponza's atrium is open, so
 occlusion is confined to the arcade vaults and the column bases. The raw GI term is dim in absolute
 terms yet carries the colour bleeding (the red and green drapes tinting the stone beside them) that a
@@ -238,7 +241,7 @@ constant ambient cannot reproduce.
 \label{sec:analiza-shadow-strategy}
 
 The two shadow strategies of Section~\ref{sec:senke} have differently shaped cost curves: the default
-inline path traces one ray per light per pixel inside the forward shader, while the stochastic path
+inline path traces two rays per light per pixel inside the forward shader, while the stochastic path
 picks one light per pixel by resampled importance sampling and reconstructs the result with the
 shared denoiser.
 
@@ -250,15 +253,36 @@ shared denoiser.
 \input{data/perf-shadow-strategy.tex}
 \end{table}
 
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.7\textwidth, height=6.0cm,
+  xlabel={adapter}, ylabel={cost over \texttt{rt-off} (GPU ms)},
+  xtick={0,1}, xticklabels={RX 9070 XT, RTX 5070},
+  xmin=-0.3, xmax=1.3, ymin=0, ymax=4,
+  grid=major, grid style={black!12},
+  tick label style={font=\small}, label style={font=\small},
+  legend style={at={(0.02,0.98)}, anchor=north west, font=\small, draw=black!30}]
+\addplot[thick, mark=*] coordinates {(0,2.272) (1,1.294)};
+\addplot[thick, mark=square*, dashed] coordinates {(0,1.723) (1,3.362)};
+\legend{inline, stochastic}
+\end{axis}
+\end{tikzpicture}
+\caption[Shadow strategy cost inverts between vendors]{The lines cross. On the 9070 XT the
+stochastic path is cheaper, while on the 5070 the inline path is cheaper by a factor of 2.6. Neither
+ordering generalises.}
+\label{fig:shadow-strategy}
+\end{figure}
+
 The two cards disagree about which strategy is cheaper. On the RX 9070 XT the stochastic path wins,
 1.723 ms against 2.272 ms. On the RTX 5070 it loses badly, 3.362 ms against 1.294 ms, a factor of
 2.6.
 
 The stochastic path replaces per-light rays with one importance-sampled ray plus a reconstruction
 chain, trading ray count for filter cost, which pays exactly when rays are expensive relative to
-filtering. On the 5070 they are not: dedicated traversal hardware makes the twenty coherent inline rays of a five-light scene
-cheap enough that paying a temporal pass, three à-trous iterations, and an upsample to avoid them is a
-net loss. On the 9070 XT, where traversal is driven by shader instructions and competes with shading
+filtering. On the 5070 they are not: dedicated traversal hardware makes the ten coherent inline rays of a
+five-light scene cheap enough that paying a temporal pass, three à-trous iterations, and an upsample
+to avoid them is a net loss. On the 9070 XT, where traversal is driven by shader instructions and competes with shading
 for the same execution resources (Section~\ref{sec:accel-pregled}), the same trade pays.
 
 The choice of shadow technique is therefore a property of the target architecture: a renderer that
@@ -286,10 +310,10 @@ enabled, RX 9070 XT).}
 \input{data/raycount.tex}
 \end{table}
 
-The knee sits at 1 ray per pixel. Going from 1 to 8 rays costs \rcGpuPct\% more GPU time
-(\rcGpuLow{} to \rcGpuHigh{} ms) for a \rcPsnrGain{} dB PSNR gain and a FLIP improvement from
-\rcFlipLow{} to \rcFlipHigh{}, both within run-to-run noise on
-this metric. The denoiser and temporal accumulation already recover most of the achievable quality
+Eight times the ray budget buys no measurable image quality. Going from 1 to 8 rays per pixel costs
+\rcGpuPct\% more GPU time (\rcGpuLow{} to \rcGpuHigh{} ms) for a \rcPsnrGain{} dB PSNR gain and a
+FLIP change from \rcFlipLow{} to \rcFlipHigh{}, both within run-to-run noise on this metric. The
+curve is already flat at one ray per pixel. The denoiser and temporal accumulation already recover most of the achievable quality
 from a single ray, so additional samples per pixel are not where this engine's ray budget should go.
 This is consistent with the SVGF design goal (spatiotemporal
 filtering to make 1 sample per pixel viable) rather than a property specific to this
@@ -397,8 +421,11 @@ With temporal accumulation already active, the spatial SVGF pass changes the sta
 (PSNR, SSIM, FLIP) by less than measurement noise: the temporal history is doing essentially all of
 the visible convergence at this settled frame, and the filter's own contribution shows up in temporal
 stability instead. A frame-to-frame RMS delta on the same static view (frame $N$ against $N{+}1$ at
-steady state, a flicker proxy under a static camera, not motion) drops only from \flickerOff{} with
-the denoiser off to \flickerOn{} with it on, a \flickerPct\% reduction. That figure is sensitive to
+steady state, a flicker proxy under a static camera, not motion) drops from \flickerOff{} with
+the denoiser off to \flickerOn{} with it on, a \flickerPct\% reduction. That proxy understates the
+filter, since a static camera cannot exercise a temporal one: measured under motion in
+Section~\ref{sec:motion}, the fully reconstructed configuration is 2.5 times more temporally stable
+than plain rasterization. The flicker reduction is sensitive to
 one protocol detail: unless temporal history is cleared before sampling, the unfiltered case is
 credited with noise that accumulated while assets were still streaming, which inflates the apparent
 reduction to near 40\%, so figures captured with and without that clear are not comparable. The
@@ -607,7 +634,7 @@ spatially.
 probe points (RX 9070 XT), ranked by FLIP. tFLIP measures how much the technique changes between
 adjacent frames in excess of how much the reference itself changes, and lag is the moving frame
 against its own converged still frame at the same pose. JOD is ColorVideoVDP, the only measure here
-that models temporal sensitivity directly.}
+that models temporal contrast sensitivity directly.}
 \label{tab:motion}
 \centering
 \input{data/motion.tex}
@@ -680,7 +707,9 @@ rather than recomputing it.
 \section{Shader occupancy and cost}
 \label{sec:occupancy}
 
-Static shader occupancy, how many registers each ray-tracing and denoising shader needs and how many
+A GPU runs threads in fixed 32-wide lockstep groups, called waves on AMD and warps on NVIDIA, and
+each scheduler unit (a SIMD on AMD, an SM on NVIDIA) keeps several resident at once. Static shader
+occupancy, how many registers each ray-tracing and denoising shader needs and how many
 waves the hardware can therefore keep in flight, is the one place where the two vendors compare on
 something other than time, and it explains part of the cost difference the rest of the chapter
 measures.
@@ -707,7 +736,9 @@ Generated from the committed baselines by \texttt{tools/gen\_shader\_tables.py}.
 
 Only one shader on the render path is occupancy-limited on either card, and it is the same one:
 \texttt{DefaultLit.frag} in its inline-shadow permutation, at 130 VGPRs and 10 of 16 waves on the
-9070 XT. Compiled without the inline shadow query it drops to 87 VGPRs and full occupancy, which
+9070 XT, so the shadow query costs six of the sixteen waves the SIMD could otherwise keep resident,
+better than a third of the pool of work available to cover memory latency. Compiled without the
+inline shadow query it drops to 87 VGPRs and full occupancy, which
 locates the cost precisely: tracing shadow rays inside the forward shader is what pushes it over a
 wave boundary, the same effect Section~\ref{sec:cena} sees as a Forward pass that grows by 3.482 ms.
 Nothing in the table spills registers, and across all 47 cooked shaders exactly one uses scratch

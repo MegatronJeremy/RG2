@@ -6,8 +6,14 @@
     corners and crevices
   \item[\`a-trous] a filter that doubles the spacing between samples on every iteration, so it
     reaches wider without a quadratic rise in cost
+  \item[bindless] every texture and buffer in the scene exposed as one large indexable array, so a
+    shader can address a resource by integer index instead of needing it bound for that particular
+    draw
   \item[BLAS] Bottom-Level Acceleration Structure: a BVH over the triangles of one mesh, in object
     space
+  \item[blue noise] a sequence whose error is concentrated at high frequencies, so neighbouring
+    pixels and successive frames get deliberately dissimilar samples, which is what makes an average
+    over them converge faster
   \item[BRDF] Bidirectional Reflectance Distribution Function: describes how much light a surface
     reflects from one direction into another
   \item[BVH] Bounding Volume Hierarchy: a tree of nested boxes that lets a ray skip most triangles
@@ -21,6 +27,8 @@
     shading
   \item[GI] Global Illumination: light that reaches a surface after at least one bounce
   \item[HLSL] High-Level Shading Language
+  \item[JOD] Just-Objectionable-Difference: the unit of ColorVideoVDP, where a gap of about 1 JOD
+    corresponds to roughly a 75\% population preference between the two images
   \item[LDS] Local Data Share: workgroup shared memory on AMD GPUs
   \item[MIS] Multiple Importance Sampling
   \item[NEE] Next-Event Estimation: in a path tracer, sampling a light source directly from every
@@ -33,6 +41,9 @@
     larger the light source or the further the occluder
   \item[PSNR] Peak Signal-to-Noise Ratio: a logarithmic measure of mean squared error, higher is
     better although it systematically favours the blurrier image
+  \item[radiance] light energy per unit projected area per unit solid angle, the quantity a pixel
+    ultimately stores. Irradiance is the same energy integrated over incoming directions, without a
+    direction of its own
   \item[RDNA] Radeon DNA (AMD GPU architecture)
   \item[reprojection] mapping a pixel from the current frame into the previous one through motion
     vectors, to reuse a previously computed result
@@ -40,6 +51,8 @@
   \item[RIS] Resampled Importance Sampling
   \item[RT] Ray Tracing
   \item[RTXGI] RTX Global Illumination
+  \item[SIMD / SM] the scheduler unit that holds several waves (AMD) or warps (NVIDIA) resident at
+    once and issues from them
   \item[SPIR-V] Standard Portable Intermediate Representation (Vulkan)
   \item[spp] samples per pixel
   \item[SSAO] Screen-Space Ambient Occlusion
@@ -55,4 +68,6 @@
   \item[tonemap] mapping HDR values into the display range
   \item[VGPR] Vector General-Purpose Register: per-thread registers whose count determines how many
     waves can be in flight at once (occupancy)
+  \item[wave / warp] a fixed group of 32 threads executing in lockstep, called a wave on AMD and a
+    warp on NVIDIA
   \end{description}

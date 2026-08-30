@@ -17,8 +17,8 @@ sits over a Vulkan RHI (volk, Vulkan Memory Allocator, spirv-reflect for descrip
 the CVar console and the performance readouts (Section~\ref{sec:alati}).
 
 The one part load-bearing for the RT path is the bindless descriptor model, which lets a single
-hit-shading routine index any mesh's vertices, indices, and material without per-draw descriptor churn
-(Section~\ref{sec:efekti}): each mesh exposes its vertex and index buffers by device address, and a
+hit-shading routine index any mesh's vertices, indices, and material by integer index rather than
+through resources bound for that particular draw (Section~\ref{sec:efekti}): each mesh exposes its vertex and index buffers by device address, and a
 per-instance geometry table indexed by \texttt{instanceCustomIndex} lets the hit shader fetch the hit
 triangle's attributes and its material at trace time. The Vulkan physical device is selected at startup
 by index or name through a CVar, so the same binary runs on either GPU, which the cross-vendor
@@ -33,8 +33,8 @@ barriers between them and a dependency DAG (\texttt{BuildDependencies}). Declara
 topological order by construction, so the derived edges do not change what is correct, only what is
 free to move: \texttt{BuildSchedule} pulls compute passes as early as their edges allow, gathering the
 ray-traced chains into one contiguous run instead of leaving them split by the raster upsamples that
-happen to sit between them. That contiguity is what makes async compute worthwhile, since otherwise
-each chain would pay its own fork and join.
+happen to sit between them. Grouping the compute passes that way lets the run pay one synchronisation
+boundary instead of one per chain.
 
 Two ordering constraints are derived rather than declared, since no texture edge expresses them.
 Graphics passes keep their relative order, because they submit draws through a shared instance buffer at
@@ -75,7 +75,7 @@ AO (1/2 res.) & \texttt{AO} $\rightarrow$ \texttt{AOTemporal} $\rightarrow$ \tex
 \addlinespace[2pt]
 Reflections (full) & \texttt{Reflection} $\rightarrow$ \texttt{ReflectionTemporal} (the a-trous filter for reflections is off by default) \\
 \addlinespace[2pt]
-Shading & \texttt{Forward} (\texttt{DefaultLit}): early-Z prepass, sky, inline shadow rays, and the combine with GI/AO/reflections \\
+Shading & \texttt{Forward} (\texttt{DefaultLit}): a depth-only prepass, so the lit shader runs once per visible pixel, sky, inline shadow rays, and the combine with GI/AO/reflections \\
 \addlinespace[2pt]
 Post & \texttt{Upscale} $\rightarrow$ \texttt{TemporalResolve} (TAA) $\rightarrow$ tonemap $\rightarrow$ FXAA $\rightarrow$ \texttt{Sharpen} \\
 \addlinespace[2pt]
@@ -128,9 +128,7 @@ shader can resolve the geometry from a table (Section~\ref{sec:efekti}).
 In \texttt{Sponza.world} the two-level structure buys nothing, since the model is authored as a
 single unrepeated mesh set: 25 instances over 25 BLAS, one to one.
 \texttt{Sponza-Motion.world} adds the four rotating props of Section~\ref{sec:motion}, four
-transforms of one mesh, so its 29 instances share 26 BLAS. The instance count reported by
-\texttt{TlasBuildSystem} climbs across rebuilds (6, 12, 18, 24, 25) as the meshes stream in, since a
-mesh entity joins the structure only once its geometry is resident.
+transforms of one mesh, so its 29 instances share 26 BLAS.
 
 The TLAS is rebuilt in full on every frame the scene is marked dirty (\texttt{TlasBuildSystem}, in
 the \texttt{PreRender} phase). There is no refit path: a dirty frame destroys and rebuilds the
@@ -144,8 +142,7 @@ chosen for implementation simplicity given that the test scenes are largely stat
 \texttt{VK\_EXT\_opacity\_micromap} (\texttt{render.omm}, on by default when supported), a cutout
 material instead builds a second, non-opaque BLAS carrying an opacity micromap: a compute pass
 (\texttt{OmmBake.comp}) bakes the material's albedo alpha into a per-microtriangle
-opaque/transparent/unknown classification at a fixed subdivision level, using the same bird-curve
-microtriangle indexing Khronos' reference implementation uses. Traversal then resolves opaque and
+opaque/transparent/unknown classification at a fixed subdivision level. Traversal then resolves opaque and
 transparent microtriangles in hardware, so the any-hit alpha test runs only on the unknown (edge)
 ones, whereas without the extension every cutout microtriangle pays it. The bake runs once per mesh and is
 cached alongside the plain BLAS. Because it samples the resident albedo texture, it is deferred until
@@ -325,7 +322,8 @@ than a tangent-plane disk is what makes the real-time penumbra agree with the pa
 next-event estimation at any cone width, instead of only in the small-angle limit where the two
 parameterisations coincide. \texttt{SHADOW_RAY_COUNT} is a compile-time constant, a cost class rather
 than a live knob. \texttt{render.shadows.rays} applies to the stochastic path below, not to this one.
-Directions are drawn from spatiotemporal blue noise, two decorrelated dimensions per light, spreading
+Directions are drawn from spatiotemporal blue noise, whose error sits at high frequencies, two
+decorrelated dimensions per light, spreading
 the two-sample penumbra across frames for the temporal accumulator to resolve
 (Sections~\ref{sec:denoising} and \ref{sec:taa}). The choice of noise sequence matters here for two
 reasons that a per-frame image cannot show. A hash re-rolled every frame is white in time, so the
@@ -386,7 +384,7 @@ print resolves.}
 \label{fig:shadow-hs}
 \end{figure}
 
-\paragraph{The stochastic alternative.} Tracing one ray per light per pixel is exact but scales
+\paragraph{The stochastic alternative.} Tracing every light at every pixel is exact but scales
 linearly with light count, which does not survive a scene lit by hundreds of sources. The engine
 therefore implements a second strategy, enabled by \texttt{render.shadows.stochastic} and off by
 default, following the MegaLights approach: each pixel uses resampled importance sampling to pick
@@ -480,10 +478,12 @@ Glossy reflections are approximated by jittering each ray inside a cone whose ha
 surface roughness (\texttt{roughness * ReflConeScale}), averaged over \texttt{render.reflections.rays}
 (default 1), while a mirror surface (\texttt{roughness == 0}) collapses to one sharp ray. Hits are
 shaded by \texttt{ShadeSurfaceHit} (sun lighting with its own shadow ray, the hit surface's emissive
-term, image-based ambient), and a miss samples the prefiltered sky cube. Unlike the GI pass below, reflections
-do not sample the scene's local point and spot lights at the hit: the same importance-sampled
-local-light estimator was measured here too and showed no quality gain for twice the GI side's cost,
-so it is compiled out of this pass entirely. The pass writes raw reflected radiance plus hit distance,
+term, image-based ambient), and a miss samples the prefiltered sky cube. Unlike the GI pass below,
+reflections do not sample the scene's local point and spot lights at the hit. The same
+importance-sampled local-light estimator was measured here too and moved no quality metric for twice
+the GI side's cost, so it is compiled out of this pass entirely rather than left behind a disabled
+flag, on the same evidence-first standard that leaves the hit-distance guide above disabled by
+default. The pass writes raw reflected radiance plus hit distance,
 while the Fresnel term, the BRDF weighting, and \texttt{render.reflections.intensity} are applied
 afterward in the forward pass (Figure~\ref{fig:refl}).
 
@@ -503,16 +503,15 @@ smooth surface gives one sharp ray, while a rough one samples a cone around $R$.
 \label{fig:refl}
 \end{figure}
 
-Figure~\ref{fig:refl-onoff} shows the contribution of the pass. The cone itself
-(Figure~\ref{fig:refl-cone}) resists the obvious measurement: sweeping
+Figure~\ref{fig:refl-onoff} shows the contribution of the pass. Sweeping
 \texttt{render.reflections.cone\_scale} from 0 (a pure mirror ray) to 3 changes the finished frame by
-a mean of only 0.16 levels out of 255, across six camera poses tried. The cause is that the reflection
-is a small additive term next to direct lighting, so the composited image hides it. Measured on the
-reflection buffer before compositing, the same A/B moves 43.7 levels and drops the buffer's
-high-frequency energy from \hfConeSharp{} to \hfConeGlossy{}, a factor of 275 more signal than the
-composited comparison shows. The figure therefore uses the isolated buffer, for the same reason the
-effect gallery in Section~\ref{sec:cena} does: a term that is small in the final image can still be
-the whole content of its own intermediate.
+a mean of only 0.16 levels out of 255, across six camera poses tried, while measured on the reflection
+buffer before compositing the same A/B moves 43.7 levels and drops the buffer's high-frequency energy
+from \hfConeSharp{} to \hfConeGlossy{}, a factor of 275 more signal than the composited comparison
+shows. The cause is that the reflection is a small additive term next to direct lighting, so the
+composited image hides it: a term that is small in the final image can still be the whole content of
+its own intermediate. The cone figure (Figure~\ref{fig:refl-cone}) therefore uses the isolated buffer,
+for the same reason the effect gallery in Section~\ref{sec:cena} does.
 
 \begin{figure}[tbp]
 \centering
@@ -598,7 +597,9 @@ nearly the same surface, and the previous frame usually contains the same surfac
 motion away. A denoiser borrows those samples spatially and temporally while refusing to borrow
 across a real edge, where the neighbour is a different surface and averaging would smear the image.
 Deciding what counts as "the same surface" is the entire difficulty, and it is why a denoiser needs
-the G-buffer's depth and normals rather than just the colour.
+the G-buffer's depth and normals rather than just the colour. Figure~\ref{fig:gi-denoise-ab} in
+Chapter~\ref{ch:analiza} shows what this buys: the raw half-resolution GI buffer against the same
+buffer after temporal accumulation and the \`a-trous filter.
 
 Snowstorm implements a variant of Spatiotemporal Variance-Guided Filtering (SVGF)
 \cite{schied2017svgf}, the standard real-time reconstruction filter for path-traced effects, as a
@@ -709,14 +710,22 @@ wSum += w;
 
 \subsection{Departures from SVGF, and their cost}
 
-The implementation departs from the paper in a few places, all noted so Chapter~\ref{ch:analiza}'s
-quality numbers are read correctly: the denoiser filters raw irradiance and remultiplies albedo after
-upsampling rather than demodulating inside the filter as SVGF does; the extra temporal color clamp
-above is not in SVGF; GI and AO are filtered at half resolution where SVGF is full-resolution; and
-the variance edge-stop is optional. \texttt{GIDenoise.comp} keeps its outer \`a-trous loop rolled rather
-than unrolled, which costs a little scheduling freedom and in exchange holds register pressure down to
+The implementation departs from the paper in four places, all noted so Chapter~\ref{ch:analiza}'s
+quality numbers are read correctly:
+\begin{itemize}
+\item the denoiser filters raw irradiance and remultiplies albedo after upsampling, where SVGF
+      demodulates inside the filter,
+\item the extra temporal color clamp above is not in SVGF,
+\item GI and AO are filtered at half resolution, where SVGF is full-resolution,
+\item the variance edge-stop is optional.
+\end{itemize}
+
+A source-level choice that cannot change the output image, whether one loop is unrolled, decides
+whether the shader gets 16 of 16 wavefronts or 8. \texttt{GIDenoise.comp} keeps its outer \`a-trous
+loop rolled, which costs a little scheduling freedom and in exchange holds register pressure down to
 70 VGPRs on the RX 7900 XTX and 59 on the RX 9070 XT, with no spilling and full occupancy on both
-(Table~\ref{tab:occupancy}). Unrolled it allocates 191 and drops to 8 of 16 wavefronts.
+(Table~\ref{tab:occupancy}). Unrolled it allocates 191, crossing an allocation boundary that 70 does
+not, and drops to 8 of 16 wavefronts.
 
 \section{TAA / temporal resolve}
 \label{sec:taa}
@@ -724,11 +733,13 @@ than unrolled, which costs a little scheduling freedom and in exchange holds reg
 After the forward pass produces the shaded HDR image, a temporal anti-aliasing resolve \cite{karis2014taa}
 (\texttt{TemporalResolvePass}, \texttt{TemporalResolve.frag.hlsl}) accumulates it across frames to
 remove aliasing and to converge the residual noise the per-effect denoisers leave behind. The camera
-projection is jittered every frame by a Halton(2,3) sequence over a 16-phase cycle. The resolve
-reprojects the previous output by the motion vectors (with a closest-depth dilation so thin features
-fetch the right velocity), reconstructs the history with a Catmull-Rom filter to reduce reprojection
-blur, and clips it against the current $3\times3$ neighborhood in YCoCg space using a Karis
-rounded-box bound, loosened for static pixels and tightened under motion.
+is sub-pixel jittered each frame on a 16-phase low-discrepancy sequence, so successive frames
+sample different points inside the pixel, and the resolve reprojects the previous output by the motion
+vectors and clips it against the current pixel's local neighbourhood, loosely for a static pixel and
+more tightly under motion (the jitter is Halton(2,3), the reprojection uses a closest-depth dilation
+so thin features fetch the right velocity and a Catmull-Rom history reconstruction to reduce
+reprojection blur, and the clip is a Karis rounded-box bound over the $3\times3$ neighborhood in
+YCoCg space).
 
 The resolve runs in linear HDR and does accumulation only. This is a deliberate invariant: any
 perceptual or display-space operation (sharpening, contrast) is kept out of this pass and applied

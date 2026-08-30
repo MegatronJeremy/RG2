@@ -12,7 +12,11 @@ standalone tracer (Chapter~\ref{ch:implementacija}). Table~\ref{tab:summary} col
 numbers from Chapter~\ref{ch:analiza}. The two cards do not agree on which effect costs most: on the
 RX 9070 XT shadows dominate, while on the RTX 5070 shadows, reflections and global illumination sit
 within \perfNVSpread{} ms of one another, inside the run-to-run spread, so on that card they are
-indistinguishable in cost.
+indistinguishable in cost. The disagreement reaches the engineering decision itself: with this
+scene's five lights the stochastic shadow strategy is the cheaper of the two on the RX 9070 XT
+(1.723 against 2.272 ms) and 2.6x the more expensive on the RTX 5070 (3.362 against 1.294 ms), so a
+renderer that hard-codes either is wrong on one of these two cards
+(Section~\ref{sec:analiza-shadow-strategy}).
 
 \begin{table}[tbp]
 \caption[Summary of measured results]{Summary of measured results. Per-effect cost is the difference
@@ -40,16 +44,24 @@ SSIM: raster $\rightarrow$ all RT  & \multicolumn{2}{c}{\qRasterSsim{} $\rightar
 \end{table}
 
 The ray-count knee sits at one ray per pixel: going from one to eight rays costs \rcGpuPct\% more GPU
-time for a \rcPsnrGain{} dB PSNR gain, because the denoiser and temporal accumulation already recover
-most of the achievable quality from a single sample (Section~\ref{sec:raycount}). The spatial
+time for a \rcPsnrGain{} dB PSNR gain, inside the run-to-run spread of the metric, because the
+denoiser and temporal accumulation already recover most of the achievable quality from a single
+sample (Section~\ref{sec:raycount}). Spatial sample density behaves the same way: tracing GI and AO
+at full rather than half resolution costs \hrDeltaMs{} ms, a \hrDeltaPct\% increase on an
+\hrHalfTotal{} ms frame, and returns \hrPsnrGain{} dB (Section~\ref{sec:halfres}). The spatial
 denoiser's own contribution is likewise not where a static metric can see it: it moves PSNR, SSIM and
 FLIP by less than run-to-run noise, while cutting frame-to-frame RMS on a static view from
 \flickerOff{} to \flickerOn{}, a \flickerPct\% reduction, for \perfDenoiseAMD{} ms
 (Section~\ref{sec:denoise-eval}). At this sample count the temporal history does the reconstruction
-and the spatial filter buys stability rather than static fidelity.
+and the spatial filter buys stability rather than static fidelity. The cost of inlining a ray query
+is also visible statically: on the RX 9070 XT the forward shading pass rises from 87 to 130 registers
+per thread with the inline shadow query, crossing an allocation boundary that drops it from 16 to 10
+concurrently resident waves, and it is the only occupancy-limited shader on the render path on either
+card (Section~\ref{sec:occupancy}).
 
-The practical value is a hybrid ray-query pipeline that gives correct off-screen lighting at an
-interactive budget without a full path tracer.
+The practical value is a hybrid ray-query pipeline that resolves lighting from geometry outside the
+camera's view, which no screen-space method can, for \perfFourEffectsAMD{} ms of the frame on the
+RX 9070 XT and \perfFourEffectsNV{} ms on the RTX 5070, without a full path tracer.
 
 \section{Limitations}
 
@@ -69,10 +81,8 @@ simplicity that would matter for deeper or more numerous bounces.
 Sampling is the most immediate direction: replacing the naive per-light and cosine-hemisphere
 sampling with reservoir resampling (ReSTIR and ReSTIR GI) would improve quality at equal ray count,
 especially for many lights and for indirect paths \cite{bitterli2020restir, ouyang2021restirgi}. On
-reconstruction, the engine already contains a temporal neural network used as an anti-aliasing
-resolve, so a learned denoiser or upscaler replacing or augmenting SVGF is a natural next step,
-together with the vendor-neutral cooperative-matrix inference study that motivated an earlier version
-of this project. Denoised shadows could scale to many lights more cheaply with a MegaLights-style
+reconstruction, a learned denoiser or upscaler replacing or augmenting SVGF is a natural next step.
+Denoised shadows could scale to many lights more cheaply with a MegaLights-style
 stochastic per-pixel light selection on the shared denoiser, rather than tracing every light every
 frame. A dedicated, penumbra-aware shadow denoiser in place of the shared one is a related
 refinement. Broadening the cross-vendor comparison beyond two current-generation cards, plus a second

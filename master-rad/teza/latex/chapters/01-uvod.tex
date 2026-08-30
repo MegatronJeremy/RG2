@@ -22,9 +22,11 @@ Hardware ray tracing changes what is affordable. Recent GPUs (NVIDIA RTX from 20
 intersection, so casting a ray against the whole scene became fast enough to do per pixel at
 interactive rates. This reopens the effects above as first-class, physically grounded passes that
 sample the true scene rather than a screen-space proxy. The catch is that a full solution of the
-rendering equation \cite{kajiya1986rendering} by path tracing remains far too expensive for
-real-time at display resolution on this hardware, and any affordable ray budget (one or a few rays
-per pixel) produces heavy noise. The practical path, and the one this thesis takes, is therefore
+rendering equation \cite{kajiya1986rendering}, which states how much light leaves a surface point in
+a given direction as emission plus an integral over all incoming directions, by path tracing remains
+far too expensive for real-time at display resolution on this hardware, and any affordable ray budget
+(one or a few rays per pixel) samples only a handful of the many light paths reaching each pixel, so
+the estimate is right on average but wrong per pixel, which shows up as noise. The practical path, and the one this thesis takes, is therefore
 hybrid: rasterize primary visibility, add the secondary effects as ray-traced passes at low sample
 counts, and reconstruct a clean image with a denoiser \cite{schied2017svgf}
 (Figure~\ref{fig:teaser}).
@@ -32,8 +34,8 @@ counts, and reconstruct a clean image with a denoiser \cite{schied2017svgf}
 \begin{figure}[tbp]
 \centering
 \includegraphics[width=0.9\textwidth]{figures/teaser.png}
-\caption{Hybrid engine output on the test scene: rasterized forward pass with ray-traced
-shadows, AO, reflections and GI (denoised).}
+\caption{Hybrid engine output on the test scene, Sponza, a standard interior with strong indirect
+bounce: rasterized forward pass with ray-traced shadows, AO, reflections and GI (denoised).}
 \label{fig:teaser}
 \end{figure}
 
@@ -46,9 +48,10 @@ This work uses inline ray queries for architectural fit: the engine is a rasteri
 renderer, and inline queries let each effect drop in as an ordinary compute or fragment pass
 without restructuring the renderer around a ray-tracing pipeline and its binding table. Effects can
 be added one at a time, which matches a hybrid design where rays are a targeted addition on top of
-rasterization rather than the primary architecture. The price is giving up hardware ray scheduling
-across shader stages and recursion, although the effects here are shallow (a single bounce) and
-short, so that price is small.
+rasterization rather than the primary architecture. The price is that the implementation can no longer
+reorder ray work across shader invocations to keep divergent paths coherent, and that recursion must
+be written as an explicit loop rather than a shader spawning a new ray, although the effects here are
+shallow (a single bounce) and short, so that price is small.
 
 \section{Goal and research question}
 
@@ -58,19 +61,35 @@ characterize each one. The research question breaks into measurable sub-question
 GPU cost in milliseconds; the effect of samples per pixel on quality (PSNR/SSIM) and on time; the
 quality and cost of the denoiser with it enabled versus disabled; the impact of tracing at half
 versus full resolution; and how the identical Vulkan implementation performs across GPU vendors
-(AMD RDNA4 versus NVIDIA Blackwell). The scope is deliberately bounded: a single scene class, two
+(AMD RDNA4 versus NVIDIA Blackwell). The scope is deliberately bounded: a single indoor scene
+(Sponza), two
 current-generation GPUs of comparable tier (Table~\ref{tab:gpus}), diffuse global illumination, and a
 converged path-traced reference for the quality metrics.
 
+Three of the answers run against intuition. Eight times the ray budget buys a PSNR gain that sits
+inside run-to-run noise, so the curve is already flat at one ray per pixel
+(Section~\ref{sec:raycount}). The denoiser earns its cost in temporal stability rather than in static
+fidelity (Section~\ref{sec:motion}). And a single shader crossing a 96-register allocation boundary
+falls from 16 concurrently resident waves to 10, which is where the inline shadow query's cost
+becomes visible statically (Section~\ref{sec:occupancy}).
+
 \section{Contributions}
 
-The contributions are: an integrated, openly licensed implementation of four hybrid ray-query
-lighting effects inside one custom Vulkan engine; a per-effect GPU cost breakdown produced by a
-reproducible A/B benchmark harness rather than ad-hoc captures; an evaluation of a self-implemented
-SVGF denoiser shared across all four signals, covering the quality it recovers, its cost, and its
-temporal stability; a reusable half-resolution, G-buffer-prepass, denoise-and-upsample pattern; and
-a rarely reported same-code performance comparison of the identical ray-query pipeline on AMD RDNA4
-and NVIDIA Blackwell hardware.
+The contributions are:
+
+\begin{itemize}
+\item an integrated, openly licensed implementation of four hybrid ray-query lighting effects inside
+one custom Vulkan engine;
+\item a per-effect GPU cost breakdown produced by a reproducible A/B benchmark harness rather than
+ad-hoc captures;
+\item a reusable half-resolution, G-buffer-prepass, denoise-and-upsample pattern;
+\item an evaluation of a self-implemented SVGF denoiser shared across all four signals, covering the
+quality it recovers, its cost, and its temporal stability;
+\item a same-code performance comparison of the identical ray-query pipeline on AMD RDNA4 and NVIDIA
+Blackwell hardware, which shows the ranking of the two shadow strategies inverting between vendors
+(Section~\ref{sec:analiza-shadow-strategy}, Table~\ref{tab:shadow-strategy}): stochastic wins by
+0.55 ms on the RX 9070 XT and loses by a factor of 2.6 on the RTX 5070.
+\end{itemize}
 
 \section{Thesis structure}
 
