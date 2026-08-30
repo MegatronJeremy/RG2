@@ -115,6 +115,11 @@ def main():
                     rf"\newcommand{{\q{name}Psnr}}{{{p:.2f}}}",
                     rf"\newcommand{{\q{name}Ssim}}{{{s:.3f}}}"]
 
+    # The raster-to-all-RT PSNR lift, which the text quotes as the headline quality number. Derived
+    # here rather than typed: it was hand-written as 15.68 and a re-baseline moved it to 15.69 with
+    # nothing to catch it, which is the drift this whole generator exists to prevent.
+    qmacros.append(rf"\newcommand{{\qRtLiftPsnr}}{{{means['all-rt'][1] - means['raster'][1]:.2f}}}")
+
     # Motion: the section had no table at all, so its eleven techniques lived only in prose.
     mot = {}
     for f in sorted(MOTION.glob("*.json")):

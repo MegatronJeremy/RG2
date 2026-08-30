@@ -57,7 +57,7 @@ omni shadow maps (\texttt{MAX\_SHADOW\_POINTS}, six depth passes each), so two o
 point lights render unshadowed. Ray-traced shadows have no such cap, tracing every light, so
 every technique in Table~\ref{tab:quality} except \texttt{all-RT} sits on a weaker shadow baseline
 than a renderer without that limit, which flatters the ray-traced side. The effect is bounded and
-small: the shadow technique alone moves PSNR 0.65 dB of the 15.68 dB between raster and all effects,
+small: the shadow technique alone moves PSNR 0.65 dB of the \qRtLiftPsnr{} dB between raster and all effects,
 and FLIP 0.024 of 0.349, so the lift in Section~\ref{sec:poredjenje} is dominated by global
 illumination rather than by this cap.
 

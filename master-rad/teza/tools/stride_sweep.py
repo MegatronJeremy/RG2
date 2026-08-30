@@ -64,6 +64,9 @@ CHAIN = ("ShadowDenoise0", "ShadowDenoise1", "ShadowDenoise2")
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--gpu", default="", help="adapter index or name substring")
+    ap.add_argument("--repeat", type=int, default=3,
+                    help="independent runs per arm; the median is reported. The dominant noise here is "
+                         "run-level (DVFS/thermal), which more frames cannot average out.")
     args = ap.parse_args()
 
     if not EDITOR_EXE.exists():
@@ -75,18 +78,31 @@ def main() -> int:
         env = {**STOCH, **knobs}
         print(f"\n=== {name}  penumbra={knobs['SS_RENDER_SHADOWS_DENOISE_PENUMBRA']} "
               f"scale={knobs['SS_RENDER_SHADOWS_SCALE']} ===")
-        r = _pb.run_config(f"stride_{name}", env, EDITOR_EXE, REPO_ROOT, PERF_FRAMES,
-                           PERF_TIMEOUT, LAYER_PATH, SCENE, args.gpu)
-        if r is None or r is _pb.NO_TIMESTAMPS:
-            print("  FAIL: run produced no timings")
-            return 1
-        out["device"] = out["device"] or r.get("device")
-        passes = r.get("passes", {})
+        runs = []
+        for i in range(args.repeat):
+            r = _pb.run_config(f"stride_{name}", env, EDITOR_EXE, REPO_ROOT, PERF_FRAMES,
+                               PERF_TIMEOUT, LAYER_PATH, SCENE, args.gpu)
+            if r is None or r is _pb.NO_TIMESTAMPS:
+                print("  FAIL: run produced no timings")
+                return 1
+            out["device"] = out["device"] or r.get("device")
+            passes = r.get("passes", {})
+            runs.append({p: passes[p]["avgMs"] for p in CHAIN if p in passes})
+            print(f"  run {i + 1}: " + "  ".join(f"{p[-1]}={runs[-1].get(p, float('nan')):.4f}" for p in CHAIN))
+
+        chain, spread = {}, {}
+        for p in CHAIN:
+            vals = sorted(r[p] for r in runs if p in r)
+            if not vals:
+                continue
+            chain[p] = vals[len(vals) // 2]
+            spread[p] = (vals[-1] - vals[0]) / chain[p] * 100.0 if chain[p] else 0.0
+
         row = {"arm": name, **{k.replace("SS_RENDER_SHADOWS_", "").lower(): v for k, v in knobs.items()},
-               "totalGpuMs": r.get("totalGpuMs"),
-               "chain": {p: passes[p]["avgMs"] for p in CHAIN if p in passes}}
+               "repeat": args.repeat, "chain": chain, "spreadPct": spread, "runs": runs}
         out["arms"].append(row)
-        print("  " + "  ".join(f"{p}={row['chain'].get(p, float('nan')):.4f}" for p in CHAIN))
+        print("  median: " + "  ".join(f"{p[-1]}={chain.get(p, float('nan')):.4f}"
+                                       f"(+-{spread.get(p, 0):.1f}%)" for p in CHAIN))
 
     dst = THESIS_DIR / "tools" / "stride_results.json"
     dst.write_text(json.dumps(out, indent=2), encoding="utf-8")
