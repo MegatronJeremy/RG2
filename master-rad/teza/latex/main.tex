@@ -127,12 +127,13 @@ information. The noisy signals are reconstructed by a shared SVGF denoiser and s
 anti-aliasing. The per-effect GPU cost is isolated with an A/B configuration matrix, and
 reconstruction quality is measured with FLIP, PSNR, and SSIM against a converged path-traced
 reference across several viewpoints, on two vendors' hardware (AMD RDNA4 and NVIDIA Blackwell)
-running identical code. The two vendors rank the effects differently: shadows dominate
-on the RX 9070 XT (\perfEffShadowsAMD{} ms) while on the RTX 5070 shadows, reflections, and global
-illumination cost the same to within the measurement spread, for measured real-time totals of
+running identical code. The two vendors rank the effects differently: the most expensive is
+\perfTopEffectAMD{} on the RX 9070 XT (\perfEffShadowsAMD{} ms) and \perfTopEffectNV{} on the
+RTX 5070 (\perfEffGiNV{} ms), where only \perfUnresolvedNV{} are too close to separate, for measured
+real-time totals of
 \perfTotalAMD{} ms and \perfTotalNV{} ms over baselines of \perfBaseAMD{} and \perfBaseNV{} ms. The choice of shadow technique is
 likewise architecture-dependent, the stochastic producer being cheaper than per-light inline tracing
-on AMD and 2.6 times more expensive on NVIDIA. Enabling all four effects lifts reconstruction quality
+on AMD and \perfShadowRatioNV{} times more expensive on NVIDIA. Enabling all four effects lifts reconstruction quality
 from FLIP \qRasterFlip{} / PSNR \qRasterPsnr{} dB / SSIM \qRasterSsim{} (raster) to FLIP
 \qAllRtFlip{} / PSNR \qAllRtPsnr{} dB / SSIM \qAllRtSsim{} against the path-traced reference.
 \end{abstract}
@@ -157,11 +158,12 @@ stabilizuju temporalnim anti-aliasing-om. Cena svakog efekta na grafi\v{c}kom pr
 A/B matricom konfiguracija, a kvalitet rekonstrukcije meri se merama FLIP, PSNR i SSIM u odnosu na
 konvergiranu path-traced referencu, preko vi\v{s}e ta\v{c}aka gledi\v{s}ta, na hardveru dva
 proizvo\dj a\v{c}a (AMD RDNA4 i NVIDIA Blackwell) uz isti kod. Dva proizvo\dj a\v{c}a rangiraju
-efekte razli\v{c}ito: na RX 9070 XT senke dominiraju sa \perfEffShadowsAMD{} ms, dok na RTX 5070
-senke, refleksije i globalno osvetljenje ko\v{s}taju isto u granicama mernog rasipanja, uz izmerene
+efekte razli\v{c}ito: na RX 9070 XT najskuplje su senke sa \perfEffShadowsAMD{} ms, a na RTX 5070
+globalno osvetljenje sa \perfEffGiNV{} ms, gde se jedino senke i refleksije ne razdvajaju, uz izmerene
 ukupne vrednosti od \perfTotalAMD{} ms i \perfTotalNV{} ms nad osnovama od \perfBaseAMD{} i
 \perfBaseNV{} ms. Izbor tehnike za senke je tako\dj e zavisan od arhitekture: stohasti\v{c}ki
-producent je jeftiniji od inline trasiranja po svetlu na AMD-u, a 2,6 puta skuplji na NVIDIA-i.
+producent je jeftiniji od inline trasiranja po svetlu na AMD-u, a \perfShadowRatioNV{} puta skuplji
+na NVIDIA-i.
 Uklju\v{c}ivanje sva \v{c}etiri efekta podi\v{z}e kvalitet rekonstrukcije sa FLIP \qRasterFlip{} /
 PSNR \qRasterPsnr{} dB / SSIM \qRasterSsim{} (raster) na FLIP \qAllRtFlip{} / PSNR \qAllRtPsnr{} dB /
 SSIM \qAllRtSsim{} u odnosu na path-traced referencu.

@@ -93,13 +93,14 @@ def main():
 
     # The technique comparison averages each metric over the three viewpoints, which is what the section
     # claims and what quality-tune.py optimises, so a tuned parameter cannot overfit one frame.
-    means, qmacros = {}, []
+    means, flips, qmacros = {}, {}, []
     for slug, _label in TECHNIQUES:
         files = sorted(QUALITY.glob(f"*__{slug}.json"))
         if not files:
             sys.exit(f"FAIL: no committed quality baseline for technique '{slug}' in {QUALITY}")
         vals = [json.loads(f.read_text(encoding="utf-8")) for f in files]
         means[slug] = tuple(sum(v[k] for v in vals) / len(vals) for k in ("flip", "psnr", "ssim"))
+        flips[slug] = [v["flip"] for v in vals]
     rows = []
     for slug, label in TECHNIQUES:
         f, p, s = means[slug]
@@ -119,6 +120,12 @@ def main():
     # here rather than typed: it was hand-written as 15.68 and a re-baseline moved it to 15.69 with
     # nothing to catch it, which is the drift this whole generator exists to prevent.
     qmacros.append(rf"\newcommand{{\qRtLiftPsnr}}{{{means['all-rt'][1] - means['raster'][1]:.2f}}}")
+    # SSGI's mean FLIP and the per-viewpoint FLIP ranges Section 4.7 quotes. Same reason as the lift:
+    # the re-baseline moved all of them and the hand-typed copies kept the old values.
+    qmacros.append(rf"\newcommand{{\qSsgiFlip}}{{{means['ssgi'][0]:.3f}}}")
+    for slug, name in (("raster", "Raster"), ("rtgi", "RtGi")):
+        qmacros += [rf"\newcommand{{\q{name}FlipLo}}{{{min(flips[slug]):.3f}}}",
+                    rf"\newcommand{{\q{name}FlipHi}}{{{max(flips[slug]):.3f}}}"]
 
     # Motion: the section had no table at all, so its eleven techniques lived only in prose.
     mot = {}

@@ -51,7 +51,8 @@ available measurement granularity are one and the same. The per-effect costs in 
 are deliberately coarser, whole-frame differences rather than scope readings, since the default shadow
 path has no scope of its own.
 
-Table~\ref{tab:framegraph} gives the declared per-viewport order. Each ray-traced effect repeats the
+Figure~\ref{fig:overview} shows the frame in outline and Table~\ref{tab:framegraph} gives the
+declared per-viewport order. Each ray-traced effect repeats the
 same four-stage shape, trace, accumulate over time, filter spatially, and (for the half-resolution
 ones) upsample, which is what lets one denoiser implementation serve all of them
 (Section~\ref{sec:denoising}).
@@ -858,8 +859,13 @@ as a finite disk through the same \texttt{SampleCone} routine and the same
 difference is attributable to sampling and reconstruction rather than to a different light model (the
 sky on a ray miss is added without the sun disk, to avoid double-counting). Because shadows, ambient
 occlusion, reflections, and indirect light all emerge from the same multi-bounce transport, one
-converged path trace is the ground truth for all of them at once. It converges over many frames and
-exists only as the correctness anchor. Both sides of every comparison pass through the same tonemap
+converged path trace is the ground truth for all of them at once (Figure~\ref{fig:pt-ref}). It
+accumulates 2 paths per pixel per frame over at least 400 frames, so at least 800 paths per pixel,
+at a maximum path length of 8 with Russian-roulette termination, and the capture is held until a
+convergence test passes rather than stopped at a fixed count. The gate runs it \emph{unbiased}, with
+both the firefly clamp and the path-regularization weight clamp disabled, since a clamped reference
+would bias the very energy the real-time techniques are being scored against. It exists only as the
+correctness anchor. Both sides of every comparison pass through the same tonemap
 chain, so toggling the path tracer is an apples-to-apples A/B rather than a comparison between an HDR
 and an LDR image.
 
