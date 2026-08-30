@@ -183,6 +183,20 @@ AMD.}
 \label{fig:vendor-ratio}
 \end{figure}
 
+One caveat bounds how far any of these ratios travel. They are not properties of a shader: the three
+a-trous rows in Figure~\ref{fig:vendor-ratio} are the same shader dispatched three times with a
+widening tap stride, and the ratio falls across them from \(1.40\) to \(0.71\). A controlled
+experiment on the shadow denoise chain, which runs that same shader, separates the two things that
+differ. Holding the kernel uniform and varying only the internal resolution, the ratio between the
+first and third iteration is \(1.02\) at full resolution and \(0.47\) at half; with the
+penumbra-sized kernel it is \(1.20\) and \(0.65\). Both full-resolution arms are flat and both
+half-resolution arms invert, so the driver is the resolution the chain runs at rather than the
+kernel, and the half-resolution uniform arm reproduces the GI and AO chains (\(0.47\) against
+\(0.51\)). Why a smaller working set should reverse the vendor ordering is not isolated here, and
+answering it needs hardware counters rather than timestamps. What the experiment does establish is
+that a per-pass vendor ratio has to be quoted with the resolution it was measured at, since the same
+code inverts across that one variable (three runs per arm, medians, RX 9070 XT against RTX 5070).
+
 The two cards do not agree on which effect is most expensive, and that disagreement is the result,
 not a rounding artifact. On the RX 9070 XT the most expensive effect is \perfTopEffectAMD{} at
 \perfEffShadowsAMD{} ms, while on the RTX 5070 it is \perfTopEffectNV{} at \perfEffGiNV{} ms, where

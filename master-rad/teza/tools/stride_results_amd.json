@@ -5,45 +5,133 @@
       "arm": "default",
       "denoise_penumbra": "0.1",
       "scale": "1.0",
-      "totalGpuMs": 3.9632,
+      "repeat": 3,
       "chain": {
-        "ShadowDenoise0": 0.2165,
-        "ShadowDenoise1": 0.2165,
-        "ShadowDenoise2": 0.2262
-      }
+        "ShadowDenoise0": 0.2161,
+        "ShadowDenoise1": 0.2181,
+        "ShadowDenoise2": 0.2429
+      },
+      "spreadPct": {
+        "ShadowDenoise0": 0.1850994909763923,
+        "ShadowDenoise1": 0.2751031636863776,
+        "ShadowDenoise2": 0.2881844380403484
+      },
+      "runs": [
+        {
+          "ShadowDenoise0": 0.2159,
+          "ShadowDenoise1": 0.2179,
+          "ShadowDenoise2": 0.2427
+        },
+        {
+          "ShadowDenoise0": 0.2161,
+          "ShadowDenoise1": 0.2181,
+          "ShadowDenoise2": 0.2429
+        },
+        {
+          "ShadowDenoise0": 0.2163,
+          "ShadowDenoise1": 0.2185,
+          "ShadowDenoise2": 0.2434
+        }
+      ]
     },
     {
       "arm": "uniform-full",
       "denoise_penumbra": "0",
       "scale": "1.0",
-      "totalGpuMs": 3.8769,
+      "repeat": 3,
       "chain": {
-        "ShadowDenoise0": 0.2125,
-        "ShadowDenoise1": 0.2068,
-        "ShadowDenoise2": 0.204
-      }
+        "ShadowDenoise0": 0.2162,
+        "ShadowDenoise1": 0.2108,
+        "ShadowDenoise2": 0.2078
+      },
+      "spreadPct": {
+        "ShadowDenoise0": 1.7113783533764946,
+        "ShadowDenoise1": 1.5654648956356723,
+        "ShadowDenoise2": 1.4436958614051985
+      },
+      "runs": [
+        {
+          "ShadowDenoise0": 0.2171,
+          "ShadowDenoise1": 0.2113,
+          "ShadowDenoise2": 0.2082
+        },
+        {
+          "ShadowDenoise0": 0.2162,
+          "ShadowDenoise1": 0.2108,
+          "ShadowDenoise2": 0.2078
+        },
+        {
+          "ShadowDenoise0": 0.2134,
+          "ShadowDenoise1": 0.208,
+          "ShadowDenoise2": 0.2052
+        }
+      ]
     },
     {
       "arm": "uniform-half",
       "denoise_penumbra": "0",
       "scale": "0.5",
-      "totalGpuMs": 3.4134,
+      "repeat": 3,
       "chain": {
-        "ShadowDenoise0": 0.2437,
-        "ShadowDenoise1": 0.1984,
-        "ShadowDenoise2": 0.1657
-      }
+        "ShadowDenoise0": 0.2224,
+        "ShadowDenoise1": 0.1815,
+        "ShadowDenoise2": 0.1515
+      },
+      "spreadPct": {
+        "ShadowDenoise0": 15.287769784172664,
+        "ShadowDenoise1": 15.31680440771351,
+        "ShadowDenoise2": 15.181518151815176
+      },
+      "runs": [
+        {
+          "ShadowDenoise0": 0.2191,
+          "ShadowDenoise1": 0.1788,
+          "ShadowDenoise2": 0.1492
+        },
+        {
+          "ShadowDenoise0": 0.2224,
+          "ShadowDenoise1": 0.1815,
+          "ShadowDenoise2": 0.1515
+        },
+        {
+          "ShadowDenoise0": 0.2531,
+          "ShadowDenoise1": 0.2066,
+          "ShadowDenoise2": 0.1722
+        }
+      ]
     },
     {
       "arm": "penumbra-half",
       "denoise_penumbra": "0.1",
       "scale": "0.5",
-      "totalGpuMs": 3.4811,
+      "repeat": 3,
       "chain": {
-        "ShadowDenoise0": 0.184,
-        "ShadowDenoise1": 0.1981,
-        "ShadowDenoise2": 0.2313
-      }
+        "ShadowDenoise0": 0.2226,
+        "ShadowDenoise1": 0.2304,
+        "ShadowDenoise2": 0.2467
+      },
+      "spreadPct": {
+        "ShadowDenoise0": 1.1680143755615415,
+        "ShadowDenoise1": 1.3020833333333346,
+        "ShadowDenoise2": 1.2565869477097655
+      },
+      "runs": [
+        {
+          "ShadowDenoise0": 0.2226,
+          "ShadowDenoise1": 0.2299,
+          "ShadowDenoise2": 0.2462
+        },
+        {
+          "ShadowDenoise0": 0.2251,
+          "ShadowDenoise1": 0.2329,
+          "ShadowDenoise2": 0.2493
+        },
+        {
+          "ShadowDenoise0": 0.2225,
+          "ShadowDenoise1": 0.2304,
+          "ShadowDenoise2": 0.2467
+        }
+      ]
     }
   ]
 }
