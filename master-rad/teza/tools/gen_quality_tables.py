@@ -55,6 +55,10 @@ TECHNIQUES = [
     ("rtao", "RT AO"),
     ("ssr", "SSR"),
     ("rtrefl", "RT reflections"),
+    # Both shadow producers, because Section 4.3 argues at length about which of them to pick and the
+    # static table used to omit them entirely, leaving that a cost-only comparison by accident.
+    ("rtshadow", "RT shadows (inline)"),
+    ("megalights", "RT shadows (stochastic)"),
     ("ssgi", "SSGI"),
     ("rtgi", "RT GI"),
     ("all-rt", "all RT (all-RT)"),
@@ -123,6 +127,8 @@ def main():
     # SSGI's mean FLIP and the per-viewpoint FLIP ranges Section 4.7 quotes. Same reason as the lift:
     # the re-baseline moved all of them and the hand-typed copies kept the old values.
     qmacros.append(rf"\newcommand{{\qSsgiFlip}}{{{means['ssgi'][0]:.3f}}}")
+    qmacros.append(rf"\newcommand{{\qRtShadowFlip}}{{{means['rtshadow'][0]:.3f}}}")
+    qmacros.append(rf"\newcommand{{\qMegalightsFlip}}{{{means['megalights'][0]:.3f}}}")
     for slug, name in (("raster", "Raster"), ("rtgi", "RtGi")):
         qmacros += [rf"\newcommand{{\q{name}FlipLo}}{{{min(flips[slug]):.3f}}}",
                     rf"\newcommand{{\q{name}FlipHi}}{{{max(flips[slug]):.3f}}}"]

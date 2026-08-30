@@ -85,8 +85,11 @@ ones) upsample, which is what lets one denoiser implementation serve all of them
 \end{tikzpicture}
 \caption[The frame at a glance]{The frame at a glance. A rasterized G-buffer feeds three ray-traced
 effects that are reconstructed to textures before shading, while the fourth (shadows) is traced
-inline inside the forward pass. Each grey chain has the same four-stage shape, which is what lets one
-denoiser serve all of them. Table~\ref{tab:framegraph} gives the same thing pass by pass.}
+inline inside the forward pass. Each grey chain repeats the same trace-then-accumulate shape, which
+is what lets one denoiser serve all of them, although only the half-resolution ones (GI and AO) add
+the spatial filter and the upsample: reflections run at full resolution with the filter off by
+default (Section~\ref{sec:denoise-eval}). Table~\ref{tab:framegraph} gives the same thing pass by
+pass.}
 \label{fig:overview}
 \end{figure}
 
@@ -386,7 +389,7 @@ Section~\ref{sec:cena}.
   \node[font=\scriptsize, black!55] at (3.02,2.52) {$\theta/2$};
   \fill (0,0) circle (1.7pt) node[below=3pt] {$P$};
 \end{tikzpicture}
-\caption{Soft shadows: from point $P$ rays are sampled uniformly by solid angle inside the cone the
+\caption[Soft shadow cone sampling]{Soft shadows: from point $P$ rays are sampled uniformly by solid angle inside the cone the
 source subtends around direction $L$, with half-angle $\theta/2$ set by the source radius $r$ and the
 distance. The fraction of unblocked rays gives the penumbra.}
 \label{fig:shadow}
@@ -412,7 +415,7 @@ horizon-rejected there.
 \centering
 \includegraphics[width=0.48\textwidth]{figures/shadow_hard.png}\hfill%
 \includegraphics[width=0.48\textwidth]{figures/shadow_soft.png}
-\caption{Hard (left) versus soft (right) ray-traced shadows on the sunlit floor strip: the only
+\caption[Hard versus soft ray-traced shadows]{Hard (left) versus soft (right) ray-traced shadows on the sunlit floor strip: the only
 difference is \texttt{render.shadow.soft}. The sun's angular diameter is raised to $3^\circ$, about
 six times the physical $0.53^\circ$, since at the true value the penumbra is narrower than what
 print resolves.}
@@ -444,7 +447,7 @@ binary noise.
 \centering
 \includegraphics[width=0.48\textwidth]{figures/dbg_shadow_raw.png}\hfill%
 \includegraphics[width=0.48\textwidth]{figures/dbg_shadow_denoised.png}
-\caption{The stochastic aggregate visibility ratio before (left) and after (right) temporal
+\caption[Stochastic visibility before and after denoising]{The stochastic aggregate visibility ratio before (left) and after (right) temporal
 accumulation and the a-trous filter (\texttt{render.debugview} 8 and 9). White is fully lit, black
 fully shadowed. The left panel shows how nearly binary the raw per-pixel ratio is at this sample
 count.}
@@ -499,7 +502,7 @@ bilaterally upsampled before the forward pass multiplies it into the ambient ter
   \node[font=\scriptsize, anchor=west] at (2.05,1.6) {occluder};
   \fill (0,0) circle (1.7pt) node[below=3pt] {$P$};
 \end{tikzpicture}
-\caption{Hemisphere sampling for AO: from point $P$ several short rays are cast over the hemisphere
+\caption[Hemisphere sampling for ambient occlusion]{Hemisphere sampling for AO: from point $P$ several short rays are cast over the hemisphere
 around normal $N$. The fraction that hits geometry within the given radius gives the occlusion.}
 \label{fig:ao}
 \end{figure}
@@ -538,7 +541,7 @@ afterward in the forward pass (Figure~\ref{fig:refl}).
   \node[font=\scriptsize, align=center] at (2.0,1.05) {cone\\(roughness)};
   \fill (0,0) circle (1.7pt) node[below=3pt] {$P$};
 \end{tikzpicture}
-\caption{Reflections: the reflected direction $R$ of the view vector $V$ about the normal $N$. A
+\caption[Reflected direction and roughness cone]{Reflections: the reflected direction $R$ of the view vector $V$ about the normal $N$. A
 smooth surface gives one sharp ray, while a rough one samples a cone around $R$.}
 \label{fig:refl}
 \end{figure}
@@ -557,7 +560,7 @@ for the same reason the effect gallery in Section~\ref{sec:cena} does.
 \centering
 \includegraphics[width=0.48\textwidth]{figures/refl_off.png}\hfill%
 \includegraphics[width=0.48\textwidth]{figures/refl_rt.png}
-\caption{Without reflections (left) versus ray-traced reflections (right), at a near-grazing view
+\caption[Reflections off versus ray-traced reflections]{Without reflections (left) versus ray-traced reflections (right), at a near-grazing view
 angle where the Fresnel contribution is largest. The sheen on the drapes and the stone is what the
 pass adds.}
 \label{fig:refl-onoff}
@@ -567,7 +570,7 @@ pass adds.}
 \centering
 \includegraphics[width=0.48\textwidth]{figures/cone_sharp.png}\hfill%
 \includegraphics[width=0.48\textwidth]{figures/cone_glossy.png}
-\caption{Reflected radiance before compositing (\texttt{render.debugview} 3): a sharp mirror ray,
+\caption[Sharp versus glossy reflection buffer]{Reflected radiance before compositing (\texttt{render.debugview} 3): a sharp mirror ray,
 \texttt{cone\_scale} 0 (left), versus a roughness-widened cone, \texttt{cone\_scale} 3 (right). The
 difference is invisible in the finished image since the reflection is a small additive term next to
 direct lighting, although in its own buffer it is the whole content.}
@@ -608,7 +611,7 @@ of Section~\ref{sec:denoising}.
   \foreach \a in {35,70,110,145} \fill[black!30] (\a:2.1) circle (2.4pt);
   \fill (0,0) circle (1.7pt) node[below=3pt] {$P$};
 \end{tikzpicture}
-\caption{Global illumination: cosine-weighted hemisphere sampling around $N$ from point $P$. Every
+\caption[Cosine-weighted hemisphere sampling for GI]{Global illumination: cosine-weighted hemisphere sampling around $N$ from point $P$. Every
 ray that hits geometry returns radiance (one bounce).}
 \label{fig:gi}
 \end{figure}
@@ -622,7 +625,7 @@ Figure~\ref{fig:gi-onoff} shows the scene without and with ray-traced global ill
 \vspace{6pt}
 
 \includegraphics[width=0.82\textwidth]{figures/gi_on.png}
-\caption{The scene without (top) and with (bottom) global illumination: one diffuse indirect bounce
+\caption[The scene without and with global illumination]{The scene without (top) and with (bottom) global illumination: one diffuse indirect bounce
 gives colour bleeding and fill in the shadows.}
 \label{fig:gi-onoff}
 \end{figure}
@@ -660,16 +663,20 @@ content that a diffuse-tuned reprojection does not perfectly handle.
 \centering
 \begin{tikzpicture}[>={Stealth[]}, node distance=5mm,
   box/.style={draw, rounded corners, align=center, text width=10.6cm, inner sep=4pt, font=\small}]
-  \node[box] (in)  {Noisy input (GI and AO at half resolution, reflections at full)};
+  \node[box] (in)  {Noisy input (GI, AO and stochastic shadows at half resolution, reflections at
+    full)};
   \node[box, below=of in]  (tp) {\textbf{Temporal:} reproject by motion vectors, accumulate history
     (up to 32 frames), estimate per-pixel variance};
-  \node[box, below=of tp]  (at) {\textbf{\`A-trous spatial filter:} 3 iterations by default (up to 5),
-    stride $1, 2, 4, \dots$; edge-stopping on normal, depth, and variance};
-  \node[box, below=of at]  (out){Denoised, then upsampled, into the Forward pass};
+  \node[box, below=of tp]  (at) {\textbf{\`A-trous spatial filter:} 3 iterations for GI and AO, 0 for
+    reflections (up to 5), stride $1, 2, 4, \dots$; edge-stopping on normal, depth, and variance};
+  \node[box, below=of at]  (out){Denoised, then upsampled (half-resolution signals), into the Forward
+    pass};
   \draw[->] (in) -- (tp); \draw[->] (tp) -- (at); \draw[->] (at) -- (out);
 \end{tikzpicture}
-\caption{SVGF denoiser: temporal accumulation with variance estimation, then a variance-guided
-\`a-trous spatial filter, shared between GI, AO and reflections.}
+\caption[The shared SVGF denoiser]{SVGF denoiser: temporal accumulation with variance estimation,
+then a variance-guided \`a-trous spatial filter, shared by all four signals. GI and AO run three
+\`a-trous iterations by default and reflections none, for the reason measured in
+Section~\ref{sec:denoise-eval}.}
 \label{fig:svgf}
 \end{figure}
 
@@ -800,7 +807,7 @@ falls back to the current frame alone, which is noisier but correct.
 \begin{figure}[tbp]
 \centering
 \includegraphics[width=0.8\textwidth]{figures/dbg_motion.png}
-\caption{The motion vector buffer (\texttt{render.debugview} 1) during a deterministic camera orbit.
+\caption[The motion vector debug view]{The motion vector buffer (\texttt{render.debugview} 1) during a deterministic camera orbit.
 Red is the horizontal, green the vertical component of the pixel displacement between two
 consecutive frames. The view takes the absolute value and multiplies it by 40, so it shows \emph{how
 much} a pixel moves and along which axis, but not in which direction. Black is the absence of
@@ -872,7 +879,7 @@ and an LDR image.
 \begin{figure}[tbp]
 \centering
 \includegraphics[width=0.85\textwidth]{figures/pt_ref.png}
-\caption{The converged reference frame from the built-in path tracer, against which every real-time
+\caption[Converged path-traced reference frame]{The converged reference frame from the built-in path tracer, against which every real-time
 technique is measured in FLIP/PSNR/SSIM.}
 \label{fig:pt-ref}
 \end{figure}

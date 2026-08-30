@@ -37,7 +37,11 @@ LADDER = ["rt-off", "shadows", "+ao", "+refl", "+gi"]
 # the temporal resolve. Sub-0.05 ms passes are timestamp noise and are dropped by MIN_MS below.
 MIN_MS = 0.05
 
-TECHNIQUES = ["raster", "ssao", "rtao", "ssr", "rtrefl", "ssgi", "rtgi", "all-rt"]
+# Must stay in the same order as gen_quality_tables.TECHNIQUES: the spread figure's caption claims it
+# plots the same data as the quality table, and the two lists were separately written, so adding a
+# technique to one silently made the figure show a different set from the table it points at.
+TECHNIQUES = ["raster", "ssao", "rtao", "ssr", "rtrefl", "rtshadow", "megalights",
+              "ssgi", "rtgi", "all-rt"]
 
 
 def load(dev, config):
