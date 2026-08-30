@@ -222,7 +222,7 @@ any intersection.}
 \toprule
 Effect & rays/pixel & traversal & hit result & scale \\
 \midrule
-shadows      & 4 per light & first hit & visibility (0/1)  & 1.0 \\
+shadows      & 2 per light & first hit & visibility (0/1)  & 1.0 \\
 AO           & 2           & first hit & occlusion + distance & 0.5 \\
 reflections  & 1           & closest   & shaded radiance   & 1.0 \\
 GI           & 2           & closest   & shaded radiance   & 0.5 \\
@@ -325,9 +325,15 @@ than a tangent-plane disk is what makes the real-time penumbra agree with the pa
 next-event estimation at any cone width, instead of only in the small-angle limit where the two
 parameterisations coincide. \texttt{SHADOW_RAY_COUNT} is a compile-time constant, a cost class rather
 than a live knob. \texttt{render.shadows.rays} applies to the stochastic path below, not to this one.
-Directions are decorrelated per pixel and per frame with an interleaved-gradient-noise hash, spreading
+Directions are drawn from spatiotemporal blue noise, two decorrelated dimensions per light, spreading
 the two-sample penumbra across frames for the temporal accumulator to resolve
-(Sections~\ref{sec:denoising} and \ref{sec:taa}).
+(Sections~\ref{sec:denoising} and \ref{sec:taa}). The choice of noise sequence matters here for two
+reasons that a per-frame image cannot show. A hash re-rolled every frame is white in time, so the
+temporal accumulator has nothing to average down, and deriving both cone coordinates from one scalar
+collapses the two-dimensional cone to a curve. Giving each light its own pair of dimensions also
+decorrelates the lights from one another, so their error averages down with light count instead of
+reinforcing. The cost is \(+0.088\) ms on the Forward pass, below the materiality floor of
+Section~\ref{sec:cena}.
 
 \begin{figure}[tbp]
 \centering

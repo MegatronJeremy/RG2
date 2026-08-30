@@ -25,7 +25,9 @@
   \item[MIS] Multiple Importance Sampling
   \item[NEE] Next-Event Estimation: in a path tracer, sampling a light source directly from every
     path vertex instead of waiting for a ray to hit it by chance
-  \item[OMM] Opacity Micromap: per-micro-triangle opacity map that lets traversal skip the alpha
+  \item[occupancy] the number of simultaneously active waves per SIMD unit: higher occupancy hides
+    memory latency better
+\item[OMM] Opacity Micromap: per-micro-triangle opacity map that lets traversal skip the alpha
     test
   \item[penumbra] the soft transition between the lit region and full shadow (the umbra), wider the
     larger the light source or the further the occluder
@@ -38,8 +40,8 @@
   \item[RIS] Resampled Importance Sampling
   \item[RT] Ray Tracing
   \item[RTXGI] RTX Global Illumination
-  \item[spp] samples per pixel
   \item[SPIR-V] Standard Portable Intermediate Representation (Vulkan)
+  \item[spp] samples per pixel
   \item[SSAO] Screen-Space Ambient Occlusion
   \item[SSGI] Screen-Space Global Illumination
   \item[SSIM] Structural Similarity Index Measure: compares local structure rather than absolute
@@ -53,6 +55,4 @@
   \item[tonemap] mapping HDR values into the display range
   \item[VGPR] Vector General-Purpose Register: per-thread registers whose count determines how many
     waves can be in flight at once (occupancy)
-  \item[occupancy] the number of simultaneously active waves per SIMD unit: higher occupancy hides
-    memory latency better
-\end{description}
+  \end{description}
