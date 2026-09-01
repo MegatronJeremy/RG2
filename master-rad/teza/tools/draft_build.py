@@ -8,7 +8,8 @@ ones untouched, so the submission artifact is never the compressed one by accide
 
     py draft_build.py [--max-width 1400] [--quality 82]
 
-Writes latex/main-draft.pdf. Gitignored: it is a working artifact, not the thesis.
+Writes latex/Vuk-Djordjevic-2024-3102-master-rad.pdf, named for the inbox it lands in rather than
+the build. Gitignored: it is a working artifact, not the thesis.
 """
 import argparse
 import shutil
@@ -78,11 +79,17 @@ def main() -> int:
             print(f"FAIL: pdflatex exit {r.returncode}\n{tail}")
             return 1
 
-    out = LATEX / "main-draft.pdf"
+    # Named for the person receiving it, not for the build: this lands in a mentor's inbox and then
+    # in a folder beside other students' files, where "main-draft.pdf" identifies nothing. Index
+    # number rather than a date, since that is what the faculty tracks a student by; the slash in
+    # 2024/3102 is not legal in a filename, hence the dash. ASCII only, because the diacritics in
+    # Djordjevic do not survive every mail client and filesystem intact.
+    out = LATEX / "Vuk-Djordjevic-2024-3102-master-rad.pdf"
     shutil.copy2(WORK / "main.pdf", out)
     shutil.rmtree(WORK)
     mb = out.stat().st_size / 1e6
-    print(f"wrote {out}  ({mb:.1f} MB)")
+    print(f"wrote {out.name}  ({mb:.1f} MB)")
+    print(f"  in {LATEX}")
     if mb > 20:
         print("still large for email; try --max-width 1000")
     return 0
