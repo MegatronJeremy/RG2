@@ -217,35 +217,6 @@ AMD.}
 \label{fig:vendor-ratio}
 \end{figure}
 
-One caveat bounds how far any of these ratios travel. They are not properties of a shader: the three
-a-trous rows in Figure~\ref{fig:vendor-ratio} are the same shader dispatched three times with a
-widening tap stride, and the ratio falls across them from \(1.40\) to \(0.71\). A controlled
-experiment on the shadow denoise chain, which runs that same shader, separates the two things that
-differ. Holding the kernel uniform and varying only the internal resolution, the ratio between the
-first and third iteration is \(1.02\) at full resolution and \(0.47\) at half, and with the
-penumbra-sized kernel it is \(1.20\) and \(0.65\). Both full-resolution arms are flat and both
-half-resolution arms invert, so the driver is the resolution the chain runs at rather than the
-kernel, and the half-resolution uniform arm reproduces the GI and AO chains (\(0.47\) against
-\(0.51\)). Why a smaller working set should reverse the vendor ordering is not isolated here, and
-answering it needs hardware counters rather than timestamps. What the experiment does establish is
-that a per-pass vendor ratio has to be quoted with the resolution it was measured at, since the same
-code inverts across that one variable (three runs per arm, medians, RX 9070 XT against RTX 5070).
-
-A second caveat bounds the traversal argument itself. Section~\ref{sec:accel-pregled} offers the
-shader-driven traversal loop as the structural reason to expect ray work to cost more on RDNA, and
-the per-pass split is consistent with it: the passes that trace average a ratio of 1.36 against 1.04
-for the pure reconstruction passes. But it does not explain the whole-frame gap, and the ladder says
-so. The RX 9070 XT is 1.71 times slower than the RTX 5070 at the \texttt{shadows} rung and 1.43 times
-slower at \texttt{+gi}, so the gap \emph{narrows} as ray tracing is added, and the ray-traced work
-alone (the \texttt{+gi} total minus the \texttt{rt-off} total) carries a ratio of 1.36 against 1.70
-for the frame with no ray tracing in it. If shader-driven traversal were the dominant term, adding
-ray tracing should widen the gap rather than close it. The honest reading is that this engine is
-broadly slower on this AMD card for reasons the measurement does not identify, and that ray tracing
-is not where the penalty concentrates. The \texttt{rt-off} rung is the least trustworthy of these
-numbers, at 12.7\% run-to-run spread against 2.1\% on the NVIDIA side for the reason given in
-Section~\ref{sec:metodologija}, although the trend survives without it, since the two rungs either
-side of it spread under 3.5\%.
-
 The two cards do not agree on which effect is most expensive, and that disagreement is the result
 rather than a rounding artifact. The most expensive is \perfTopEffectAMD{} on the RX 9070 XT
 (\perfEffShadowsAMD{} ms) and \perfTopEffectNV{} on the RTX 5070 (\perfEffGiNV{} ms, where shadows
@@ -300,6 +271,35 @@ ambient-occlusion buffer is close to white over most of the frame because Sponza
 occlusion is confined to the arcade vaults and the column bases. The raw GI term is dim in absolute
 terms yet carries the colour bleeding (the red and green drapes tinting the stone beside them) that a
 constant ambient cannot reproduce.
+
+\paragraph{Two caveats bound the vendor ratios.} The first is that they are not properties of a
+shader. The three a-trous rows in Figure~\ref{fig:vendor-ratio} are one shader dispatched three times
+with a widening tap stride, and the ratio falls across them from \(1.40\) to \(0.71\). A controlled
+experiment on the shadow denoise chain, which runs that same shader, separates the two things that
+differ between those rows. Holding the kernel uniform and varying only the internal resolution, the
+ratio between the first and third iteration is \(1.02\) at full resolution and \(0.47\) at half, and
+with the penumbra-sized kernel it is \(1.20\) and \(0.65\). Both full-resolution arms are flat and
+both half-resolution arms invert, so what drives it is the resolution the chain runs at rather than
+the kernel, and the half-resolution uniform arm reproduces the GI and AO chains (\(0.47\) against
+\(0.51\)). Why a smaller working set should reverse the vendor ordering is not isolated here and
+would need hardware counters rather than timestamps. What the experiment does establish is that a
+per-pass vendor ratio has to be quoted with the resolution it was measured at, since the same code
+inverts across that one variable (three runs per arm, medians, RX 9070 XT against RTX 5070).
+
+The second bounds the traversal argument itself. Section~\ref{sec:accel-pregled} offers the
+shader-driven traversal loop as the structural reason to expect ray work to cost more on RDNA, and
+the per-pass split is consistent with it, since the passes that trace average a ratio of 1.36 against
+1.04 for the pure reconstruction passes. It does not explain the whole-frame gap, though, and the
+ladder says so. The RX 9070 XT is 1.71 times slower than the RTX 5070 at the \texttt{shadows} rung
+and 1.43 times slower at \texttt{+gi}, so the gap \emph{narrows} as ray tracing is added, and the
+ray-traced work alone (the \texttt{+gi} total minus the \texttt{rt-off} total) carries a ratio of
+1.36 against 1.70 for the frame with no ray tracing in it. If shader-driven traversal were the
+dominant term, adding ray tracing should widen the gap rather than close it. The honest reading is
+that this engine is broadly slower on this AMD card for reasons the measurement does not identify,
+and that ray tracing is not where the penalty concentrates. The \texttt{rt-off} rung is the least
+trustworthy of these numbers, at 12.7\% run-to-run spread against 2.1\% on the NVIDIA side for the
+reason given in Section~\ref{sec:metodologija}, although the trend survives without it, since the two
+rungs either side of it spread under 3.5\%.
 
 \section{Two shadow strategies: inline versus stochastic}
 \label{sec:analiza-shadow-strategy}
