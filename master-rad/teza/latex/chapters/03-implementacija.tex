@@ -201,7 +201,7 @@ material instead builds a second, non-opaque BLAS carrying an opacity micromap: 
 (\texttt{OmmBake.comp}) bakes the material's albedo alpha into a per-microtriangle
 opaque/transparent/unknown classification at a fixed subdivision level. Traversal then resolves opaque and
 transparent microtriangles in hardware, so the any-hit alpha test runs only on the unknown (edge)
-ones, whereas without the extension every cutout microtriangle pays it. The bake runs once per mesh and is
+ones (Figure~\ref{fig:omm}), whereas without the extension every cutout microtriangle pays it. The bake runs once per mesh and is
 cached alongside the plain BLAS. Because it samples the resident albedo texture, it is deferred until
 that texture has finished streaming in (an async load's placeholder is opaque, and baking against it
 would cache a solid cutout permanently), with the any-hit fallback used meanwhile. Support is
@@ -209,6 +209,21 @@ driver-dependent as well as hardware-dependent: on the RDNA4 GPU used here the V
 expose the extension despite the hardware, while the Blackwell NVIDIA GPU does, so the two vendors of
 Chapter~\ref{ch:analiza} exercise different geometry paths for masked materials while producing the
 same acceleration-structure query semantics.
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=\textwidth]{figures/omm_classify.png}
+\caption[Opacity-micromap classification of a cutout triangle]{What the bake produces, for one real
+triangle of a Sponza cutout material at the shipping subdivision level. \textbf{Left:} the material's
+alpha thresholded at its cutoff, white where a ray hits and black where it passes through, with the
+triangle outlined. \textbf{Right:} its \ommTotal{} microtriangles, each classified by the samples
+inside it. Only \ommUnknown{} straddle the alpha boundary and stay unknown, so
+\ommHwPct\% of the triangle is resolved during traversal and the any-hit alpha test runs on the
+orange band alone. A microtriangle is called opaque or transparent only when every sample in it
+agrees, so an ambiguous one always falls to the exact test and the extension changes what traversal
+costs rather than what it finds.}
+\label{fig:omm}
+\end{figure}
 
 The engine enables \texttt{VK_KHR_ray_query} and \texttt{VK_KHR_acceleration_structure} (plus
 \texttt{VK_KHR_deferred_host_operations} for the build) but not the ray-tracing-pipeline extension.
