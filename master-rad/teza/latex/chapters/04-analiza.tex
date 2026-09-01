@@ -831,10 +831,12 @@ pipeline name and cannot tell them apart on its own.
 the largest possible number of wave32 waves per SIMD (1536 VGPRs, granularity 24, at most 16). For
 NVIDIA: registers per thread and the largest number of warps per SM (65536 registers, at most 48).
 Both figures are theoretical and derived from the register count, not measured with a profiler. The
-AMD column assumes wave32, which is what the offline analyser reports against, although the driver
-selects the wave size per shader and reports 64 for this engine's compute shaders, so a wave64 shader
-occupies twice the register file per wave and its real occupancy is lower than the column states.
-Reading achieved occupancy rather than this bound needs a hardware profiler.
+AMD column counts wave32 waves, and the driver reports wave64 for this engine's compute shaders, but
+the choice does not affect what the column is used for: a wave64 allocates twice the register file
+and fills a wave slot with twice the threads, so the two models differ only in the unit. At 87 and
+130 registers they give 16 and 10 waves under wave32 against 8 and 5 under wave64, which is 512 and
+320 resident threads either way, and the same 0.625 ratio. Reading achieved rather than theoretical
+occupancy needs a hardware profiler.
 Generated from the committed baselines by \texttt{tools/gen\_shader\_tables.py}.}
 \label{tab:occupancy}
 \centering
