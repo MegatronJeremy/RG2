@@ -40,9 +40,17 @@ def run(cmd: list[str], cwd: Path) -> tuple[int, str]:
 def check_build() -> None:
     """Two pdflatex passes (cross-references need the second), then read the log, not the console."""
     for i in (1, 2):
-        code, _ = run(["pdflatex", "-interaction=nonstopmode", "-halt-on-error", "main.tex"], LATEX)
+        code, out = run(["pdflatex", "-interaction=nonstopmode", "-halt-on-error", "main.tex"], LATEX)
         if code != 0:
-            record(f"pdflatex pass {i}", False, f"exit {code}")
+            # A PDF viewer holding main.pdf open makes pdflatex fail to write it, which looks
+            # identical to a broken document from the exit code alone. It is the normal case while
+            # the thesis is being read, so name it rather than sending the reader after a LaTeX
+            # error that is not there.
+            if "can't write on file" in out or "cannot write on file" in out:
+                record("pdflatex", False,
+                       "main.pdf is LOCKED (close your PDF viewer); the document itself is fine")
+            else:
+                record(f"pdflatex pass {i}", False, f"exit {code}")
             return
     record("pdflatex (2 passes)", True, "exit 0")
 
