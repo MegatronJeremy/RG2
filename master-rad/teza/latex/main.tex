@@ -100,6 +100,14 @@
 % titles take English quotes and the one macro switches the whole bibliography either way.
 \newcommand{\rqt}[1]{\textquotedblleft #1\textquotedblright}
 
+% etf.cls hardcodes a Serbian label in its `keywords` environment, since the template assumes a
+% Serbian thesis. This mirrors that environment (same leading, same bold label, same titlepage
+% termination) with an English label, so the English abstract does not carry a Serbian heading and
+% the faculty class file stays as issued.
+\newenvironment{keywordsen}
+  {\vspace{5ex}\parindent 0pt {\bfseries Keywords:}}
+  {\par\vfil\null\endtitlepage}
+
 % Must match the title registered on the topic-application form (master-rad/prijava/).
 \title{Hibridno osvetljenje u realnom vremenu primenom pra\'cenja zraka}
 \author{Vuk \DJ or\dj evi\'c}
@@ -128,21 +136,20 @@ stabilized by temporal anti-aliasing, while shadows need no denoise pass on the 
 resolve their visibility inline during shading. The per-effect GPU cost is isolated with an A/B configuration matrix, and
 reconstruction quality is measured with FLIP, PSNR, and SSIM against a converged path-traced
 reference across several viewpoints, on two vendors' hardware (AMD RDNA4 and NVIDIA Blackwell)
-running identical code. The two vendors rank the effects differently: the most expensive is
-\perfTopEffectAMD{} on the RX 9070 XT (\perfEffShadowsAMD{} ms) and \perfTopEffectNV{} on the
-RTX 5070 (\perfEffGiNV{} ms), where only \perfUnresolvedNV{} are too close to separate, for measured
-real-time totals of
-\perfTotalAMD{} ms and \perfTotalNV{} ms over baselines of \perfBaseAMD{} and \perfBaseNV{} ms. The choice of shadow technique is
-likewise architecture-dependent, the stochastic producer being cheaper than per-light inline tracing
-on AMD and \perfShadowRatioNV{} times more expensive on NVIDIA. Enabling all four effects lifts reconstruction quality
-from FLIP \qRasterFlip{} / PSNR \qRasterPsnr{} dB / SSIM \qRasterSsim{} (raster) to FLIP
-\qAllRtFlip{} / PSNR \qAllRtPsnr{} dB / SSIM \qAllRtSsim{} against the path-traced reference.
+running identical code. All four effects together cost \perfTotalAMD{} ms and \perfTotalNV{} ms per
+frame on the two cards, inside a 60 Hz budget, and lift reconstruction quality from FLIP
+\qRasterFlip{} to \qAllRtFlip{} and PSNR \qRasterPsnr{} to \qAllRtPsnr{} dB against the reference.
+The two vendors do not agree on which effect is the expensive one, \perfTopEffectAMD{} on the
+RX 9070 XT against \perfTopEffectNV{} on the RTX 5070, and the disagreement reaches the engineering
+decision: of the two shadow strategies implemented, the stochastic one is the cheaper on AMD and
+\perfShadowRatioNV{} times the more expensive on NVIDIA, so a renderer that hard-codes either is
+wrong on one of these two current-generation cards. Measuring one vendor would not have found that.
 \end{abstract}
 
-\begin{keywords}
+\begin{keywordsen}
 real-time ray tracing; ray query; Vulkan; global illumination; ambient occlusion; reflections; SVGF;
 denoising; hybrid rendering; cross-vendor; AMD RDNA4; NVIDIA Blackwell
-\end{keywords}
+\end{keywordsen}
 
 % Clan 30 permits the thesis in English and defers the rest to the Faculty Statute, which is not in
 % this repository, so the Serbian abstract stays as well: it is the usual practice for an English
@@ -160,16 +167,15 @@ stabilizuju temporalnim anti-aliasing-om, dok senke na podrazumevanoj putanji ne
 uklanjanje \v{s}uma nego se vidljivost razre\v{s}ava inline tokom sen\v{c}enja. Cena svakog efekta na grafi\v{c}kom procesoru izoluje se
 A/B matricom konfiguracija, a kvalitet rekonstrukcije meri se merama FLIP, PSNR i SSIM u odnosu na
 konvergiranu path-traced referencu, preko vi\v{s}e ta\v{c}aka gledi\v{s}ta, na hardveru dva
-proizvo\dj a\v{c}a (AMD RDNA4 i NVIDIA Blackwell) uz isti kod. Dva proizvo\dj a\v{c}a rangiraju
-efekte razli\v{c}ito: na RX 9070 XT najskuplje su senke sa \perfEffShadowsAMD{} ms, a na RTX 5070
-globalno osvetljenje sa \perfEffGiNV{} ms, gde se jedino senke i refleksije ne razdvajaju, uz izmerene
-ukupne vrednosti od \perfTotalAMD{} ms i \perfTotalNV{} ms u odnosu na osnovu bez efekata od
-\perfBaseAMD{} i \perfBaseNV{} ms. Izbor tehnike za senke je tako\dj e zavisan od arhitekture:
-stohasti\v{c}ko uzorkovanje svetala je jeftinije od inline trasiranja po svetlu na AMD-u, a
-\perfShadowRatioNV{} puta skuplje na NVIDIA-i.
-Uklju\v{c}ivanje sva \v{c}etiri efekta podi\v{z}e kvalitet rekonstrukcije sa FLIP \qRasterFlip{} /
-PSNR \qRasterPsnr{} dB / SSIM \qRasterSsim{} (raster) na FLIP \qAllRtFlip{} / PSNR \qAllRtPsnr{} dB /
-SSIM \qAllRtSsim{} u odnosu na path-traced referencu.
+proizvo\dj a\v{c}a (AMD RDNA4 i NVIDIA Blackwell) uz isti kod. Sva \v{c}etiri efekta zajedno ko\v{s}taju
+\perfTotalAMD{} ms i \perfTotalNV{} ms po kadru na dve kartice, unutar bud\v{z}eta za 60 Hz, i
+podi\v{z}u kvalitet rekonstrukcije sa FLIP \qRasterFlip{} na \qAllRtFlip{} i PSNR \qRasterPsnr{} na
+\qAllRtPsnr{} dB u odnosu na referencu. Dva proizvo\dj a\v{c}a se ne sla\v{z}u oko toga koji je efekat
+najskuplji, na RX 9070 XT su to senke a na RTX 5070 globalno osvetljenje, i to neslaganje se prenosi
+na in\v{z}enjersku odluku: od dve implementirane strategije za senke, stohasti\v{c}ka je jeftinija na
+AMD-u a \perfShadowRatioNV{} puta skuplja na NVIDIA-i, pa je renderer koji fiksira bilo koju od njih
+pogre\v{s}an na jednoj od ove dve kartice aktuelne generacije. Merenje na jednom proizvo\dj a\v{c}u to
+ne bi otkrilo.
 \end{abstract}
 
 \begin{keywords}

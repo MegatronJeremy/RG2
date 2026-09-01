@@ -33,9 +33,18 @@ counts, and reconstruct a clean image with a denoiser \cite{schied2017svgf}
 
 \begin{figure}[tbp]
 \centering
-\includegraphics[width=0.9\textwidth]{figures/teaser.png}
-\caption[Hybrid engine output on the test scene]{Hybrid engine output on the test scene, Sponza, a standard interior with strong indirect
-bounce: rasterized forward pass with ray-traced shadows, AO, reflections and GI (denoised).}
+\includegraphics[width=0.485\textwidth]{figures/teaser_raster.png}\hfill
+\includegraphics[width=0.485\textwidth]{figures/teaser.png}
+\caption[The same frame rasterized and with ray-traced lighting]{The same frame, same camera and same
+exposure, rendered two ways on the test scene (Sponza, a standard interior with strong indirect
+bounce). \textbf{Left:} the rasterized forward pass on its own, with shadow maps and a constant
+ambient term standing in for everything light does after its first bounce. \textbf{Right:} the same
+pass with ray-traced shadows, ambient occlusion, reflections and global illumination added and
+denoised. The left image is the brighter of the two, which is the point: its ambient term lifts every
+surface by the same amount whether or not light could reach it, so the vaults and the recesses behind
+the columns are as bright as the open floor. On the right that fill is replaced by light that
+actually travelled, which darkens what is occluded, tints the stone beside the drapes with the colour
+bounced off them, and leaves the warm pools near the torches falling off with distance.}
 \label{fig:teaser}
 \end{figure}
 

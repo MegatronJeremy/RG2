@@ -51,6 +51,11 @@ REF_FRAMES = 400
 SHOTS = [
     ("teaser", ATRIUM, {**BASE_ENV, "SS_RENDER_SHADOWS_MODE": "2", "SS_RENDER_AO_MODE": "2",
                         "SS_RENDER_REFLECTIONS_MODE": "2", "SS_RENDER_GI_MODE": "2"}, False),
+    # Same pose and exposure as the teaser with every ray-traced effect off, so Figure 1.1 can put the
+    # two side by side. Shadows stay on the raster path (mode 1) rather than off: the comparison is
+    # rasterization as it is actually shipped, not a strawman with no shadows at all.
+    ("teaser_raster", ATRIUM, {**BASE_ENV, "SS_RENDER_SHADOWS_MODE": "1", "SS_RENDER_AO_MODE": "0",
+                               "SS_RENDER_REFLECTIONS_MODE": "0", "SS_RENDER_GI_MODE": "0"}, False),
     # Penumbra width is 2*H*tan(theta/2) in the source's angular size theta, so it needs a receiver with
     # a distant occluder H. The sun is the only light in Sponza that has one: the other four enabled
     # lights are torches a couple of units from the walls they light. Hence the sunlit floor strip, whose
