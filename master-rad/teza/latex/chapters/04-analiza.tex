@@ -351,7 +351,7 @@ rungs either side of it spread under 3.5\%.
 The two shadow strategies of Section~\ref{sec:senke} have differently shaped cost curves: the default
 inline path traces two rays per light per pixel inside the forward shader, while the stochastic path
 picks one light per pixel by resampled importance sampling and reconstructs the result with the
-shared denoiser.
+shared denoiser. Table~\ref{tab:shadow-strategy} measures both on the same scene.
 
 \begin{table}[tbp]
 \caption[Inline versus stochastic shadow cost]{Two shadow strategies on the same scene with five enabled lights (GPU ms, delta over
