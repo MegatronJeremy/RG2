@@ -220,6 +220,21 @@ answering it needs hardware counters rather than timestamps. What the experiment
 that a per-pass vendor ratio has to be quoted with the resolution it was measured at, since the same
 code inverts across that one variable (three runs per arm, medians, RX 9070 XT against RTX 5070).
 
+A second caveat bounds the traversal argument itself. Section~\ref{sec:accel-pregled} offers the
+shader-driven traversal loop as the structural reason to expect ray work to cost more on RDNA, and
+the per-pass split is consistent with it: the passes that trace average a ratio of 1.36 against 1.04
+for the pure reconstruction passes. But it does not explain the whole-frame gap, and the ladder says
+so. The RX 9070 XT is 1.71 times slower than the RTX 5070 at the \texttt{shadows} rung and 1.43 times
+slower at \texttt{+gi}, so the gap \emph{narrows} as ray tracing is added, and the ray-traced work
+alone (the \texttt{+gi} total minus the \texttt{rt-off} total) carries a ratio of 1.36 against 1.70
+for the frame with no ray tracing in it. If shader-driven traversal were the dominant term, adding
+ray tracing should widen the gap rather than close it. The honest reading is that this engine is
+broadly slower on this AMD card for reasons the measurement does not identify, and that ray tracing
+is not where the penalty concentrates. The \texttt{rt-off} rung is the least trustworthy of these
+numbers, at 12.7\% run-to-run spread against 2.1\% on the NVIDIA side for the reason given in
+Section~\ref{sec:metodologija}, although the trend survives without it, since the two rungs either
+side of it spread under 3.5\%.
+
 The two cards do not agree on which effect is most expensive, and that disagreement is the result,
 not a rounding artifact. On the RX 9070 XT the most expensive effect is \perfTopEffectAMD{} at
 \perfEffShadowsAMD{} ms, while on the RTX 5070 it is \perfTopEffectNV{} at \perfEffGiNV{} ms, where
@@ -695,6 +710,25 @@ Every quality figure so far comes from a static camera, which Section~\ref{sec:d
 hides most of what the spatial denoiser does: it cuts frame-to-frame flicker by \flickerPct\% while
 moving the static metrics by less than measurement noise, an argument made there only by proxy. This
 section moves the camera.
+
+It also changes scene. The static gates run on \texttt{Sponza.world}, which holds still, so a moving
+camera there exercises reprojection but never disocclusion by a moving object. This section uses
+\texttt{Sponza-Motion.world} (Figure~\ref{fig:sponza-motion}), the same interior with four props
+rotating at eye height between the camera route and the colonnade, which is what puts moving
+occluders in front of moving geometry. The two scenes are kept separate deliberately: animating props
+in \texttt{Sponza.world} would invalidate every committed quality and performance baseline measured
+against it.
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=0.92\textwidth]{figures/sponza_motion.png}
+\caption[The scene used for the motion measurements]{\texttt{Sponza-Motion.world}: the test scene
+with four rotating props added at eye height along the nave, visible here as the pale cubes and the
+shadows they cast on the floor. They exist to make objects, and not only the camera, move: a
+reprojecting filter can follow a static scene under camera motion using depth alone, while an
+occluder that moves independently is what forces it to reject history.}
+\label{fig:sponza-motion}
+\end{figure}
 
 Flying a fixed route, capturing frames along it and scoring each against a converged path trace of
 the same instant is the protocol BMFR established for animated sequences

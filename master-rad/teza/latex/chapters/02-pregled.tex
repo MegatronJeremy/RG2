@@ -62,7 +62,57 @@ Testing every ray against every triangle is $O(\text{rays} \times \text{triangle
 scene scale, so ray tracing depends on a spatial acceleration structure. The standard one is a
 bounding-volume hierarchy (BVH): a tree of nested bounding boxes whose traversal descends only into
 boxes a ray actually enters, reducing the expected cost per ray to roughly logarithmic in the
-triangle count. How well a given tree performs depends on where the splits are placed, chosen by a cost heuristic
+triangle count (Figure~\ref{fig:bvh}).
+
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}[>={Stealth[]}, font=\small,
+  tri/.style={draw, fill=black!12},
+  bx/.style={draw, rounded corners=1pt, thick},
+  nd/.style={draw, rounded corners, minimum width=7mm, minimum height=5mm, font=\scriptsize,
+             inner sep=2pt},
+  hit/.style={nd, fill=black!12},
+  skip/.style={nd, densely dashed, text=black!45, draw=black!45}]
+
+  \begin{scope}
+    \node[font=\small] at (2.5,4.0) {the scene, boxed};
+    \draw[bx, black!45] (0.15,0.15) rectangle (4.85,3.5);
+    \node[font=\scriptsize, black!45] at (4.62,3.28) {A};
+    \draw[bx] (0.35,0.4) rectangle (2.3,3.05);  \node[font=\scriptsize] at (0.6,2.82) {B};
+    \draw[bx] (2.6,0.4) rectangle (4.65,3.05);  \node[font=\scriptsize] at (2.85,2.82) {C};
+    \draw[tri] (0.7,0.8) -- (1.5,0.8) -- (1.1,1.6) -- cycle;
+    \draw[tri] (1.2,1.9) -- (2.05,1.9) -- (1.6,2.7) -- cycle;
+    \draw[tri] (2.9,0.8) -- (3.7,0.8) -- (3.3,1.6) -- cycle;
+    \draw[tri] (3.6,1.9) -- (4.4,1.9) -- (4.0,2.7) -- cycle;
+    % the ray enters A and B, misses C entirely, so C's whole subtree is never opened
+    \draw[->, very thick] (-0.5,1.15) -- (2.35,1.15);
+    \node[font=\scriptsize] at (-0.1,1.45) {ray};
+  \end{scope}
+
+  \begin{scope}[xshift=7.2cm, yshift=0.35cm]
+    \node[font=\small] at (1.6,3.65) {the tree it walks};
+    \node[hit]  (a)  at (1.6,3.0) {A};
+    \node[hit]  (b)  at (0.6,2.0) {B};
+    \node[skip] (c)  at (2.6,2.0) {C};
+    \node[hit]  (t1) at (0.1,1.0) {$\triangle$};
+    \node[skip] (t2) at (1.1,1.0) {$\triangle$};
+    \node[skip] (t3) at (2.1,1.0) {$\triangle$};
+    \node[skip] (t4) at (3.1,1.0) {$\triangle$};
+    \draw (a) -- (b); \draw[black!45] (a) -- (c);
+    \draw (b) -- (t1); \draw[black!45] (b) -- (t2);
+    \draw[black!45] (c) -- (t3); \draw[black!45] (c) -- (t4);
+    \node[font=\scriptsize, align=left] at (1.6,0.25)
+      {shaded = box entered, tested\\dashed = never opened};
+  \end{scope}
+\end{tikzpicture}
+\caption[How a bounding-volume hierarchy saves work]{A bounding-volume hierarchy on four triangles.
+Each box encloses everything below it, so a ray that misses a box cannot hit anything inside it and
+the whole subtree is skipped without a single triangle test. Here the ray enters A and B and misses
+C, so it tests one triangle instead of four. Real hierarchies are deeper and wider, which is what
+turns this into roughly logarithmic rather than linear cost, and the two GPUs differ in who walks the
+tree rather than in the shape of it (Figure~\ref{fig:traversal}).}
+\label{fig:bvh}
+\end{figure} How well a given tree performs depends on where the splits are placed, chosen by a cost heuristic
 (most commonly the surface area heuristic, which favours splits that leave a ray unlikely to enter
 both children). On this hardware the driver builds the tree and picks that heuristic, so it is not a
 parameter this work sets. On current GPUs the ray-box and ray-triangle
