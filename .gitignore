@@ -11,6 +11,8 @@ master-rad/teza/tools/.session.diff
 master-rad/teza/latex/_sheets/
 # Line-numbered review copy, regenerable with tools/review_build.py
 master-rad/teza/latex/main-review.pdf
+# Email-sized draft, regenerable with tools/draft_build.py
+master-rad/teza/latex/main-draft.pdf
 # Reading notes: working state, emptied as the notes are acted on
 master-rad/teza/review-notes.md
 
