@@ -525,6 +525,22 @@ rotated per pixel by interleaved gradient noise, using the same
 \texttt{ACCEPT_FIRST_HIT_AND_END_SEARCH} visibility traversal as shadows. Rays are limited to
 \texttt{render.ao.radius}, and a hit contributes \texttt{1 - saturate(t / AORadius)}, so nearer occluders
 darken more, and the result is scaled by \texttt{render.ao.intensity} (Listing~\ref{lst:ao}).
+Figure~\ref{fig:ao-composited} shows what that contributes to the finished image, and
+Figure~\ref{fig:ssvsrt-ao} shows the term on its own against the screen-space alternative.
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=0.485\textwidth]{figures/ao_off.png}\hfill
+\includegraphics[width=0.485\textwidth]{figures/ao_on.png}
+\caption[Ambient occlusion in the composited frame]{Ambient occlusion off (left) and on (right), in
+the finished frame rather than in the AO buffer. This is a crop, deliberately: occlusion happens
+where geometry encloses geometry, so over the whole frame the effect is worth 2.4 levels of 255 and
+an uncropped pair would print as two identical pictures. Here it is 6.2, and what it buys is the
+plinth being planted on the floor instead of floating over it, depth between the leaves, and the
+column meeting the ground rather than passing through it. Section~\ref{sec:poredjenje} is the same
+observation as a number: AO leaves five sixths of this frame untouched.}
+\label{fig:ao-composited}
+\end{figure}
 
 
 \needspace{17\baselineskip}
