@@ -728,15 +728,12 @@ value of ray tracing for indirect diffuse illumination, and does not demonstrate
 \includegraphics[width=0.485\textwidth]{figures/ssvsrt_rtao.png}
 \caption[Screen-space against ray-traced ambient occlusion]{The isolated occlusion term at the atrium
 viewpoint, SSAO (left) against ray-traced AO (right). Both panels show $1-\mathrm{AO}$ at a gain of
-4, so bright is occluded and black is unoccluded: printed as the raw AO buffer both are near-white
-(median 254 and 255 of 255) and nothing is legible. The transform is identical on both sides. SSAO
-resolves a thin rim wherever two surfaces meet in the depth buffer, which is all it can see, while
-the traced term gives the drapes, the vault soffits and the foliage occlusion with body to it,
-because the geometry doing the occluding does not have to be on screen. This is the difference that
-Table~\ref{tab:quality} scores as under 0.01 FLIP. Read the panels structurally rather than per
-pixel: unlike the composited pairs elsewhere in this chapter, which reproduce bit for bit, a raw
-stochastic buffer does not, and two captures of one configuration here differ by a mean of 3.8 of 255
-against the 8.8 separating the two techniques.}
+4, the same transform on each side, so bright is occluded and the near-white raw buffers become
+legible. SSAO resolves only a thin rim where two surfaces meet in the depth buffer, which is all it
+can see, while the traced term gives the drapes, vault soffits and foliage occlusion with body to it,
+because the occluding geometry need not be on screen. Read it structurally rather than per pixel: a
+raw stochastic buffer does not reproduce bit for bit, and two captures of one configuration differ by
+a mean of 3.8 of 255 against the 8.8 between the techniques.}
 \label{fig:ssvsrt-ao}
 \end{figure} The two shadow producers are likewise a near-tie here, \qRtShadowFlip{} for the inline path against
 \qMegalightsFlip{} for the stochastic one, which matters for how Section~\ref{sec:analiza-shadow-strategy}
