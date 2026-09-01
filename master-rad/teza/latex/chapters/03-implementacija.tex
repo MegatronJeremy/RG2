@@ -36,10 +36,19 @@ be free to move. Every measurement in this thesis runs in declaration order.
 The graph can also schedule from those edges rather than follow them. Behind
 \texttt{render.graph.reorder}, off by default, \texttt{BuildSchedule} walks the DAG and prefers a
 ready compute pass over a ready graphics one, which pulls the ray-traced chains into one contiguous
-run instead of leaving them split by the raster upsamples that happen to sit between them. The
-intent is to pay one synchronisation boundary for the run instead of one per chain, although that
-benefit is not measured here and the flag stays off, so the reordering is a capability of the graph
-rather than a property of the numbers in Chapter~\ref{ch:analiza}.
+run instead of leaving them split by the raster upsamples that sit between them in declaration order.
+
+Contiguity is not itself a saving. It is the precondition for moving that block to an asynchronous
+compute queue, where interleaved chains would each pay their own fork and join. Both halves of that
+were built and both measured against enabling them. Reordering alone costs the depth prepass the
+incidental overlap the interleaved order gave it, taking \texttt{CameraDepthPrepass} from 0.002 to
+0.052 ms in a paired A/B at the \texttt{+gi} rung, while whole-frame time moves 0.2\%, inside the
+run-to-run spread. The asynchronous queue it exists to enable is worse: \texttt{render.async\_compute}
+measures $+0.675$ ms, $+4.1\%$, because the fork, the join and the queue-family ownership transfers
+cost more than the 1.1\% of raster work actually available to overlap. So both flags stay off, and
+the schedule is a capability of the graph rather than a property of any number in
+Chapter~\ref{ch:analiza}. Grouping compute work is the standard advice, and on this frame it has
+nothing to pay for itself with.
 
 Two ordering constraints are derived rather than declared, since no texture edge expresses them, and
 both bound that scheduler when it is enabled. Graphics passes keep their relative order, because they
