@@ -1,7 +1,36 @@
 \chapter{Analysis}
 \label{ch:analiza}
 
-Every number reported in this chapter is produced by a measured run.
+Every number reported in this chapter is produced by a measured run. The chapter is long, so its
+findings are collected here first, each with the section that establishes it.
+
+\begin{itemize}
+\item All four effects together cost \perfFourEffectsAMD{} ms on the RX 9070 XT and
+      \perfFourEffectsNV{} ms on the RTX 5070, inside a 60 Hz frame on both
+      (Section~\ref{sec:cena}).
+\item The two cards disagree about which effect is the expensive one, and the disagreement reaches
+      the engineering decision: of the two shadow strategies, each is the cheaper on one card
+      (Sections~\ref{sec:cena} and \ref{sec:analiza-shadow-strategy}).
+\item More rays buy very little. Eight times the budget returns \rcPsnrGain{} dB of PSNR for
+      \rcGpuPct\% more GPU time, so the operating point is one ray per pixel
+      (Section~\ref{sec:raycount}). Tracing at half resolution behaves the same way
+      (Section~\ref{sec:halfres}).
+\item The spatial denoiser earns its cost in stability rather than in still-frame accuracy: it moves
+      the static metrics by less than measurement noise while cutting frame-to-frame flicker by
+      \flickerPct\% (Sections~\ref{sec:denoise-eval} and \ref{sec:motion}).
+\item Ray tracing lifts quality furthest where rasterization has least to work with, taking FLIP from
+      \qRasterFlip{} to \qAllRtFlip{}, with global illumination the dominant term
+      (Section~\ref{sec:poredjenje}).
+\item Inlining a ray query costs occupancy: the forward shader goes from 87 to 130 registers and from
+      16 concurrently resident waves to 10 (Section~\ref{sec:occupancy}).
+\end{itemize}
+
+Two things recur and are stated once here rather than in every section. Costs are read off a
+\emph{ladder} of configurations, each \emph{rung} adding one effect, so an effect's cost is the
+difference between adjacent rungs. And every difference is read against the repeatability floor
+established in Section~\ref{sec:metodologija}, below which this protocol cannot separate two
+configurations, which is why several results below are reported as no difference rather than as a
+small one.
 
 \section{Methodology}
 \label{sec:metodologija}
@@ -143,11 +172,11 @@ repeated-measures study, so treat it as the right order of magnitude and not a c
 $\perfWidth \times \perfHeight$ with a fixed camera pose, averaged over \perfFrames{} frames.
 \texttt{rt-off} is total GPU time with no RT effects, and each row above the first rule is that
 effect's delta over the configuration named on the line before it. The three blocks answer different
-questions: the ladder gives what each effect costs, the middle row gives what the finished frame
-costs once all four are on, and the last row prices the screen-space alternative to ray-traced GI.
-That last one is not another rung, so it is diffed against \texttt{+refl} rather than accumulated on
-top of \texttt{+gi}, which is what makes it comparable with the \texttt{+gi} row directly above the
-rule. All values are generated from the committed baselines by
+questions: the ladder gives what each ray-traced effect costs, the middle row gives what the finished
+frame costs once all four are on, and the last block prices the screen-space alternative to each of
+the three effects that has one. Those are not further rungs, so each is diffed against the same
+baseline as its ray-traced counterpart rather than accumulated on top of it, which is what makes the
+two directly comparable. All values are generated from the committed baselines by
 \texttt{tools/gen\_perf\_tables.py}.}
 \label{tab:cena}
 \centering
@@ -236,9 +265,11 @@ terminate on first hit where a reflection ray can cross the scene and then shade
 Reflections are the only effect still tracing at full resolution, and that they are no longer the
 most expensive is a default change rather than an optimisation: their à-trous measured net-negative
 and now runs zero iterations (Section~\ref{sec:denoise-eval}), removing a full-resolution three-pass
-chain worth roughly 1.1 ms. The screen-space GI producer is cheaper than the ray-traced one on both
-cards (Table~\ref{tab:cena}), the expected tradeoff, whose quality side is
-Section~\ref{sec:poredjenje}.
+chain worth roughly 1.1 ms. Every effect with a screen-space alternative is cheaper in that form, on
+both cards and by a similar factor of roughly two to three (Table~\ref{tab:cena}). That factor is
+what asking about off-screen geometry costs, and it is the stable half of the comparison. Whether it
+buys anything is Section~\ref{sec:poredjenje}, where the answer turns out to depend entirely on which
+effect is being paid for.
 
 Shadows are read across configurations rather than from a pass, having no scope of their own, and
 their per-pass terms do not quite close. Between \texttt{rt-off} and \texttt{shadows} on the 9070 XT
