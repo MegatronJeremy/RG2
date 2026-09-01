@@ -888,17 +888,13 @@ falls back to the current frame alone, which is noisier but correct.
 \centering
 \includegraphics[width=0.8\textwidth]{figures/dbg_motion.png}
 \caption[The motion vector debug view]{The motion vector buffer (\texttt{render.debugview} 1) at the
-\texttt{dolly} probe of the benchmark route (Section~\ref{sec:motion}), on the scene with animated
-props. Red is the horizontal and green the vertical component of the displacement between two
-consecutive frames, absolute value scaled by 40, so the view shows how \emph{much} a pixel moves and
-along which axis but not in which direction. Forward motion produces the radial pattern: the dark
-region at the centre is the focus of expansion, where the surfaces the camera is heading towards
-barely move on screen, and displacement grows towards the edges. The rectangular patches near the
-centre are the rotating props, whose vectors break discontinuously from the wall behind them, and
-that discontinuity is where the disocclusion described above comes from. The view is not calibrated:
-the two channels are normalised by width and height respectively, so their brightness is not on the
-same scale, and the output is sRGB encoded. Undoing both, the mean displacement in this frame is
-$0.24\%$ of the screen diagonal, at most $0.75\%$, and no sample is saturated.}
+route's \texttt{dolly} probe, on the scene with animated props. Red is horizontal and green vertical
+displacement between consecutive frames, absolute-valued and scaled by 40, so the view shows
+magnitude and axis but not direction. Forward motion gives the radial pattern: the dark centre is the
+focus of expansion, where surfaces the camera is heading towards barely move. The rectangular patches
+are the rotating props, whose vectors break from the wall behind them, and that break is the
+disocclusion above. Undoing the per-axis normalisation and the sRGB encoding, mean displacement is
+$0.24\%$ of the screen diagonal and at most $0.75\%$, with no sample saturated.}
 \label{fig:motion}
 \end{figure}
 
