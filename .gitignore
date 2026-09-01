@@ -11,6 +11,8 @@ master-rad/teza/tools/.session.diff
 master-rad/teza/latex/_sheets/
 # Line-numbered review copy, regenerable with tools/review_build.py
 master-rad/teza/latex/main-review.pdf
+# Reading notes: working state, emptied as the notes are acted on
+master-rad/teza/review-notes.md
 
 # Popunjena prijava se generise iz prijava/formular.docx skriptom fill_prijava.py
 master-rad/prijava/Obrazlozenje_teme_*.docx
