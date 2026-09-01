@@ -6,9 +6,12 @@
 
 The assignment's goal, four ray-traced lighting effects (shadows, ambient occlusion, reflections,
 and diffuse global illumination) through inline ray queries in a custom Vulkan engine, characterized
-for cost and quality, is met. All four share one hit-shading routine over a bindless geometry table
-and one reusable SVGF denoiser, and sit inside an existing rasterizing forward renderer rather than a
-standalone tracer (Chapter~\ref{ch:implementacija}). Table~\ref{tab:summary} collects the headline
+for cost and quality, is met. All four share one hit-shading routine over a bindless geometry table,
+the three that produce a noisy buffer share one reusable SVGF denoiser, and all of them sit inside an
+existing rasterizing forward renderer rather than a standalone tracer
+(Chapter~\ref{ch:implementacija}). Shadows are the exception that shows the design works: on the
+default path two rays per light resolve visibility inline during shading, cheaply enough to need no
+reconstruction pass at all. Table~\ref{tab:summary} collects the headline
 numbers from Chapter~\ref{ch:analiza}. The two cards do not agree on which effect costs most: the
 most expensive is \perfTopEffectAMD{} on the RX 9070 XT and \perfTopEffectNV{} on the RTX 5070, and
 each winner is separated from every other effect by more than the run-to-run spread, so the

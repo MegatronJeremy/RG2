@@ -55,7 +55,7 @@ shallow (a single bounce) and short, so that price is small.
 
 \section{Goal and research question}
 
-The goal is to implement four ray-traced lighting effects, shadows, ambient occlusion, reflections,
+The goal is to implement four ray-traced lighting effects: shadows, ambient occlusion, reflections,
 and diffuse global illumination, through inline ray queries in a custom Vulkan engine, and to
 characterize each one. The research question breaks into measurable sub-questions: the per-effect
 GPU cost in milliseconds; the effect of samples per pixel on quality (PSNR/SSIM) and on time; the
@@ -66,8 +66,8 @@ versus full resolution; and how the identical Vulkan implementation performs acr
 current-generation GPUs of comparable tier (Table~\ref{tab:gpus}), diffuse global illumination, and a
 converged path-traced reference for the quality metrics.
 
-Three of the answers run against intuition. Eight times the ray budget buys \rcPsnrGain{} dB of PSNR,
-about three times the measurement floor and so a real gain, although far too small to be worth
+Three of the answers run against intuition. Eight times the ray budget buys only \rcPsnrGain{} dB of
+PSNR. The gain is real, since it clears the measurement floor by roughly three times, but it costs
 \rcGpuPct\% more GPU time, which puts the operating point at one ray per pixel
 (Section~\ref{sec:raycount}). The denoiser earns its cost in temporal stability rather than in static
 fidelity (Section~\ref{sec:motion}). And the shader carrying the inline shadow query allocates 130
@@ -85,7 +85,7 @@ one custom Vulkan engine;
 \item a per-effect GPU cost breakdown produced by a reproducible A/B benchmark harness rather than
 ad-hoc captures;
 \item a reusable half-resolution, G-buffer-prepass, denoise-and-upsample pattern;
-\item an evaluation of a self-implemented SVGF denoiser shared across all four signals, covering the
+\item an evaluation of a self-implemented SVGF denoiser shared by every signal that needs one, covering the
 quality it recovers, its cost, and its temporal stability;
 \item a same-code performance comparison of the identical ray-query pipeline on AMD RDNA4 and NVIDIA
 Blackwell hardware, which shows the ranking of the two shadow strategies inverting between vendors

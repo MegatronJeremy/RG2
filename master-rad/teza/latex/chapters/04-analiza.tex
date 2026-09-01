@@ -35,6 +35,16 @@ Driver / OS            & 32.0.31035.1003, Windows 11 Pro (build 26100) & 32.0.15
 \end{tabularx}
 \end{table}
 
+The two rows that look most like a ranking are the ones that compare least well. A stream processor
+and a CUDA core are not the same unit of work, so 4096 against 6144 is not a factor of 1.5 in
+anything, and an RT accelerator count means something different on each vendor precisely because the
+two split traversal differently (Section~\ref{sec:accel-pregled}). The cards are matched on the
+things that are comparable: memory bandwidth within 5\%, the same process generation, and adjacent
+positions in their vendors' product stacks. Where they diverge in the measurements that follow, the
+structural candidate is that traversal split rather than any single number in this table, and
+Section~\ref{sec:cena} shows the per-pass ratio spanning 0.62 to 1.96, which no single hardware
+figure can produce.
+
 \paragraph{The OMM support mismatch.} Sponza carries three MASK-mode (alpha-cutout) materials, which
 trace through the opacity-micromap BLAS on a device exposing \texttt{VK\_EXT\_opacity\_micromap} and
 through the any-hit alpha-test fallback otherwise (Section~\ref{sec:accel}). The RTX 5070 driver
@@ -612,7 +622,26 @@ Figure~\ref{fig:quality-spread}) global illumination is the dominant
 quality lever: RT GI alone lifts
 PSNR from \qRasterPsnr{} (raster) to \qRtGiPsnr{} and cuts FLIP by more than two thirds, and enabling
 all effects reaches FLIP \qAllRtFlip{}, PSNR \qAllRtPsnr{}, SSIM \qAllRtSsim{}, by far the closest to
-the reference. At these
+the reference.
+
+\paragraph{Where the lift lives, and what the exposure has to do with it.} The scene is dim:
+\exDarkShare\% of the reference's pixels sit below a tenth of full luminance, with a median of
+\exMedianLuma{}, since the sun and four torches are the only enabled lights and Sponza's three
+authored window-shaft spots are switched off. That invites the objection that the lift is two renders
+agreeing about darkness. The reference is a path trace of the same scene at the same exposure, so the
+comparison itself is unaffected, although the SIZE of the lift is not. Rescoring the atrium viewpoint
+on progressively brighter subsets of the reference (masking on the reference, never on the technique,
+which would let a technique pick its own favourable pixels) takes the raster-to-all-RT gain from
+\exLiftAll{} dB over the whole frame to \exLiftLit{} dB over the brightest \exLitShare\%. Raster is
+what moves: it goes from \exRasterAll{} dB to \exRasterLit{} dB as the dim pixels are discarded, while
+the ray-traced result barely changes. Rasterization is close to correct wherever light arrives
+directly and falls behind wherever it does not, so the advantage concentrates in the indirectly lit
+part of the frame. That is where these four effects are supposed to matter, and the concentration is
+the expected signature rather than an artifact, but it does mean the headline decibel figure is a
+property of this exposure as much as of the techniques, and a brighter scene would report a smaller
+one.
+
+At these
 whole-frame metrics screen-space and ray-traced AO and reflections are near-parity (SSAO versus RT AO,
 and SSR versus RT reflections, differ by under 0.01 in FLIP), because the occlusion and reflection
 contributions are small at the whole-frame level. Captured through the debug view that isolates the
@@ -779,8 +808,10 @@ rather than recomputing it.
 \section{Shader occupancy and cost}
 \label{sec:occupancy}
 
-A GPU runs threads in fixed 32-wide lockstep groups, called waves on AMD and warps on NVIDIA, and
-each scheduler unit (a SIMD on AMD, an SM on NVIDIA) keeps several resident at once. Static shader
+A GPU runs threads in lockstep groups, called waves on AMD and warps on NVIDIA, and each scheduler
+unit (a SIMD on AMD, an SM on NVIDIA) keeps several resident at once. A warp is 32 threads, while
+RDNA chooses 32 or 64 per shader: the driver reports 64 for every compute shader in this engine, and
+does not report a size for the graphics stages. Static shader
 occupancy, how many registers each ray-tracing and denoising shader needs and how many
 waves the hardware can therefore keep in flight, is the one place where the two vendors compare on
 something other than time, and it explains part of the cost difference the rest of the chapter
@@ -799,7 +830,11 @@ pipeline name and cannot tell them apart on its own.
 \caption[Shader registers and theoretical occupancy]{Registers and theoretical occupancy of the key shaders on both GPUs. For AMD: VGPR count and
 the largest possible number of wave32 waves per SIMD (1536 VGPRs, granularity 24, at most 16). For
 NVIDIA: registers per thread and the largest number of warps per SM (65536 registers, at most 48).
-Both figures are theoretical and derived from the register count, not measured with a profiler.
+Both figures are theoretical and derived from the register count, not measured with a profiler. The
+AMD column assumes wave32, which is what the offline analyser reports against, although the driver
+selects the wave size per shader and reports 64 for this engine's compute shaders, so a wave64 shader
+occupies twice the register file per wave and its real occupancy is lower than the column states.
+Reading achieved occupancy rather than this bound needs a hardware profiler.
 Generated from the committed baselines by \texttt{tools/gen\_shader\_tables.py}.}
 \label{tab:occupancy}
 \centering

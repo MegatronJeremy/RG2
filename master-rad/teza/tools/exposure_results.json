@@ -1,0 +1,36 @@
+{
+  "viewpoint": "atrium",
+  "device": "AMD Radeon RX 9070 XT",
+  "darkShareBelow10Pct": 71.2,
+  "medianLuma": 0.0505,
+  "cuts": [
+    {
+      "minLuma": 0.0,
+      "sharePct": 100.0,
+      "rasterPsnr": 16.69,
+      "allRtPsnr": 29.51,
+      "liftDb": 12.82
+    },
+    {
+      "minLuma": 0.02,
+      "sharePct": 75.1,
+      "rasterPsnr": 17.23,
+      "allRtPsnr": 28.5,
+      "liftDb": 11.27
+    },
+    {
+      "minLuma": 0.1,
+      "sharePct": 28.8,
+      "rasterPsnr": 19.76,
+      "allRtPsnr": 26.18,
+      "liftDb": 6.41
+    },
+    {
+      "minLuma": 0.25,
+      "sharePct": 15.9,
+      "rasterPsnr": 24.27,
+      "allRtPsnr": 26.68,
+      "liftDb": 2.41
+    }
+  ]
+}

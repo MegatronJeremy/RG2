@@ -674,9 +674,10 @@ content that a diffuse-tuned reprojection does not perfectly handle.
   \draw[->] (in) -- (tp); \draw[->] (tp) -- (at); \draw[->] (at) -- (out);
 \end{tikzpicture}
 \caption[The shared SVGF denoiser]{SVGF denoiser: temporal accumulation with variance estimation,
-then a variance-guided \`a-trous spatial filter, shared by all four signals. GI and AO run three
-\`a-trous iterations by default and reflections none, for the reason measured in
-Section~\ref{sec:denoise-eval}.}
+then a variance-guided \`a-trous spatial filter. One implementation serves GI, AO, reflections and
+the stochastic shadow path. GI and AO run three \`a-trous iterations by default and reflections none,
+for the reason measured in Section~\ref{sec:denoise-eval}. The default inline shadow path does not
+enter this chain at all.}
 \label{fig:svgf}
 \end{figure}
 

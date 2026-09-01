@@ -26,6 +26,7 @@ DATA = THESIS / "latex" / "data"
 FIGS = THESIS / "latex" / "figures"
 RESULTS = HERE / "raycount_denoise_results.json"
 HALFRES = HERE / "halfres_results.json"
+EXPOSURE = HERE / "exposure_results.json"
 
 QUALITY = ENGINE / "Scripts" / "quality-baseline" / "amd-radeon-rx-9070-xt"
 MOTION = ENGINE / "Scripts" / "quality-motion-baseline" / "amd-radeon-rx-9070-xt"
@@ -168,6 +169,21 @@ def main():
 
     # Half- versus full-resolution GI/AO tracing (sec:halfres). Previously hand-typed from an
     # uncommitted sweep, which is how its stated +54% came to disagree with its own cells.
+    # Exposure sensitivity: how much of the raster-to-all-RT lift survives discarding dim pixels.
+    # Typed by hand this would be four numbers nobody could recheck, and the point of the paragraph
+    # is that the reader can.
+    if not EXPOSURE.exists():
+        sys.exit(f"FAIL: {EXPOSURE.name} not found; run exposure_check.py first")
+    ex = json.loads(EXPOSURE.read_text(encoding="utf-8"))
+    by_cut = {c["minLuma"]: c for c in ex["cuts"]}
+    qmacros += [rf"\newcommand{{\exDarkShare}}{{{ex['darkShareBelow10Pct']:.0f}}}",
+                rf"\newcommand{{\exMedianLuma}}{{{ex['medianLuma']:.3f}}}",
+                rf"\newcommand{{\exLiftAll}}{{{by_cut[0.0]['liftDb']:.2f}}}",
+                rf"\newcommand{{\exLiftLit}}{{{by_cut[0.25]['liftDb']:.2f}}}",
+                rf"\newcommand{{\exLitShare}}{{{by_cut[0.25]['sharePct']:.0f}}}",
+                rf"\newcommand{{\exRasterAll}}{{{by_cut[0.0]['rasterPsnr']:.2f}}}",
+                rf"\newcommand{{\exRasterLit}}{{{by_cut[0.25]['rasterPsnr']:.2f}}}"]
+
     if not HALFRES.exists():
         sys.exit(f"FAIL: {HALFRES.name} not found; run halfres_sweep.py first")
     hr = json.loads(HALFRES.read_text(encoding="utf-8"))

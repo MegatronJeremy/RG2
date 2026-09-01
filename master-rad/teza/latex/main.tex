@@ -123,8 +123,9 @@ This thesis integrates four ray-traced lighting effects (shadows, ambient occlus
 and diffuse global illumination) as inline ray-query (\texttt{VK_KHR_ray_query}) passes over a
 rasterized forward renderer in a custom Vulkan engine, where rasterization otherwise approximates
 these global effects with screen-space and precomputed methods that fail on off-screen or dynamic
-information. The noisy signals are reconstructed by a shared SVGF denoiser and stabilized by temporal
-anti-aliasing. The per-effect GPU cost is isolated with an A/B configuration matrix, and
+information. The noisy signals are reconstructed by one SVGF denoiser shared between them and
+stabilized by temporal anti-aliasing, while shadows need no denoise pass on the default path and
+resolve their visibility inline during shading. The per-effect GPU cost is isolated with an A/B configuration matrix, and
 reconstruction quality is measured with FLIP, PSNR, and SSIM against a converged path-traced
 reference across several viewpoints, on two vendors' hardware (AMD RDNA4 and NVIDIA Blackwell)
 running identical code. The two vendors rank the effects differently: the most expensive is
@@ -150,20 +151,22 @@ denoising; hybrid rendering; cross-vendor; AMD RDNA4; NVIDIA Blackwell
 \begin{abstract}
 Ovaj rad integri\v{s}e \v{c}etiri efekta osvetljenja zasnovana na pra\'cenju zrakova (senke,
 ambijentalnu okluziju, refleksije i difuzno globalno osvetljenje) kao inline ray query
-(\texttt{VK_KHR_ray_query}) prolaze iznad rasterizacionog forward prolaza, u endzinu koji je autor
-sam napisao nad Vulkan-om. Rasterizacija te globalne efekte ina\v{c}e pribli\v{z}ava postupcima u
+(\texttt{VK_KHR_ray_query}) prolaze preko rasterizacionog forward prolaza, u engine-u koji je autor
+sam napisao kori\v{s}\'cenjem Vulkan API-ja. Rasterizacija te globalne efekte ina\v{c}e pribli\v{z}no
+aproksimira postupcima u
 prostoru ekrana i unapred izra\v{c}unatim postupcima, koji otkazuju na geometriji van ekrana i na
-dinami\v{c}koj sceni. \v{S}umoviti signali se rekonstrui\v{s}u zajedni\v{c}kim SVGF filtrom i
-stabilizuju temporalnim anti-aliasing-om. Cena svakog efekta na grafi\v{c}kom procesoru izoluje se
+dinami\v{c}koj sceni. \v{S}umoviti signali se rekonstrui\v{s}u jednim zajedni\v{c}kim SVGF filtrom i
+stabilizuju temporalnim anti-aliasing-om, dok senke na podrazumevanoj putanji ne zahtevaju prolaz za
+uklanjanje \v{s}uma nego se vidljivost razre\v{s}ava inline tokom sen\v{c}enja. Cena svakog efekta na grafi\v{c}kom procesoru izoluje se
 A/B matricom konfiguracija, a kvalitet rekonstrukcije meri se merama FLIP, PSNR i SSIM u odnosu na
 konvergiranu path-traced referencu, preko vi\v{s}e ta\v{c}aka gledi\v{s}ta, na hardveru dva
 proizvo\dj a\v{c}a (AMD RDNA4 i NVIDIA Blackwell) uz isti kod. Dva proizvo\dj a\v{c}a rangiraju
 efekte razli\v{c}ito: na RX 9070 XT najskuplje su senke sa \perfEffShadowsAMD{} ms, a na RTX 5070
 globalno osvetljenje sa \perfEffGiNV{} ms, gde se jedino senke i refleksije ne razdvajaju, uz izmerene
-ukupne vrednosti od \perfTotalAMD{} ms i \perfTotalNV{} ms nad osnovama od \perfBaseAMD{} i
-\perfBaseNV{} ms. Izbor tehnike za senke je tako\dj e zavisan od arhitekture: stohasti\v{c}ki
-producent je jeftiniji od inline trasiranja po svetlu na AMD-u, a \perfShadowRatioNV{} puta skuplji
-na NVIDIA-i.
+ukupne vrednosti od \perfTotalAMD{} ms i \perfTotalNV{} ms u odnosu na osnovu bez efekata od
+\perfBaseAMD{} i \perfBaseNV{} ms. Izbor tehnike za senke je tako\dj e zavisan od arhitekture:
+stohasti\v{c}ko uzorkovanje svetala je jeftinije od inline trasiranja po svetlu na AMD-u, a
+\perfShadowRatioNV{} puta skuplje na NVIDIA-i.
 Uklju\v{c}ivanje sva \v{c}etiri efekta podi\v{z}e kvalitet rekonstrukcije sa FLIP \qRasterFlip{} /
 PSNR \qRasterPsnr{} dB / SSIM \qRasterSsim{} (raster) na FLIP \qAllRtFlip{} / PSNR \qAllRtPsnr{} dB /
 SSIM \qAllRtSsim{} u odnosu na path-traced referencu.

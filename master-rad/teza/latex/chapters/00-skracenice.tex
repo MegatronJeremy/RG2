@@ -74,6 +74,9 @@
   \item[tonemap] mapping HDR values into the display range
   \item[VGPR] Vector General-Purpose Register: per-thread registers whose count determines how many
     waves can be in flight at once (occupancy)
-  \item[wave / warp] a fixed group of 32 threads executing in lockstep, called a wave on AMD and a
-    warp on NVIDIA
+  \item[Vulkan] the low-level cross-vendor graphics and compute API this engine is built on, in
+    which ray tracing is an optional extension rather than a core feature
+  \item[wave / warp] a group of threads executing one instruction in lockstep, called a wave on AMD
+    and a warp on NVIDIA. A warp is always 32 threads; RDNA selects 32 or 64 per shader, and the
+    driver reports 64 for this engine's compute shaders
   \end{description}
