@@ -923,7 +923,11 @@ rather than recomputing it.
 A GPU runs threads in lockstep groups, called waves on AMD and warps on NVIDIA, and each scheduler
 unit (a SIMD on AMD, an SM on NVIDIA) keeps several resident at once. A warp is 32 threads, while
 RDNA chooses 32 or 64 per shader: the driver reports 64 for every compute shader in this engine, and
-does not report a size for the graphics stages. Static shader
+does not report a size for the graphics stages. Table~\ref{tab:occupancy} counts wave32 waves, and
+which of the two it counts does not change what the column is read for, since a wave64 allocates
+twice the register file and fills a slot with twice the threads. At 87 and 130 registers the models
+give 16 and 10 waves against 8 and 5, which is 512 and 320 resident threads either way and the same
+0.625 ratio. Reading achieved rather than theoretical occupancy needs a hardware profiler. Static shader
 occupancy, how many registers each ray-tracing and denoising shader needs and how many
 waves the hardware can therefore keep in flight, is the one place where the two vendors compare on
 something other than time, and it explains part of the cost difference the rest of the chapter
@@ -942,13 +946,7 @@ pipeline name and cannot tell them apart on its own.
 \caption[Shader registers and theoretical occupancy]{Registers and theoretical occupancy of the key shaders on both GPUs. For AMD: VGPR count and
 the largest possible number of wave32 waves per SIMD (1536 VGPRs, granularity 24, at most 16). For
 NVIDIA: registers per thread and the largest number of warps per SM (65536 registers, at most 48).
-Both figures are theoretical and derived from the register count, not measured with a profiler. The
-AMD column counts wave32 waves, and the driver reports wave64 for this engine's compute shaders, but
-the choice does not affect what the column is used for: a wave64 allocates twice the register file
-and fills a wave slot with twice the threads, so the two models differ only in the unit. At 87 and
-130 registers they give 16 and 10 waves under wave32 against 8 and 5 under wave64, which is 512 and
-320 resident threads either way, and the same 0.625 ratio. Reading achieved rather than theoretical
-occupancy needs a hardware profiler.
+Both figures are derived from the register count rather than measured with a profiler.
 Generated from the committed baselines by \texttt{tools/gen\_shader\_tables.py}.}
 \label{tab:occupancy}
 \centering
