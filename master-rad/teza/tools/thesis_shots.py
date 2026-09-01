@@ -208,6 +208,26 @@ ROUTE_SHOTS = [
 ]
 
 
+def occlusion_view(img: np.ndarray) -> np.ndarray:
+    """Show 1-AO at a gain, instead of AO directly.
+
+    The AO buffer is almost entirely white (median 254 of 255 for SSAO and 255 for RT AO at this
+    viewpoint), so printed as-is both panels read as blank paper and the comparison carries nothing.
+    Inverting puts the signal on black and the gain expands the narrow range it occupies. Gain 4
+    saturates 1.9% of the SSAO panel and 3.3% of the RT one, so the bright end is not where the
+    difference between them lives. Both panels get the identical transform, which is what keeps the
+    comparison fair; the caption states it, exactly as the motion-vector view states its own x40.
+    """
+    return np.clip((255.0 - img[..., :3].astype(np.float32)) * 4.0, 0.0, 255.0)
+
+
+# Post-transforms applied to a shot before it is written. A shot absent here is written as captured.
+POST = {
+    "ssvsrt_ssao": occlusion_view,
+    "ssvsrt_rtao": occlusion_view,
+}
+
+
 def save_png(img: np.ndarray, path: Path):
     from PIL import Image
     arr = np.clip(img[..., :3], 0, 255).astype(np.uint8)
@@ -235,7 +255,7 @@ def main() -> int:
             ok = False
             continue
         out_png = FIG_DIR / f"{name}.png"
-        save_png(img, out_png)
+        save_png(POST[name](img) if name in POST else img, out_png)
         print(f"  OK -> {out_png} (device={device})")
 
     for name, route_frame, env in ROUTE_SHOTS:

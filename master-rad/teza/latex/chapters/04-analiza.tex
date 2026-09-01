@@ -664,8 +664,23 @@ AO term alone, the atrium viewpoint has a median AO
 of 255 of 255, that is no occlusion at all, and only 14.1\% (SSAO) and 17.6\% (RT AO) of pixels fall
 below 240. An effect that leaves five sixths of the frame untouched cannot move a whole-frame average
 much, whichever way it is computed. The ray-traced advantage is off-screen correctness, which a
-whole-frame average does not isolate. Figure~\ref{fig:ssvsrt-refl} isolates it for reflections by
-showing the reflection buffer itself instead of the composited frame. The two shadow producers are likewise a near-tie here, \qRtShadowFlip{} for the inline path against
+whole-frame average does not isolate. Figures~\ref{fig:ssvsrt-ao} and~\ref{fig:ssvsrt-refl} isolate
+it for AO and for reflections by showing those buffers themselves instead of the composited frame.
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=0.485\textwidth]{figures/ssvsrt_ssao.png}\hfill
+\includegraphics[width=0.485\textwidth]{figures/ssvsrt_rtao.png}
+\caption[Screen-space against ray-traced ambient occlusion]{The isolated occlusion term at the atrium
+viewpoint, SSAO (left) against ray-traced AO (right). Both panels show $1-\mathrm{AO}$ at a gain of
+4, so bright is occluded and black is unoccluded: printed as the raw AO buffer both are near-white
+(median 254 and 255 of 255) and nothing is legible. The transform is identical on both sides. SSAO
+resolves a thin rim wherever two surfaces meet in the depth buffer, which is all it can see, while
+the traced term gives the drapes, the vault soffits and the foliage occlusion with body to it,
+because the geometry doing the occluding does not have to be on screen. This is the difference that
+Table~\ref{tab:quality} scores as under 0.01 FLIP.}
+\label{fig:ssvsrt-ao}
+\end{figure} The two shadow producers are likewise a near-tie here, \qRtShadowFlip{} for the inline path against
 \qMegalightsFlip{} for the stochastic one, which matters for how Section~\ref{sec:analiza-shadow-strategy}
 should be read: the strategies are statically indistinguishable in image terms, so the vendor
 inversion found there is a pure cost result and not a quality tradeoff.
