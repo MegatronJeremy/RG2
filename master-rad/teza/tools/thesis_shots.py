@@ -242,11 +242,31 @@ def urn_crop(img: np.ndarray) -> np.ndarray:
     return img[y:y + h, x:x + w, :3]
 
 
+def drape_crop(img: np.ndarray) -> np.ndarray:
+    """Crop to the gold thread on the blue drape, where composited reflections do the most.
+
+    Same problem as AO and the same fix. Toggling reflections moves the whole frame by 3.3 of 255,
+    so an uncropped pair prints as two identical pictures. Six poses were measured and this one, the
+    existing grazing view, has the best whole-frame difference of them, so the framing rather than
+    the vantage point was what needed changing: within it this window is 11.8, nearly four times the
+    frame average and within noise of the best window found anywhere (12.5).
+
+    Worth stating plainly, since it bounds what any reflection figure of this scene can show: the
+    reflection buffer returns some specular from every surface and a mirror image from none, so what
+    a reader can see is a metallic thread going from flat to glossy, not a recognisable reflection.
+    That is a property of Sponza's materials, not of the technique.
+    """
+    x, y, w, h = 1600, 935, 640, 342
+    return img[y:y + h, x:x + w, :3]
+
+
 POST = {
     "ssvsrt_ssao": occlusion_view,
     "ssvsrt_rtao": occlusion_view,
     "ao_off": urn_crop,
     "ao_on": urn_crop,
+    "refl_off": drape_crop,
+    "refl_rt": drape_crop,
 }
 
 

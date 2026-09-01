@@ -638,9 +638,14 @@ for the same reason the effect gallery in Section~\ref{sec:cena} does.
 \centering
 \includegraphics[width=0.48\textwidth]{figures/refl_off.png}\hfill%
 \includegraphics[width=0.48\textwidth]{figures/refl_rt.png}
-\caption[Reflections off versus ray-traced reflections]{Without reflections (left) versus ray-traced reflections (right), at a near-grazing view
-angle where the Fresnel contribution is largest. The sheen on the drapes and the stone is what the
-pass adds.}
+\caption[Reflections off versus ray-traced reflections]{Without reflections (left) versus with them
+(right), cropped to the gold thread on a drape at a near-grazing angle where the Fresnel
+contribution is largest. Cropped for the same reason as Figure~\ref{fig:ao-composited}: over the
+whole frame the pass is worth 3.3 levels of 255, and here it is 11.8. What it adds is the thread
+going from flat paint to something with a metallic sheen that varies as the surface turns. It is
+worth saying what this figure cannot show, since it bounds the effect in this scene rather than in
+the technique: Sponza has no mirror-like surface, so the reflection buffer returns some specular from
+almost every material and a recognisable reflected image from none of them.}
 \label{fig:refl-onoff}
 \end{figure}
 

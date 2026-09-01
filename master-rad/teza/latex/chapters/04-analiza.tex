@@ -141,10 +141,14 @@ repeated-measures study, so treat it as the right order of magnitude and not a c
 \begin{table}[tbp]
 \caption[Per-effect GPU cost on both adapters]{Per-effect cost (GPU ms) on the cross-vendor pair RX 9070 XT / RTX 5070, at
 $\perfWidth \times \perfHeight$ with a fixed camera pose, averaged over \perfFrames{} frames.
-\texttt{rt-off} is total GPU time with no RT effects. Each following row is that effect's delta over
-the preceding configuration. The \texttt{ssgi} row is an alternative to \texttt{+gi} (screen-space GI
-instead of RT GI) and is compared against \texttt{+refl}, not cumulatively with \texttt{+gi}. All
-values are generated from the committed baselines by \texttt{tools/gen\_perf\_tables.py}.}
+\texttt{rt-off} is total GPU time with no RT effects, and each row above the first rule is that
+effect's delta over the configuration named on the line before it. The three blocks answer different
+questions: the ladder gives what each effect costs, the middle row gives what the finished frame
+costs once all four are on, and the last row prices the screen-space alternative to ray-traced GI.
+That last one is not another rung, so it is diffed against \texttt{+refl} rather than accumulated on
+top of \texttt{+gi}, which is what makes it comparable with the \texttt{+gi} row directly above the
+rule. All values are generated from the committed baselines by
+\texttt{tools/gen\_perf\_tables.py}.}
 \label{tab:cena}
 \centering
 \input{data/perf-effects.tex}
@@ -242,43 +246,35 @@ numbers, at 12.7\% run-to-run spread against 2.1\% on the NVIDIA side for the re
 Section~\ref{sec:metodologija}, although the trend survives without it, since the two rungs either
 side of it spread under 3.5\%.
 
-The two cards do not agree on which effect is most expensive, and that disagreement is the result,
-not a rounding artifact. On the RX 9070 XT the most expensive effect is \perfTopEffectAMD{} at
-\perfEffShadowsAMD{} ms, while on the RTX 5070 it is \perfTopEffectNV{} at \perfEffGiNV{} ms, where
-shadows cost only \perfEffShadowsNV{} ms. A per-effect cost is a difference of two configurations, so it
-carries both configurations' run-to-run spread, and the ranking is only readable where the gap
-exceeds that combined spread. It does on both cards for the winner: on the 5070 the one pair the
-measurement cannot separate is \perfUnresolvedNV{}, \perfUnresolvedGapNV{} ms apart. Ambient
-occlusion is cheapest on both. Together the four add
-\perfFourEffectsAMD{} ms (9070 XT) and \perfFourEffectsNV{} ms (5070) over their respective
-baselines, for measured real-time totals of \perfTotalAMD{} ms (\perfBaseAMD{} ms baseline) and
-\perfTotalNV{} ms (\perfBaseNV{} ms baseline). Both totals sit inside the 16.7 ms budget of a 60 Hz
-frame, which is what makes the real-time claim a measurement rather than a label.
-Figure~\ref{fig:ladder} plots the whole ladder, where each segment's slope is one effect's cost, and
-Figure~\ref{fig:effect-gallery} shows what each effect contributes to the image.
+The two cards do not agree on which effect is most expensive, and that disagreement is the result
+rather than a rounding artifact. The most expensive is \perfTopEffectAMD{} on the RX 9070 XT
+(\perfEffShadowsAMD{} ms) and \perfTopEffectNV{} on the RTX 5070 (\perfEffGiNV{} ms, where shadows
+cost \perfEffShadowsNV{}). Each winner clears the combined run-to-run spread of the two
+configurations its cost is differenced from, so the ranking is readable on both cards. The one pair
+the 5070 cannot separate is \perfUnresolvedNV{}, \perfUnresolvedGapNV{} ms apart, and ambient
+occlusion is cheapest on both. All four together cost \perfFourEffectsAMD{} and
+\perfFourEffectsNV{} ms, for totals of \perfTotalAMD{} and \perfTotalNV{} ms, both inside the
+16.7 ms of a 60 Hz frame, which is what makes the real-time claim a measurement rather than a label.
+Figure~\ref{fig:ladder} plots the ladder and Figure~\ref{fig:effect-gallery} shows what each effect
+contributes to the image.
 
-The half-resolution trace plus denoise is what keeps GI and AO cheap despite their hemispheric
-gather. On both cards the screen-space GI producer is cheaper than ray-traced GI at the same rung
-(9070 XT 0.743 against 1.851 ms, RTX 5070 0.626 against 1.467 ms), the expected
-screen-space-versus-ray-traced cost tradeoff, whose quality side is Section~\ref{sec:poredjenje}.
+Three of the four rankings follow from where the rays go. GI and AO stay cheap despite gathering over
+a hemisphere because both trace and denoise at half resolution, and AO is cheapest of all despite
+casting the most rays per pixel, since its rays are bounded by \texttt{render.ao.radius} and
+terminate on first hit where a reflection ray can cross the scene and then shade what it finds.
+Reflections are the only effect still tracing at full resolution, and that they are no longer the
+most expensive is a default change rather than an optimisation: their à-trous measured net-negative
+and now runs zero iterations (Section~\ref{sec:denoise-eval}), removing a full-resolution three-pass
+chain worth roughly 1.1 ms. The screen-space GI producer is cheaper than the ray-traced one on both
+cards (Table~\ref{tab:cena}), the expected tradeoff, whose quality side is
+Section~\ref{sec:poredjenje}.
 
-Reflections are no longer the most expensive effect, and the reason is a deliberate default change
-rather than an optimisation: the reflection à-trous filter measured net-negative and now runs zero
-iterations (Section~\ref{sec:denoise-eval}), removing a full-resolution three-pass chain worth roughly
-1.1 ms. They remain the only effect tracing at full resolution, so their trace alone (1.495 ms on the
-9070 XT) costs more than the half-resolution GI trace. Ambient occlusion is cheapest despite casting
-more rays per pixel, because those rays are short (bounded by \texttt{render.ao.radius}) and
-terminate on the first hit, while a reflection ray can traverse the whole scene and then shade what
-it finds.
-
-Shadows have no scope of their own, so their cost has to be read across configurations. Between
-\texttt{rt-off} and \texttt{shadows} on the 9070 XT the Forward pass grows by 3.551 ms while the
-raster shadow-map passes disappear entirely, returning 1.179 ms (\texttt{Shadow} 0.114 and
-\texttt{PointShadows} 1.065). Those two terms give 2.372 ms against a measured whole-frame delta of
-2.247 ms. The remaining 0.125 ms is every other pass shrinking slightly at once, the signature of a
-clock shift rather than of real savings, consistent with \texttt{rt-off} being the noise-dominated
-configuration on this adapter (12.7\% run-to-run spread against under 4\% for the others). The
-whole-frame difference is the number to quote, since the per-pass terms do not close.
+Shadows are read across configurations rather than from a pass, having no scope of their own, and
+their per-pass terms do not quite close. Between \texttt{rt-off} and \texttt{shadows} on the 9070 XT
+the Forward pass grows 3.551 ms while the raster shadow maps return 1.179 ms, giving 2.372 ms against
+a measured whole-frame delta of \perfEffShadowsAMD{} ms. The remaining 0.125 ms is every other pass
+shrinking at once, which is a clock shift rather than a saving, so the whole-frame difference is the
+number to quote.
 
 \begin{figure}[tbp]
 \centering

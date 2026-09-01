@@ -112,7 +112,11 @@ def build():
         tag = "+shadows" if cfg == "shadows" else cfg
         rows.append(rf"\texttt{{{tag}}} & {label} & {delta('9070', cfg):.3f} & {delta('5070', cfg):.3f} \\")
     rows.append(r"\midrule")
-    rows.append(rf"\texttt{{+gi}} & \textbf{{total, all effects}} & "
+    # The Configuration cell is deliberately blank here. Repeating "+gi" put the same tag on two
+    # adjacent rows carrying very different numbers (the GI delta and the whole frame), which reads as
+    # a duplicated row rather than as a change of quantity. Which rung the total comes from is in the
+    # Effect cell instead, where it cannot be mistaken for another ladder step.
+    rows.append(rf" & \textbf{{whole frame at \texttt{{+gi}}}} & "
                 rf"\textbf{{{totals[('9070', '+gi')]:.3f}}} & \textbf{{{totals[('5070', '+gi')]:.3f}}} \\")
     # ssgi repeats the +gi rung with the screen-space producer, so it is diffed against +refl and is
     # an alternative to the RT GI row rather than another step on the ladder.
@@ -164,6 +168,12 @@ def build():
         macros.append(rf"\newcommand{{\perfEff{name}NV}}{{{delta('5070', cfg):.3f}}}")
     nv3 = [delta("5070", c) for c in ("shadows", "+refl", "+gi")]
     macros.append(rf"\newcommand{{\perfNVSpread}}{{{max(nv3) - min(nv3):.3f}}}")
+    # The screen-space GI producer, diffed against +refl like the table row. Section 4.2 sets it
+    # against \perfEffGi* in the same sentence, so leaving it typed meant half of one comparison
+    # regenerated and the other half did not.
+    for slug, col in ADAPTERS:
+        macros.append(rf"\newcommand{{\perfSsgi{'AMD' if col == '9070' else 'NV'}}}"
+                      rf"{{{load(slug, 'ssgi')['totalGpuMs'] - totals[(col, '+refl')]:.3f}}}")
 
     # Which effect is most expensive is a claim the prose makes per adapter, and re-baselining can flip
     # it: on the 5070 it moved from shadows to GI. A per-effect cost is a DIFFERENCE of two configs, so
