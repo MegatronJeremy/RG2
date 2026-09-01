@@ -6,16 +6,17 @@
 \label{sec:rastervsrt}
 
 Rasterization projects each triangle onto the image plane and resolves visibility with a depth
-buffer: a stream operation that maps well to GPU hardware, although it processes one triangle at a
-time with no access to the rest of the scene, so it cannot natively answer ``what else is visible
-from this point.'' Ray tracing instead casts rays into the scene, finds their nearest intersections
-\cite{moller1997raytri}, and estimates light transport by sampling \cite{pharr2016pbrt}, which
-answers arbitrary point-to-point visibility (what indirect lighting, reflections, and occlusion
-require) at the cost of per-ray traversal work and sampling noise. The common reference for both is
-the rendering equation \cite{kajiya1986rendering}, splitting outgoing radiance $L_o$ (light energy
-per unit projected area per unit solid angle, the physical quantity a pixel ultimately stores) at a
-point $\mathbf{x}$ in direction $\omega_o$ into emitted radiance plus the reflected integral over the
-hemisphere $\Omega$:
+buffer. That is a stream operation and it maps well to GPU hardware, but it processes one triangle at
+a time with no access to the rest of the scene, so it cannot natively answer ``what else is visible
+from this point.'' Ray tracing instead casts rays into the scene and finds their nearest
+intersections \cite{moller1997raytri}, estimating light transport by sampling \cite{pharr2016pbrt}.
+That answers visibility between arbitrary points, which is what indirect lighting, reflections and
+occlusion all require, at the cost of per-ray traversal work and sampling noise.
+
+The common reference for both is the rendering equation \cite{kajiya1986rendering}. It splits the
+outgoing radiance $L_o$ at a point $\mathbf{x}$ in direction $\omega_o$ into emitted radiance plus a
+reflected integral over the hemisphere $\Omega$, where radiance is light energy per unit projected
+area per unit solid angle, the physical quantity a pixel ultimately stores:
 \begin{equation}
 L_o(\mathbf{x}, \omega_o) = L_e(\mathbf{x}, \omega_o) + \int_{\Omega}
 f_r(\mathbf{x}, \omega_i, \omega_o)\, L_i(\mathbf{x}, \omega_i)\, (\omega_i \cdot \mathbf{n})\,

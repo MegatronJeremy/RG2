@@ -71,8 +71,8 @@ two split traversal differently (Section~\ref{sec:accel-pregled}). The cards are
 things that are comparable: memory bandwidth within 5\%, the same process generation, and adjacent
 positions in their vendors' product stacks. Where they diverge in the measurements that follow, the
 structural candidate is that traversal split rather than any single number in this table, and
-Section~\ref{sec:cena} shows the per-pass ratio spanning 0.62 to 1.96, which no single hardware
-figure can produce.
+Section~\ref{sec:cena} shows the per-pass ratio spanning \perfRatioMin{} to \perfRatioMax{}, which no
+single hardware figure can produce.
 
 \paragraph{The OMM support mismatch.} Sponza carries three MASK-mode (alpha-cutout) materials, which
 trace through the opacity-micromap BLAS on a device exposing \texttt{VK\_EXT\_opacity\_micromap} and
@@ -508,8 +508,7 @@ result against the path-traced reference, at a fixed 2 rays per pixel, RX 9070 X
 \caption[The SVGF denoiser's contribution on a static frame]{The SVGF denoiser's contribution against
 the path-traced reference (2 rays/pixel, temporal resolve enabled in both cases). The two rows differ
 by less than the run-to-run spread of these metrics, so this table shows the filter making \emph{no
-measurable difference} to a settled static frame, not making it worse. What it does buy is measured
-below and under motion in Section~\ref{sec:motion}.}
+measurable difference} to a settled static frame, not making it worse.}
 \label{tab:denoise-eval}
 \input{data/denoise-eval.tex}
 \end{table}

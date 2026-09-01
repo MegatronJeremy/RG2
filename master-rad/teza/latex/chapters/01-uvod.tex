@@ -21,12 +21,12 @@ Hardware ray tracing changes what is affordable. Recent GPUs (NVIDIA RTX from 20
 2020) added fixed-function units for bounding-volume-hierarchy traversal and ray-triangle
 intersection, so casting a ray against the whole scene became fast enough to do per pixel at
 interactive rates. This reopens the effects above as first-class, physically grounded passes that
-sample the true scene rather than a screen-space proxy. The catch is that a full solution of the
-rendering equation \cite{kajiya1986rendering}, which states how much light leaves a surface point in
-a given direction as emission plus an integral over all incoming directions, by path tracing remains
-far too expensive for real-time at display resolution on this hardware, and any affordable ray budget
-(one or a few rays per pixel) samples only a handful of the many light paths reaching each pixel, so
-the estimate is right on average but wrong per pixel, which shows up as noise. The practical path, and the one this thesis takes, is therefore
+sample the true scene rather than a screen-space proxy. The catch is cost. Solving the rendering
+equation \cite{kajiya1986rendering} outright by path tracing, which means integrating the light
+arriving at a surface point from every direction, remains far beyond a real-time budget at display
+resolution on this hardware. An affordable ray budget is one or a few rays per pixel, and that
+samples only a handful of the many light paths reaching each pixel, so the estimate is right on
+average but wrong per pixel. That error is what appears as noise. The practical path, and the one this thesis takes, is therefore
 hybrid: rasterize primary visibility, add the secondary effects as ray-traced passes at low sample
 counts, and reconstruct a clean image with a denoiser \cite{schied2017svgf}
 (Figure~\ref{fig:teaser}).
