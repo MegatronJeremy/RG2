@@ -35,6 +35,15 @@ LADDER = [
 ]
 PREV = {"shadows": "rt-off", "+ao": "shadows", "+refl": "+ao", "+gi": "+refl"}
 
+# The screen-space counterpart of each ray-traced rung, as (config, baseline config, label). The
+# baseline is the same one the ray-traced row uses, which is what makes the pair comparable: each is
+# the cost of adding that effect to an otherwise identical frame.
+SCREEN_SPACE = [
+    ("ssao", "shadows", "ambient occlusion (SSAO)"),
+    ("ssr", "+ao", "reflections (SSR)"),
+    ("ssgi", "+refl", "global illumination (SSGI)"),
+]
+
 # passes worth a row in the per-pass table, as (prefix, label); a prefix collapses its numbered
 # iterations (ReflectionDenoise0..2) into one summed row
 PASSES = [
@@ -118,14 +127,13 @@ def build():
     # Effect cell instead, where it cannot be mistaken for another ladder step.
     rows.append(rf" & \textbf{{whole frame at \texttt{{+gi}}}} & "
                 rf"\textbf{{{totals[('9070', '+gi')]:.3f}}} & \textbf{{{totals[('5070', '+gi')]:.3f}}} \\")
-    # ssgi repeats the +gi rung with the screen-space producer, so it is diffed against +refl and is
-    # an alternative to the RT GI row rather than another step on the ladder.
+    # The three screen-space alternatives. Each repeats one rung with the screen-space producer, so it
+    # is diffed against the rung BELOW that one, exactly as the ray-traced row above it is. Same
+    # baseline for both members of each pair is what makes the two directly comparable.
     rows.append(r"\midrule")
-    ss = {}
-    for slug, col in ADAPTERS:
-        ss[col] = load(slug, "ssgi")["totalGpuMs"] - totals[(col, "+refl")]
-    rows.append(rf"\texttt{{ssgi}} & screen-space GI (alternative to +gi) & "
-                rf"{ss['9070']:.3f} & {ss['5070']:.3f} \\")
+    for cfg, base, label in SCREEN_SPACE:
+        d = {col: load(slug, cfg)["totalGpuMs"] - totals[(col, base)] for slug, col in ADAPTERS}
+        rows.append(rf"\texttt{{{cfg}}} & {label} & {d['9070']:.3f} & {d['5070']:.3f} \\")
     out["perf-effects.tex"] = tabular("llrr", r"Configuration & Effect & ms (9070 XT) & ms (5070)", rows)
 
     # the two shadow strategies, both expressed as cost over rt-off
@@ -168,12 +176,14 @@ def build():
         macros.append(rf"\newcommand{{\perfEff{name}NV}}{{{delta('5070', cfg):.3f}}}")
     nv3 = [delta("5070", c) for c in ("shadows", "+refl", "+gi")]
     macros.append(rf"\newcommand{{\perfNVSpread}}{{{max(nv3) - min(nv3):.3f}}}")
-    # The screen-space GI producer, diffed against +refl like the table row. Section 4.2 sets it
-    # against \perfEffGi* in the same sentence, so leaving it typed meant half of one comparison
-    # regenerated and the other half did not.
-    for slug, col in ADAPTERS:
-        macros.append(rf"\newcommand{{\perfSsgi{'AMD' if col == '9070' else 'NV'}}}"
-                      rf"{{{load(slug, 'ssgi')['totalGpuMs'] - totals[(col, '+refl')]:.3f}}}")
+    # The screen-space producers, diffed against the same baseline as their ray-traced counterparts.
+    # Section 4.2 sets each against its \perfEff* partner in one sentence, so leaving them typed meant
+    # half of a comparison regenerated and the other half did not.
+    for cfg, base, _label in SCREEN_SPACE:
+        name = cfg.capitalize() if cfg != "ssr" else "Ssr"
+        for slug, col in ADAPTERS:
+            macros.append(rf"\newcommand{{\perf{name}{'AMD' if col == '9070' else 'NV'}}}"
+                          rf"{{{load(slug, cfg)['totalGpuMs'] - totals[(col, base)]:.3f}}}")
 
     # Which effect is most expensive is a claim the prose makes per adapter, and re-baselining can flip
     # it: on the 5070 it moved from shadows to GI. A per-effect cost is a DIFFERENCE of two configs, so

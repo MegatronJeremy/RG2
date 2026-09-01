@@ -701,6 +701,15 @@ much, whichever way it is computed. The ray-traced advantage is off-screen corre
 whole-frame average does not isolate. Figures~\ref{fig:ssvsrt-ao} and~\ref{fig:ssvsrt-refl} isolate
 it for AO and for reflections by showing those buffers themselves instead of the composited frame.
 
+Read against the costs, the three effects separate cleanly. All three ray-traced producers cost
+roughly two to three times their screen-space counterpart (Table~\ref{tab:cena}), so the price is
+about the same in each case and the quality return is not. Global illumination repays it and then
+some, cutting FLIP by more than half against SSGI. AO and reflections return nothing a whole-frame
+metric can detect, so on these numbers alone they are the worse trade. That verdict is an artifact
+of the metric rather than of the techniques, for the reason just given, but it is worth stating in
+the direction the numbers actually point: this evaluation demonstrates the value of ray tracing for
+indirect diffuse illumination, and does not demonstrate it for occlusion or reflections.
+
 \begin{figure}[tbp]
 \centering
 \includegraphics[width=0.485\textwidth]{figures/ssvsrt_ssao.png}\hfill
