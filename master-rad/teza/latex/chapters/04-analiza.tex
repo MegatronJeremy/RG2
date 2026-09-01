@@ -678,7 +678,10 @@ viewpoint, SSAO (left) against ray-traced AO (right). Both panels show $1-\mathr
 resolves a thin rim wherever two surfaces meet in the depth buffer, which is all it can see, while
 the traced term gives the drapes, the vault soffits and the foliage occlusion with body to it,
 because the geometry doing the occluding does not have to be on screen. This is the difference that
-Table~\ref{tab:quality} scores as under 0.01 FLIP.}
+Table~\ref{tab:quality} scores as under 0.01 FLIP. Read the panels structurally rather than per
+pixel: unlike the composited pairs elsewhere in this chapter, which reproduce bit for bit, a raw
+stochastic buffer does not, and two captures of one configuration here differ by a mean of 3.8 of 255
+against the 8.8 separating the two techniques.}
 \label{fig:ssvsrt-ao}
 \end{figure} The two shadow producers are likewise a near-tie here, \qRtShadowFlip{} for the inline path against
 \qMegalightsFlip{} for the stochastic one, which matters for how Section~\ref{sec:analiza-shadow-strategy}

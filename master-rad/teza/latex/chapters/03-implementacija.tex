@@ -485,16 +485,26 @@ the debug views expose the aggregate visibility buffer before and after filterin
 (Figure~\ref{fig:shadow-denoise-ab}), where so few samples per pixel leave the raw ratio nearly
 binary noise.
 
-It stays off by default for a reason worth stating, because it is not the reason the measurements
-suggest. Under camera motion, wherever two point lights overlap, the path produces a visible artifact:
-neighbouring pixels resample different lights, and what survives is held together by the shadow
-\`a-trous rather than by the estimate itself. That is a correctness problem in the producer, so inline
-remains the supported path until it is fixed. The measurements do not object. On the motion route this
-path is the more temporally stable of the two, tFLIP \mMegalightsTflip{} against inline's
-\mRtShadowTflip{}, and Section~\ref{sec:analiza-shadow-strategy} finds it the cheaper of the two on
-one of the two GPUs. The default is therefore set against the metrics rather than by them, which is
-worth being explicit about in a thesis that otherwise decides by measurement: the route never frames
-the lit side aisles where the artifact appears, so no number in Chapter~\ref{ch:analiza} can see it.
+It stays off by default, and the reason is a tradeoff the reconstruction cannot currently resolve. Its
+per-frame estimate is bimodal, either zero or a rare bright spike depending on which light the pixel
+resampled, and the neighborhood colour clamp that removes moving-edge ghosts from GI and reflections
+is wrong for a signal shaped like that: where two lights overlap, the local range is narrow and dark,
+so the clamp holds the accumulating history down and leaves a black seam between the two lights that
+no amount of filtering fills. Disabling the clamp there, which is the shipping setting, removes the
+seam and gives back the smearing under camera motion that the clamp existed to prevent. Either
+choice leaves a visible defect, so inline remains the supported path.
+
+The measurements do not object to any of this, and one of them actively points the wrong way. On the
+motion route the stochastic path is the more temporally stable of the two, tFLIP
+\mMegalightsTflip{} against inline's \mRtShadowTflip{}, and
+Section~\ref{sec:analiza-shadow-strategy} finds it the cheaper of the two on the RX 9070 XT. The
+stability score should be read with the smearing in mind rather than against it. tFLIP scores a result
+by how little it changes between consecutive frames, in excess of how much the reference changes over
+the same interval (Section~\ref{sec:motion}). Subtracting the reference's motion removes the scene's
+own contribution, but it does not distinguish a result that is stable from one that is smeared, and
+both change little. The seam escapes measurement for a duller reason, since the route never frames
+the lit side aisles where two torches overlap. So the default here is set against the metrics rather
+than by them, which is worth saying plainly in a thesis that otherwise decides by measurement.
 
 \begin{figure}[tbp]
 \centering
