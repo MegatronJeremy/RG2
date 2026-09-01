@@ -139,15 +139,43 @@ silently change a score. Quality figures elsewhere in this chapter are
 the RX 9070 XT's, although Section~\ref{sec:cross-vendor-quality} captures the whole matrix on the
 RTX 5070 as well.
 
-Several results below turn on a difference being too small to read, so that floor needs a number.
-Recapturing the whole matrix after a denoiser change supplies one without a dedicated experiment:
-five techniques (\texttt{raster}, \texttt{ssao}, \texttt{ssr}, \texttt{rtao}, \texttt{rtrefl}) do not
-run the filter that changed, so whatever their scores moved by is repeatability rather than effect.
-Across three viewpoints and fifteen captures their FLIP moved by at most \textbf{0.0024} and their
-PSNR by at most \textbf{0.060 dB}, against up to 0.0096 FLIP for the three that do run it.
-\emph{Below roughly 0.003 FLIP or 0.06 dB PSNR, this protocol cannot distinguish two
-configurations.} It comes from one recapture rather than a repeated-measures study, so it is the
-right order of magnitude and not a confidence interval.
+This chapter uses six measures in all, three for a still frame and three that need motion.
+Table~\ref{tab:metrics} collects them, with the direction each improves in and the smallest
+difference this protocol can resolve, so a reader meeting one of them later does not have to
+reconstruct it from the text that introduced it.
+
+\begin{table}[tbp]
+\caption[The measures used in this chapter]{The measures used in this chapter, and the smallest
+difference each can resolve. The three floors are repeatability, measured by recapturing the whole
+matrix and reading how far the five techniques that could not have changed moved anyway
+(fifteen captures), by the method the paragraph below gives. The motion measures have no floor of
+their own here, since they were captured once rather than recaptured.}
+\label{tab:metrics}
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}l>{\raggedright\arraybackslash}X c r@{}}
+\toprule
+Measure & What it compares & Better & Floor \\
+\midrule
+FLIP  & the frame against the path-traced reference, weighted by what an observer notices & lower & 0.0024 \\
+PSNR  & the same, as log mean-squared error, which favours a blurrier image & higher & 0.06 dB \\
+SSIM  & the same, as local structure rather than absolute pixel values & higher & 0.0022 \\
+\addlinespace[3pt]
+tFLIP & how much a technique changes between adjacent frames, in excess of how much the reference changes over the same interval & lower & -- \\
+lag   & a moving frame against this renderer's own converged still at the same pose & lower & -- \\
+JOD   & ColorVideoVDP, the one measure here that models temporal contrast sensitivity directly, where 1 JOD is roughly a 75\% population preference & higher & -- \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Several results below turn on a difference being too small to read, so those floors need to come from
+somewhere. Recapturing the whole matrix after a denoiser change supplies them without a dedicated
+experiment: five techniques (\texttt{raster}, \texttt{ssao}, \texttt{ssr}, \texttt{rtao},
+\texttt{rtrefl}) do not run the filter that changed, so whatever their scores moved by is
+repeatability rather than effect. The three that do run it moved up to 0.0096 FLIP, four times the
+floor, which is the separation the method needs to be worth anything. It is one recapture rather than
+a repeated-measures study, so read the figures in Table~\ref{tab:metrics} as the right order of
+magnitude and not as confidence intervals.
 
 \section{Per-effect cost (GPU ms)}
 \label{sec:cena}
@@ -402,7 +430,7 @@ frame and roughly a third of the full four-effect one.}
 The quality knee sits at one ray per pixel, although not because the extra rays do nothing. Going
 from 1 to 8 rays costs \rcGpuPct\% more GPU time (\rcGpuLow{} to \rcGpuHigh{} ms) and returns a
 \rcPsnrGain{} dB PSNR gain with FLIP moving from \rcFlipLow{} to \rcFlipHigh{}. Both differences
-clear the floors of Section~\ref{sec:metodologija} (0.06 dB and 0.003), so the gain is real rather
+clear the floors of Table~\ref{tab:metrics}, so the gain is real rather
 than noise, and calling it one would overstate the result. What makes one ray the operating point is
 the exchange rate: eight times the ray budget buys 0.2 dB, roughly three times the measurement floor,
 for \rcGpuPct\% of the frame. FLIP also fails to improve monotonically along the sweep, rising from
@@ -515,8 +543,8 @@ measurable difference} to a settled static frame, not making it worse.}
 
 With temporal accumulation already active, the spatial SVGF pass changes the static-frame metrics of
 Table~\ref{tab:denoise-eval}
-(PSNR, SSIM, FLIP) by less than measurement noise, well inside the 0.003 FLIP floor of
-Section~\ref{sec:metodologija}. Figure~\ref{fig:denoise-compare} shows what the whole reconstruction
+(PSNR, SSIM, FLIP) by less than measurement noise, well inside the floors of
+Table~\ref{tab:metrics}. Figure~\ref{fig:denoise-compare} shows what the whole reconstruction
 chain does to the same frame. The temporal history is doing essentially all of
 the visible convergence at this settled frame, and the filter's own contribution shows up in temporal
 stability instead. A frame-to-frame RMS delta on the same static view (frame $N$ against $N{+}1$ at
