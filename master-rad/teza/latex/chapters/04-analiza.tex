@@ -692,20 +692,48 @@ whole-frame average does not isolate. Figures~\ref{fig:ssvsrt-ao} and~\ref{fig:s
 it for AO and for reflections by showing those buffers themselves instead of the composited frame.
 
 Read against the costs, the three effects separate cleanly, and the separation is in the return
-rather than the price: all three ray-traced producers cost roughly two to three times their
-screen-space counterpart (Table~\ref{tab:cena}). Every one of them does improve the frame over
-plain rasterization, by 0.0205 FLIP for RT AO and 0.0122 for RT reflections against a measurement
-floor of 0.0024, so none of them is doing nothing. The question is whether the ray-traced version
-earns its multiple over the screen-space one, and there the three answers differ by an order of
-magnitude. RT GI beats SSGI by 0.1978, some eighty times the floor. RT reflections beat SSR by
-0.0069, about three times it. RT AO beats SSAO by 0.0027, which is the floor itself.
+rather than the price (Figure~\ref{fig:tradeoff}). Each of them does improve the frame over plain
+rasterization, by 0.0205 FLIP for RT AO and 0.0122 for RT reflections against a measurement floor of
+0.0024, so none is doing nothing. But the question a renderer actually faces is whether the
+ray-traced version earns its multiple over the screen-space one, and there the answers differ by an
+order of magnitude while the prices do not.
 
-So at whole-frame metrics the ray-traced advantage is decisive for global illumination, marginal for
-reflections and unresolved for ambient occlusion, while the cost multiple is much the same for all
-three. That ordering is a property of the metric as much as of the techniques, for the reason given
-above, and the isolated buffers below show differences the composited average cannot. But the
-direction is worth stating plainly rather than leaving to a reader: this evaluation demonstrates the
-value of ray tracing for indirect diffuse illumination, and does not demonstrate it for occlusion.
+At whole-frame metrics the ray-traced advantage is therefore decisive for global illumination,
+marginal for reflections and unresolved for ambient occlusion. That ordering is a property of the
+metric as much as of the techniques, for the reason given above, and the isolated buffers below show
+differences the composited average cannot. But the direction is worth stating plainly rather than
+leaving to a reader: this evaluation demonstrates the value of ray tracing for indirect diffuse
+illumination, and does not demonstrate it for occlusion.
+
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.82\textwidth, height=6.2cm,
+  xlabel={cost of ray tracing, as a multiple of the screen-space method},
+  ylabel={FLIP gained over it}, ymin=-0.015, ymax=0.23, xmin=1.3, xmax=2.95,
+  grid=major, grid style={black!12},
+  tick label style={font=\small}, label style={font=\small}]
+\addplot[only marks, mark=*, mark size=2.2pt, black]
+  coordinates {(1.63,0.0027) (1.71,0.0027) (2.66,0.0069) (2.03,0.0069) (2.49,0.1978) (2.34,0.1978)};
+\draw[black!55] (axis cs:1.63,0.0027) -- (axis cs:1.71,0.0027);
+\draw[black!55] (axis cs:2.03,0.0069) -- (axis cs:2.66,0.0069);
+\draw[black!55] (axis cs:2.34,0.1978) -- (axis cs:2.49,0.1978);
+\draw[dashed, black!45] (axis cs:1.3,0.0024) -- (axis cs:2.95,0.0024);
+\node[font=\small, anchor=south, yshift=3pt] at (axis cs:1.67,0.0027) {ambient occlusion};
+\node[font=\small, anchor=south, yshift=3pt] at (axis cs:2.35,0.0069) {reflections};
+\node[font=\small, anchor=east, xshift=-5pt] at (axis cs:2.34,0.1978) {global illumination};
+\end{axis}
+\end{tikzpicture}
+\caption[What ray tracing costs against what it returns]{What ray tracing costs against what it
+returns, per effect. Each segment spans the two adapters' cost multiples at that effect's quality
+gain, which is measured on the RX 9070 XT alone, and the dashed line is the measurement floor of
+Section~\ref{sec:metodologija}. The prices are all alike, between 1.6 and 2.7 times the screen-space
+method, and the returns are not: global illumination sits an order of magnitude above the other two,
+and ambient occlusion lands on the floor. Both axes are computed
+inside one screen-space/ray-traced pair, a ratio and a difference, so neither depends on which
+configuration the pair sits on and the two gates' different baselines do not have to agree.}
+\label{fig:tradeoff}
+\end{figure}
 
 \begin{figure}[tbp]
 \centering

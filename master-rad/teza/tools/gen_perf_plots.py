@@ -43,6 +43,14 @@ MIN_MS = 0.05
 TECHNIQUES = ["raster", "ssao", "rtao", "ssr", "rtrefl", "rtshadow", "megalights",
               "ssgi", "rtgi", "all-rt"]
 
+# (label, screen-space config, shared baseline config, ray-traced config, SS technique, RT technique).
+# The first four name perf configs, the last two quality ones.
+TRADEOFF = [
+    ("AO", "ssao", "shadows", "+ao", "ssao", "rtao"),
+    ("Reflections", "ssr", "+ao", "+refl", "ssr", "rtrefl"),
+    ("GI", "ssgi", "+refl", "+gi", "ssgi", "rtgi"),
+]
+
 
 def load(dev, config):
     p = PERF / dev / f"{config}.json"
@@ -54,6 +62,18 @@ def load(dev, config):
 def pass_ms(doc, name):
     e = doc["passes"].get(name)
     return None if e is None else float(e["avgMs"])
+
+
+def total(dev, config):
+    return float(load(dev, config)["totalGpuMs"])
+
+
+def flip_mean(technique):
+    files = sorted((QUALITY / AMD).glob(f"*__{technique}.json"))
+    if not files:
+        sys.exit(f"FAIL: no quality baseline for {technique}")
+    vals = [json.loads(f.read_text(encoding="utf-8"))["flip"] for f in files]
+    return sum(vals) / len(vals)
 
 
 def build():
@@ -100,6 +120,20 @@ def build():
         mean = sum(vals) / len(vals)
         lines.append(f"{i}\t{t}\t{mean:.4f}\t{min(vals):.4f}\t{max(vals):.4f}")
     out["quality-spread.dat"] = "\n".join(lines) + "\n"
+
+    # What ray tracing costs against what it returns, per effect. Both quantities are computed WITHIN a
+    # screen-space/ray-traced pair (a cost ratio and a FLIP difference), which is what makes them
+    # comparable across effects: neither depends on which ladder rung the pair sits on, so the perf
+    # ladder's cumulative baselines and the quality matrix's single-effect ones do not have to agree.
+    # Plotting the two absolute values against each other instead would silently mix the two matrices.
+    lines = ["effect\tmultAmd\tmultNv\tflipGain"]
+    for label, ss, base, rt, ssq, rtq in TRADEOFF:
+        def delta(dev, cfg):
+            return total(dev, cfg) - total(dev, base)
+        gain = flip_mean(ssq) - flip_mean(rtq)
+        lines.append(f"{label}\t{delta(AMD, rt) / delta(AMD, ss):.2f}\t"
+                     f"{delta(NV, rt) / delta(NV, ss):.2f}\t{gain:.4f}")
+    out["tradeoff.dat"] = "\n".join(lines) + "\n"
 
     return out
 
