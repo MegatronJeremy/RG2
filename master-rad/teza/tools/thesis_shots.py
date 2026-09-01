@@ -20,6 +20,12 @@ _qb = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_qb)
 run_capture, camera_env = _qb.run_capture, _qb.camera_env
 
+# quality-motion owns the route, its probe frames and the route-frame capture, so the one shot that
+# has to fly borrows them rather than restating the route file here and letting the two drift.
+_mspec = importlib.util.spec_from_file_location("quality_motion", REPO_ROOT / "Scripts" / "quality-motion.py")
+_qm = importlib.util.module_from_spec(_mspec)
+_mspec.loader.exec_module(_qm)
+
 FIG_DIR = THESIS_DIR / "latex" / "figures"
 FIG_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -161,19 +167,24 @@ SHOTS = [
     ("rt_all", ATRIUM, {**BASE_ENV, "SS_RENDER_SHADOWS_MODE": "2", "SS_RENDER_AO_MODE": "2",
                         "SS_RENDER_REFLECTIONS_MODE": "2", "SS_RENDER_GI_MODE": "2"}, False),
 
-    # Debug view 1 is identically black under a pinned camera, since nothing moves, so this is the one
-    # shot that needs camera.path (a deterministic orbit) instead of a fixed pose. pose=None leaves
-    # SS_CAMERA_OVERRIDE unset so the orbit is not fighting a pinned pose. camera.path.fixed steps at a
-    # fixed 60 Hz, so frame N is the same pose and the same velocity magnitude on every run, and the
-    # hard 60-frame cap below picks a point where the orbit faces down the arcade rather than a wall.
-    ("dbg_motion", None, {**BASE_ENV, "SS_CAMERA_PATH": "1", "SS_CAMERA_PATH_FIXED": "1",
-                          "SS_RENDER_DEBUGVIEW": "1"}, False),
 ]
 
 # Shots whose capture must be cut off at a chosen frame rather than allowed to settle. A moving camera
 # never converges, so without a cap the run burns to the engine's 3000-frame safety limit and lands on
 # an arbitrary pose.
-MAXFRAMES_OVERRIDE = {"dbg_motion": 60}
+MAXFRAMES_OVERRIDE = {}
+
+# Debug view 1 is identically black under a pinned camera, since nothing moves, so it is the one shot
+# that has to fly. It uses quality-motion's route capture rather than the SHOTS loop above, for two
+# reasons: capping a normal run at frame N stops at the Nth RENDERED frame, which includes however
+# many frames asset streaming took, while `at_path_frames` indexes the ROUTE and so is reproducible;
+# and the animated scene puts moving props in shot, whose vectors break from the wall behind them,
+# which is the disocclusion the surrounding text is about. Frame 60 is the `dolly` probe, where
+# forward motion gives the radial focus-of-expansion pattern. An earlier version flew the legacy
+# circular orbit (camera.path with no file), which is deprecated and framed a near wall.
+ROUTE_SHOTS = [
+    ("dbg_motion", 60, {**ALL_RT, "SS_RENDER_DEBUGVIEW": "1"}),
+]
 
 
 def save_png(img: np.ndarray, path: Path):
@@ -205,6 +216,20 @@ def main() -> int:
         out_png = FIG_DIR / f"{name}.png"
         save_png(img, out_png)
         print(f"  OK -> {out_png} (device={device})")
+
+    for name, route_frame, env in ROUTE_SHOTS:
+        print(f"capturing {name} (route frame {route_frame}) ...")
+        imgs, _poses, device = _qm.run_motion_capture(
+            env, tmp / name, EXE, REPO_ROOT, 600, LAYER_PATH, _qm.MOTION_SCENE,
+            [route_frame], 700)
+        if route_frame not in imgs:
+            print(f"  FAIL: {name} route capture failed")
+            ok = False
+            continue
+        out_png = FIG_DIR / f"{name}.png"
+        save_png(imgs[route_frame], out_png)
+        print(f"  OK -> {out_png} (device={device})")
+
     return 0 if ok else 1
 
 

@@ -30,14 +30,20 @@ evaluation of Chapter~\ref{ch:analiza} depends on.
 The renderer is organized as a \texttt{RenderGraph}: passes are appended in order, each declaring the
 textures it reads and writes, and the graph derives from those declarations both the Vulkan layout
 barriers between them and a dependency DAG (\texttt{BuildDependencies}). Declaration order is a valid
-topological order by construction, so the derived edges do not change what is correct, only what is
-free to move: \texttt{BuildSchedule} pulls compute passes as early as their edges allow, gathering the
-ray-traced chains into one contiguous run instead of leaving them split by the raster upsamples that
-happen to sit between them. Grouping the compute passes that way lets the run pay one synchronisation
-boundary instead of one per chain.
+topological order by construction, so the derived edges never change what is correct, only what would
+be free to move. Every measurement in this thesis runs in declaration order.
 
-Two ordering constraints are derived rather than declared, since no texture edge expresses them.
-Graphics passes keep their relative order, because they submit draws through a shared instance buffer at
+The graph can also schedule from those edges rather than follow them. Behind
+\texttt{render.graph.reorder}, off by default, \texttt{BuildSchedule} walks the DAG and prefers a
+ready compute pass over a ready graphics one, which pulls the ray-traced chains into one contiguous
+run instead of leaving them split by the raster upsamples that happen to sit between them. The
+intent is to pay one synchronisation boundary for the run instead of one per chain, although that
+benefit is not measured here and the flag stays off, so the reordering is a capability of the graph
+rather than a property of the numbers in Chapter~\ref{ch:analiza}.
+
+Two ordering constraints are derived rather than declared, since no texture edge expresses them, and
+both bound that scheduler when it is enabled. Graphics passes keep their relative order, because they
+submit draws through a shared instance buffer at
 a running cursor, so only compute passes are free to move. And a pass that writes the swapchain is
 terminal, because the editor samples the viewport through ImGui bindings the graph cannot see. The
 limitation is that the DAG is only as complete as the declarations: a pass touching an
@@ -808,15 +814,18 @@ falls back to the current frame alone, which is noisier but correct.
 \begin{figure}[tbp]
 \centering
 \includegraphics[width=0.8\textwidth]{figures/dbg_motion.png}
-\caption[The motion vector debug view]{The motion vector buffer (\texttt{render.debugview} 1) during a deterministic camera orbit.
-Red is the horizontal, green the vertical component of the pixel displacement between two
-consecutive frames. The view takes the absolute value and multiplies it by 40, so it shows \emph{how
-much} a pixel moves and along which axis, but not in which direction. Black is the absence of
-displacement, and also the sky, which writes no vectors in this pass at all. The view is not
-calibrated: the channels are normalised by width and height respectively, so their brightness is not
-on the same scale, and the output is additionally sRGB encoded. Undoing that, the mean displacement
-in this frame is about $0.6\%$ of the screen diagonal per frame, at most $1.6\%$, and no sample is
-saturated.}
+\caption[The motion vector debug view]{The motion vector buffer (\texttt{render.debugview} 1) at the
+\texttt{dolly} probe of the benchmark route (Section~\ref{sec:motion}), on the scene with animated
+props. Red is the horizontal and green the vertical component of the displacement between two
+consecutive frames, absolute value scaled by 40, so the view shows how \emph{much} a pixel moves and
+along which axis but not in which direction. Forward motion produces the radial pattern: the dark
+region at the centre is the focus of expansion, where the surfaces the camera is heading towards
+barely move on screen, and displacement grows towards the edges. The rectangular patches near the
+centre are the rotating props, whose vectors break discontinuously from the wall behind them, and
+that discontinuity is where the disocclusion described above comes from. The view is not calibrated:
+the two channels are normalised by width and height respectively, so their brightness is not on the
+same scale, and the output is sRGB encoded. Undoing both, the mean displacement in this frame is
+$0.24\%$ of the screen diagonal, at most $0.75\%$, and no sample is saturated.}
 \label{fig:motion}
 \end{figure}
 
