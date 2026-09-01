@@ -102,7 +102,12 @@ pass.}
 \begin{table}[tbp]
 \caption[Per-frame passes, in order]{Per-frame passes in execution order. Three effects are
 reconstructed before shading and enter \texttt{Forward} as textures, although shadows are the
-exception and are traced inline inside the \texttt{Forward} pass.}
+exception and are traced inline inside the \texttt{Forward} pass. The listed post chain is what
+actually executes: \texttt{render.aa} selects one anti-aliasing method rather than chaining them, so
+FXAA and TAA are alternatives and every measurement here uses TAA, while \texttt{render.sharpen} and
+\texttt{render.scale} sit at their defaults of 0 and 1.0, which leaves the sharpen and upscale passes
+unscheduled. The frame measured in Table~\ref{tab:pass-cost} contains 22 passes and none of the three
+is among them.}
 \label{tab:framegraph}
 \centering
 \small
@@ -120,7 +125,7 @@ Reflections (full) & \texttt{Reflection} $\rightarrow$ \texttt{ReflectionTempora
 \addlinespace[2pt]
 Shading & \texttt{Forward} (\texttt{DefaultLit}): a depth-only prepass, so the lit shader runs once per visible pixel, sky, inline shadow rays, and the combine with GI/AO/reflections \\
 \addlinespace[2pt]
-Post & \texttt{Upscale} $\rightarrow$ \texttt{TemporalResolve} (TAA) $\rightarrow$ tonemap $\rightarrow$ FXAA $\rightarrow$ \texttt{Sharpen} \\
+Post & \texttt{TemporalResolve} (TAA) $\rightarrow$ \texttt{PostProcess} (tonemap). \texttt{Upscale}, \texttt{FXAA} and \texttt{Sharpen} exist but do not run in any configuration measured here \\
 \addlinespace[2pt]
 Measurement & \texttt{Compare}, \texttt{Metrics} (PSNR, SSIM) \\
 \bottomrule
@@ -798,7 +803,8 @@ YCoCg space).
 The resolve runs in linear HDR and does accumulation only. This is a deliberate invariant: any
 perceptual or display-space operation (sharpening, contrast) is kept out of this pass and applied
 after tonemap, since a per-channel curve applied before tonemap turns an accumulation overshoot into
-a hue shift. Sharpening therefore lives in a separate post-tonemap pass, not here.
+a hue shift. Sharpening therefore lives in a separate post-tonemap pass, not here, and that pass is
+off by default (\texttt{render.sharpen} 0), so nothing measured in Chapter~\ref{ch:analiza} runs it.
 
 Motion vectors are the shared prerequisite of three consumers: the SVGF temporal pass, the TAA
 resolve, and the screen-space effects that gather last frame's colour. The velocity pass
