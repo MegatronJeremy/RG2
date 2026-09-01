@@ -485,6 +485,17 @@ the debug views expose the aggregate visibility buffer before and after filterin
 (Figure~\ref{fig:shadow-denoise-ab}), where so few samples per pixel leave the raw ratio nearly
 binary noise.
 
+It stays off by default for a reason worth stating, because it is not the reason the measurements
+suggest. Under camera motion, wherever two point lights overlap, the path produces a visible artifact:
+neighbouring pixels resample different lights, and what survives is held together by the shadow
+\`a-trous rather than by the estimate itself. That is a correctness problem in the producer, so inline
+remains the supported path until it is fixed. The measurements do not object. On the motion route this
+path is the more temporally stable of the two, tFLIP \mMegalightsTflip{} against inline's
+\mRtShadowTflip{}, and Section~\ref{sec:analiza-shadow-strategy} finds it the cheaper of the two on
+one of the two GPUs. The default is therefore set against the metrics rather than by them, which is
+worth being explicit about in a thesis that otherwise decides by measurement: the route never frames
+the lit side aisles where the artifact appears, so no number in Chapter~\ref{ch:analiza} can see it.
+
 \begin{figure}[tbp]
 \centering
 \includegraphics[width=0.48\textwidth]{figures/dbg_shadow_raw.png}\hfill%
