@@ -33,32 +33,18 @@ barriers between them and a dependency DAG (\texttt{BuildDependencies}). Declara
 topological order by construction, so the derived edges never change what is correct, only what would
 be free to move. Every measurement in this thesis runs in declaration order.
 
-The graph can also schedule from those edges rather than follow them. Behind
-\texttt{render.graph.reorder}, off by default, \texttt{BuildSchedule} walks the DAG and prefers a
-ready compute pass over a ready graphics one, which pulls the ray-traced chains into one contiguous
-run instead of leaving them split by the raster upsamples that sit between them in declaration order.
-
-Contiguity is not itself a saving. It is the precondition for moving that block to an asynchronous
-compute queue, where interleaved chains would each pay their own fork and join. Both halves of that
-were built and both measured against enabling them. Reordering alone costs the depth prepass the
-incidental overlap the interleaved order gave it, taking \texttt{CameraDepthPrepass} from 0.002 to
-0.052 ms in a paired A/B at the \texttt{+gi} rung, while whole-frame time moves 0.2\%, inside the
-run-to-run spread. The asynchronous queue it exists to enable is worse: \texttt{render.async\_compute}
-measures $+0.675$ ms, $+4.1\%$, because the fork, the join and the queue-family ownership transfers
-cost more than the 1.1\% of raster work actually available to overlap. So both flags stay off, and
-the schedule is a capability of the graph rather than a property of any number in
-Chapter~\ref{ch:analiza}. Grouping compute work is the standard advice, and on this frame it has
-nothing to pay for itself with.
-
-Two ordering constraints are derived rather than declared, since no texture edge expresses them, and
-both bound that scheduler when it is enabled. Graphics passes keep their relative order, because they
-submit draws through a shared instance buffer at
-a running cursor, so only compute passes are free to move. And a pass that writes the swapchain is
-terminal, because the editor samples the viewport through ImGui bindings the graph cannot see. The
-limitation is that the DAG is only as complete as the declarations: a pass touching an
-acceleration structure, a bindless table, or a buffer carries a real ordering requirement that no edge
-records, since only textures are tracked. The \texttt{render.graph.dumpdeps} CVar reports which passes
-look unconstrained, so that gap is visible rather than latent.
+The graph can also schedule from those edges rather than follow them, grouping the ray-traced chains
+into one contiguous compute run so the block could move to an asynchronous queue. Both halves were
+built and both measured net-negative: reordering alone moves whole-frame time 0.2\%, inside the
+run-to-run spread, and the asynchronous queue costs $+0.675$ ms, $+4.1\%$, because the fork, the join
+and the queue-family ownership transfers exceed the 1.1\% of raster work available to overlap.
+Grouping compute work is standard advice that this frame has nothing to pay for itself with, so both
+flags stay off and the schedule is a capability of the graph rather than a property of any number in
+Chapter~\ref{ch:analiza}. The DAG behind it carries one caveat worth stating, since it would bound
+any future use: only textures are tracked, so a pass touching an acceleration structure, a bindless
+table or a buffer has a real ordering requirement that no edge records. The
+\texttt{render.graph.dumpdeps} CVar reports which passes look unconstrained, which keeps that gap
+visible rather than latent.
 
 Each pass is wrapped in a named GPU timestamp scope (\texttt{BeginGpuScope}), and those names are the
 rows of Table~\ref{tab:pass-cost} in Chapter~\ref{ch:analiza}, so the graph structure and the finest
@@ -67,10 +53,7 @@ are deliberately coarser, whole-frame differences rather than scope readings, si
 path has no scope of its own.
 
 Figure~\ref{fig:overview} shows the frame in outline and Table~\ref{tab:framegraph} gives the
-declared per-viewport order. Each ray-traced effect repeats the
-same four-stage shape, trace, accumulate over time, filter spatially, and (for the half-resolution
-ones) upsample, which is what lets one denoiser implementation serve all of them
-(Section~\ref{sec:denoising}).
+declared per-viewport order.
 
 \begin{figure}[tbp]
 \centering
