@@ -451,10 +451,16 @@ horizon-rejected there.
 \centering
 \includegraphics[width=0.48\textwidth]{figures/shadow_hard.png}\hfill%
 \includegraphics[width=0.48\textwidth]{figures/shadow_soft.png}
-\caption[Hard versus soft ray-traced shadows]{Hard (left) versus soft (right) ray-traced shadows on the sunlit floor strip: the only
+\caption[Hard versus soft ray-traced shadows]{Hard (left) versus soft (right) ray-traced shadows on
+the sunlit floor strip, cast by the roof light-well lip about 10.4 units above it: the only
 difference is \texttt{render.shadow.soft}. The sun's angular diameter is raised to $3^\circ$, about
-six times the physical $0.53^\circ$, since at the true value the penumbra is narrower than what
-print resolves.}
+six times the physical $0.53^\circ$, since at the true value the penumbra is narrower than what print
+resolves. Read the width of the transition rather than its cleanliness: the hard edge also carries
+the lip's own silhouette detail, which the penumbra averages away, so the two panels differ in
+sharpness and in raggedness at once and only the first is the subject. The penumbra here has a
+roughly constant width because one occluder at one height casts it. Widening with occluder distance,
+the more telling signature of an area source, would need a shadow that travels, and with the sun
+$80^\circ$ above the horizon nothing in this scene casts one.}
 \label{fig:shadow-hs}
 \end{figure}
 

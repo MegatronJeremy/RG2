@@ -39,9 +39,10 @@ SCENE = "Projects/Sandbox/assets/scenes/Sponza.world"
 ATRIUM = {"pos": [8.519126892089844, 1.4949023723602295, -0.4308139383792877], "rot": [0.027, 1.496, 0.0]}
 CEILING = {"pos": [8.519126892089844, 1.4949023723602295, -0.4308139383792877], "rot": [0.55, 1.496, 0.0]}
 FLOOR = {"pos": [8.519126892089844, 1.4949023723602295, -0.4308139383792877], "rot": [-0.5, 1.496, 0.0]}
-# Frames the sunlit floor strip and its transverse edge, the one shadow boundary in the scene with a
-# long occluder-to-receiver throw (the roof light-well lip, ~10.4 units up).
-SUNSTRIP = {"pos": [8.519126892089844, 1.4949023723602295, -0.4308139383792877], "rot": [-0.35, 1.496, 0.0]}
+# The sunlit floor strip's transverse edge is the one shadow boundary in the scene with a long
+# occluder-to-receiver throw (the roof light-well lip, ~10.4 units up), so it is what the soft-shadow
+# pair frames. It is shot from NAVE_URNS below rather than from a pose of its own: the same edge is
+# in view there and it fills more of the frame.
 # Shallow pitch: the arcade recedes across most of the frame, which maximises the grazing-angle
 # specular where RT reflections differ most from the prefiltered-environment fallback.
 GRAZING = {"pos": [8.519126892089844, 1.4949023723602295, -0.4308139383792877], "rot": [0.22, 1.496, 0.0]}
@@ -89,10 +90,23 @@ SHOTS = [
     # render.shadows.rays is not set: SHADOW_RAY_COUNT is a compile-time #define
     # (DefaultLit.frag.hlsl:152), and the CVar feeds only the stochastic pass (ViewportEffects.cpp:982),
     # which render.shadows.stochastic leaves off by default, so mode 2 runs the inline path and ignores it.
-    ("shadow_hard", SUNSTRIP, {**BASE_ENV, "SS_RENDER_SHADOWS_MODE": "2",
-                               "SS_RENDER_SHADOW_SUN_ANGLE_DEG": "3.0", "SS_RENDER_SHADOW_SOFT": "0"}, False),
-    ("shadow_soft", SUNSTRIP, {**BASE_ENV, "SS_RENDER_SHADOWS_MODE": "2",
-                               "SS_RENDER_SHADOW_SUN_ANGLE_DEG": "3.0", "SS_RENDER_SHADOW_SOFT": "1"}, False),
+    # Framed from NAVE_URNS rather than from further back. Same shadow edge, same physics, closer camera:
+    # measured over four candidate poses, the soft-versus-hard difference covers 7.0% of the frame here
+    # against 4.6%, and the median penumbra band is 97 px against 50. That is camera proximity rather
+    # than a wider penumbra in world space, which is exactly the problem worth fixing, since the effect
+    # is already at the edge of what survives being scaled into the page. The urns also give the reader
+    # something of known size beside the gradient.
+    #
+    # What this pair CANNOT show is the penumbra widening with occluder distance, which is the property
+    # that really separates an area light from a point one. The sun here sits 80 degrees above the
+    # horizon (Direction normalises to (-0.16, -0.985, 0.06)), so a shadow runs 0.18x the occluder's
+    # height and there is no length over which to widen. Showing it would mean tilting the sun on top of
+    # the angle exaggeration below, and two stacked distortions to demonstrate one property is a worse
+    # trade than leaving that property to the cone diagram, which states it as geometry instead.
+    ("shadow_hard", NAVE_URNS, {**BASE_ENV, "SS_RENDER_SHADOWS_MODE": "2",
+                                "SS_RENDER_SHADOW_SUN_ANGLE_DEG": "3.0", "SS_RENDER_SHADOW_SOFT": "0"}, False),
+    ("shadow_soft", NAVE_URNS, {**BASE_ENV, "SS_RENDER_SHADOWS_MODE": "2",
+                                "SS_RENDER_SHADOW_SUN_ANGLE_DEG": "3.0", "SS_RENDER_SHADOW_SOFT": "1"}, False),
     # The cone A/B is invisible in a COMPOSITED frame (cone_scale 0 vs 3 moves 0.16/255 at the best of
     # six poses tried) because the reflection is a small additive term next to direct lighting. In the
     # raw reflection buffer it is the dominant signal: the same A/B moves 44.1/255 and drops
