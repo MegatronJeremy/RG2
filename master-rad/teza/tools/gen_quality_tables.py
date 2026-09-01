@@ -169,6 +169,7 @@ def main():
         if m is None:
             continue
         qmacros += [rf"\newcommand{{\m{name}Tflip}}{{{m['tflip']:.4f}}}",
+                    rf"\newcommand{{\m{name}Flip}}{{{m['flip']:.3f}}}",
                     rf"\newcommand{{\m{name}Jod}}{{{m['cvvdpJod']:.2f}}}",
                     rf"\newcommand{{\m{name}Lag}}{{{m['motionPenalty']:.3f}}}"]
 

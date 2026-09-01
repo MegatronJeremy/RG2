@@ -498,13 +498,12 @@ The measurements do not object to any of this, and one of them actively points t
 motion route the stochastic path is the more temporally stable of the two, tFLIP
 \mMegalightsTflip{} against inline's \mRtShadowTflip{}, and
 Section~\ref{sec:analiza-shadow-strategy} finds it the cheaper of the two on the RX 9070 XT. The
-stability score should be read with the smearing in mind rather than against it. tFLIP scores a result
-by how little it changes between consecutive frames, in excess of how much the reference changes over
-the same interval (Section~\ref{sec:motion}). Subtracting the reference's motion removes the scene's
-own contribution, but it does not distinguish a result that is stable from one that is smeared, and
-both change little. The seam escapes measurement for a duller reason, since the route never frames
-the lit side aisles where two torches overlap. So the default here is set against the metrics rather
-than by them, which is worth saying plainly in a thesis that otherwise decides by measurement.
+stability score should be read with the smearing in mind rather than against it: a measure of how
+little a result changes between frames cannot separate stable from smeared, which
+Section~\ref{sec:motion} takes up with this pair as its worked example. The seam escapes measurement
+for a duller reason, since the route never frames the lit side aisles where two torches overlap. So
+the default here is set against the metrics rather than by them, which is worth saying plainly in a
+thesis that otherwise decides by measurement.
 
 \begin{figure}[tbp]
 \centering

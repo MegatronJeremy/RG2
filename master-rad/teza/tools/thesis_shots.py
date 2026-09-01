@@ -126,6 +126,12 @@ SHOTS = [
     ("refl_rt", GRAZING, {**BASE_ENV, "SS_RENDER_SHADOWS_MODE": "2",
                           "SS_RENDER_REFLECTIONS_MODE": "2",
                           "SS_RENDER_REFLECTIONS_MAX_ROUGHNESS": "1.0"}, False),
+    # AO on its own, composited, cropped by urn_crop below. Shadows are traced for the same reason
+    # the reflection pair traces them: the raster cap would leave two torches unshadowed and put an
+    # artifact in a figure whose subject is something else.
+    ("ao_off", NAVE_URNS, {**BASE_ENV, "SS_RENDER_SHADOWS_MODE": "2"}, False),
+    ("ao_on", NAVE_URNS, {**BASE_ENV, "SS_RENDER_SHADOWS_MODE": "2",
+                          "SS_RENDER_AO_MODE": "2"}, False),
     ("gi_off", ATRIUM, {**BASE_ENV, "SS_RENDER_SHADOWS_MODE": "2"}, False),
     ("gi_on", ATRIUM, {**BASE_ENV, "SS_RENDER_SHADOWS_MODE": "2",
                        "SS_RENDER_GI_MODE": "2"}, False),
@@ -222,9 +228,25 @@ def occlusion_view(img: np.ndarray) -> np.ndarray:
 
 
 # Post-transforms applied to a shot before it is written. A shot absent here is written as captured.
+def urn_crop(img: np.ndarray) -> np.ndarray:
+    """Crop to the urn and column base, where composited AO actually does something.
+
+    Whole-frame, toggling AO moves this scene by 2.4 of 255, so an uncropped on/off pair prints as
+    two identical images and tells the reader the opposite of the truth. Occlusion is concentrated
+    where geometry encloses geometry, so the honest composited figure is a crop of such a place
+    rather than a wide shot. This window was chosen by scanning quarter-frame crops of the on/off
+    difference for the largest mean darkening: it darkens 6.2 of 255, 2.8x the whole frame. The
+    caption says it is a crop and says why.
+    """
+    x, y, w, h = 1600, 513, 640, 342
+    return img[y:y + h, x:x + w, :3]
+
+
 POST = {
     "ssvsrt_ssao": occlusion_view,
     "ssvsrt_rtao": occlusion_view,
+    "ao_off": urn_crop,
+    "ao_on": urn_crop,
 }
 
 
