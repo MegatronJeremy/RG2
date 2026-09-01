@@ -946,8 +946,8 @@ registers used does not mean more parallelism available.
 Three limits belong with these numbers. The occupancy is theoretical and register-derived, so it is an
 upper bound on both vendors and says nothing about what is achieved once memory stalls and other
 limits are included. That needs a runtime profiler. The RDNA4 register allocation granularity is taken
-from documentation and has not been confirmed against a per-compile report the way the RDNA3 figure
-was, so a wave count sitting near a boundary is model-dependent: at a granularity of 8 rather than 24
+from documentation rather than confirmed against a per-compile report,
+so a wave count sitting near a boundary is model-dependent: at a granularity of 8 rather than 24
 the inline-shadow permutation would allocate 136 registers rather than 144 and read 11 of 16 rather
 than 10. And the NVIDIA figure is explicitly
 an upper bound, since the allocation granularity for that compute capability is not published and

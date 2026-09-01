@@ -813,9 +813,9 @@ quality numbers are read correctly:
 A source-level choice that cannot change the output image, whether one loop is unrolled, decides
 whether the shader gets 16 of 16 wavefronts or 8. \texttt{GIDenoise.comp} keeps its outer \`a-trous
 loop rolled, which costs a little scheduling freedom and in exchange holds register pressure down to
-70 VGPRs on the RX 7900 XTX and 59 on the RX 9070 XT, with no spilling and full occupancy on both
-(Table~\ref{tab:occupancy}). Unrolled it allocates 191, crossing an allocation boundary that 70 does
-not, and drops to 8 of 16 wavefronts.
+58 VGPRs on the RX 9070 XT, with no spilling and full occupancy (Table~\ref{tab:occupancy}).
+Unrolled it allocates 191, crossing an allocation boundary that 58 does not, and drops to 8 of 16
+wavefronts.
 
 \section{TAA / temporal resolve}
 \label{sec:taa}

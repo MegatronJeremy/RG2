@@ -4,4 +4,4 @@ vgpr	waves	label
 83	16	GI[norestir]
 81	16	Reflection
 60	16	AO
-59	16	GIDenoise[gi]
+58	16	GIDenoise[gi]

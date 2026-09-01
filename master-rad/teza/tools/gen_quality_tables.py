@@ -161,8 +161,13 @@ def main():
          + rf"{MOTION_LABELS[t]} & lag & {probe_row(t, 'motionPenalty')} \\"
          for t in ("raster", "all-rt")])
 
-    for slug, name in (("all-rt", "AllRt"), ("rtgi", "RtGi"), ("raster", "Raster")):
-        m = mot[slug]
+    # rtshadow and megalights carry the two shadow producers' temporal scores, which Section 3.4 needs
+    # to say that the experimental path is off by default DESPITE measuring better here.
+    for slug, name in (("all-rt", "AllRt"), ("rtgi", "RtGi"), ("raster", "Raster"),
+                       ("rtshadow", "RtShadow"), ("megalights", "Megalights")):
+        m = mot.get(slug)
+        if m is None:
+            continue
         qmacros += [rf"\newcommand{{\m{name}Tflip}}{{{m['tflip']:.4f}}}",
                     rf"\newcommand{{\m{name}Jod}}{{{m['cvvdpJod']:.2f}}}",
                     rf"\newcommand{{\m{name}Lag}}{{{m['motionPenalty']:.3f}}}"]
