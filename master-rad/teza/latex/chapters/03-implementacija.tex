@@ -354,10 +354,11 @@ whole frame. Section~\ref{sec:analiza-shadow-strategy} measures that tradeoff.
 \includegraphics[width=\linewidth]{figures/shadow_rt.png}\\{\small ray-traced shadows}
 \end{minipage}
 \caption[Shadow map versus ray-traced shadows]{The same pose and the same light,
-\texttt{render.shadows.mode} 1 versus 2. The raster map has finite resolution and a depth bias, so
-contact shadows bleed and edges are softer than the geometry dictates, while the traced version
-resolves them against the real geometry. The captures are deterministic (two consecutive captures of
-the same configuration are bit-identical), so every difference between the panels is real.}
+\texttt{render.shadows.mode} 1 versus 2. The urns standing on the sunlit floor are where to look: the
+raster map has finite resolution and a depth bias, so their contact shadows detach from the base and
+smear, while the traced version anchors them against the real geometry. The captures are
+deterministic (two consecutive captures of one configuration are bit-identical), so every difference
+between the panels is real.}
 \label{fig:shadow-vs-map}
 \end{figure}
 

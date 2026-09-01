@@ -45,6 +45,13 @@ SUNSTRIP = {"pos": [8.519126892089844, 1.4949023723602295, -0.4308139383792877],
 # Shallow pitch: the arcade recedes across most of the frame, which maximises the grazing-angle
 # specular where RT reflections differ most from the prefiltered-environment fallback.
 GRAZING = {"pos": [8.519126892089844, 1.4949023723602295, -0.4308139383792877], "rot": [0.22, 1.496, 0.0]}
+# Further down the nave and lower, so two urns stand ON the sunlit floor rather than beside it. The
+# shadow-map-versus-traced comparison needs objects resting on a lit receiver: that is where a depth
+# bias detaches the contact shadow and finite map resolution smears its edge, which is what the
+# caption claims. Chosen by measuring six candidate poses for the share of pixels differing strongly
+# between render.shadows.mode 1 and 2: this doubles it (4.2% over 30/255 against the sunlit strip's
+# 2.3%), and the extra difference sits on the urn bases rather than on a global brightness shift.
+NAVE_URNS = {"pos": [4.0, 1.30, -0.4308139383792877], "rot": [-0.32, 1.496, 0.0]}
 
 BASE_ENV = {"SS_RENDER_AA": "2"}
 ALL_RT = {**BASE_ENV, "SS_RENDER_SHADOWS_MODE": "2", "SS_RENDER_AO_MODE": "2",
@@ -147,8 +154,8 @@ SHOTS = [
 
     # The raster shadow fallback against the traced one, at the same pose. Chapter 3 asserts the
     # difference (full-res exact visibility, cost linear in light count) and never shows it.
-    ("shadow_map", SUNSTRIP, {**BASE_ENV, "SS_RENDER_SHADOWS_MODE": "1"}, False),
-    ("shadow_rt", SUNSTRIP, {**BASE_ENV, "SS_RENDER_SHADOWS_MODE": "2"}, False),
+    ("shadow_map", NAVE_URNS, {**BASE_ENV, "SS_RENDER_SHADOWS_MODE": "1"}, False),
+    ("shadow_rt", NAVE_URNS, {**BASE_ENV, "SS_RENDER_SHADOWS_MODE": "2"}, False),
 
     ("dbg_gi_raw", ATRIUM, {**ALL_RT, "SS_RENDER_DEBUGVIEW": "6"}, False),
     ("dbg_gi_denoised", ATRIUM, {**ALL_RT, "SS_RENDER_DEBUGVIEW": "7"}, False),
