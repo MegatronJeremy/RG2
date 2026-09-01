@@ -369,25 +369,23 @@ bool shadowed = (q.CommittedStatus() == COMMITTED_TRIANGLE_HIT);
 \end{lstlisting}
 
 Two quality levels are exposed through the \texttt{render.shadow.soft} CVar. The hard path casts one
-ray straight at the light, while the soft path casts \texttt{SHADOW_RAY_COUNT = 2} rays sampling, uniformly
-by solid angle, the cone the source subtends at the shaded point (Figure~\ref{fig:shadow}), averaging
-the hits into a penumbra factor in $[0,1]$. The cone is parameterised by the cosine of its half-angle:
-$\cos(\tfrac{1}{2}\,\texttt{render.shadow.sun\_angle\_deg})$ for the sun, and
-$\sqrt{1 - (r/d)^2}$ for a local light of radius \texttt{render.shadow.source\_radius} at distance
-$d$, so a physically larger or nearer source gives a softer edge. Sampling the solid angle rather
-than a tangent-plane disk is what makes the real-time penumbra agree with the path tracer's
-next-event estimation at any cone width, instead of only in the small-angle limit where the two
-parameterisations coincide. \texttt{SHADOW_RAY_COUNT} is a compile-time constant, a cost class rather
-than a live knob. \texttt{render.shadows.rays} applies to the stochastic path below, not to this one.
-Directions are drawn from spatiotemporal blue noise \cite{wolfe2022stbn}, whose error sits at high
-frequencies, two decorrelated dimensions per light, spreading
-the two-sample penumbra across frames for the temporal accumulator to resolve
-(Sections~\ref{sec:denoising} and \ref{sec:taa}). The choice of noise sequence matters here for two
-reasons that a per-frame image cannot show. A hash re-rolled every frame is white in time, so the
-temporal accumulator has nothing to average down, and deriving both cone coordinates from one scalar
-collapses the two-dimensional cone to a curve. Giving each light its own pair of dimensions also
-decorrelates the lights from one another, so their error averages down with light count instead of
-reinforcing. The cost is \(+0.088\) ms on the Forward pass, below the materiality floor of
+ray straight at the light, while the soft path casts \texttt{SHADOW_RAY_COUNT = 2} rays sampling,
+uniformly by solid angle, the cone the source subtends at the shaded point (Figure~\ref{fig:shadow}),
+averaging the hits into a penumbra factor in $[0,1]$. The half-angle follows the source: half the
+angular diameter \texttt{render.shadow.sun\_angle\_deg} for the sun, and $\arcsin(r/d)$ for a local
+light of radius \texttt{render.shadow.source\_radius} at distance $d$, so a physically larger or
+nearer source gives a softer edge. Sampling the solid angle rather than a tangent-plane disk is what makes the real-time
+penumbra agree with the path tracer's next-event estimation at any cone width, instead of only in the
+small-angle limit where the two parameterisations coincide. \texttt{SHADOW_RAY_COUNT} is a
+compile-time constant, a cost class rather than a live knob.
+
+Directions come from spatiotemporal blue noise \cite{wolfe2022stbn}, two decorrelated dimensions per
+light, spreading the two-sample penumbra across frames for the temporal accumulator to resolve
+(Sections~\ref{sec:denoising} and \ref{sec:taa}). The sequence matters for two reasons a per-frame
+image cannot show: a hash re-rolled every frame is white in time, leaving the accumulator nothing to
+average down, and deriving both cone coordinates from one scalar collapses the cone to a curve. Per-light
+dimensions also decorrelate the lights from each other, so their error falls with light count instead
+of reinforcing. The cost is \(+0.088\) ms on the Forward pass, below the materiality floor of
 Section~\ref{sec:cena}.
 
 \begin{figure}[tbp]
@@ -415,20 +413,18 @@ distance. The fraction of unblocked rays gives the penumbra.}
 \end{figure}
 
 Penumbra width is $2H\tan(\theta/2)$ in the occluder-to-receiver distance $H$ and the source's
-angular size $\theta$, so Figure~\ref{fig:shadow-hs} frames the sunlit floor strip: the sun is the
-only light here with a distant occluder, its transverse edge cast by the roof light-well lip about
-10.4 units above the floor, while the four enabled torches sit a couple of units from the walls they
-light. At the sun's true angular diameter that penumbra is roughly 36 pixels of a 2560-wide capture
-and disappears once scaled into the page, so the figure raises
-\texttt{render.shadow.sun\_angle\_deg} to $3^\circ$ and says so in its caption. Widening
-\texttt{render.shadow.source\_radius} instead would be the wrong control, for a reason that is also a
-limitation. Cone samples falling below the shading normal's horizon are skipped while the
-average still divides by the full sample count, which is deliberate (counting them lit is the leak
-that next-event estimation rejects in the path tracer), although it means a wider cone also darkens
-grazing surfaces systematically. At a 1.5-unit radius that darkening accounts for about three quarters
-of the frame difference and swamps the penumbra it was meant to show. The near-vertical sun meets the
-floor at $\mathbf{n}\cdot\boldsymbol{\omega} \approx 1$ and avoids it, since no sample is
-horizon-rejected there.
+angular size $\theta$, which is why Figure~\ref{fig:shadow-hs} frames the sunlit floor strip: the sun
+is the only light here with a distant occluder, while the four enabled torches sit a couple of units
+from the walls they light. Even there the true angular diameter gives about 36 pixels of a 2560-wide
+capture, so the figure exaggerates it and says so.
+
+Driving the sun rather than \texttt{render.shadow.source\_radius} is deliberate, for a reason that is
+also a limitation. Cone samples falling below the shading normal's horizon are skipped while the
+average still divides by the full sample count, which is correct in itself (counting them lit is the
+leak next-event estimation rejects in the path tracer), although it means a wider cone darkens
+grazing surfaces systematically. At a 1.5-unit radius that darkening is about three quarters of the
+frame difference and swamps the penumbra it was meant to show. The near-vertical sun avoids it,
+meeting the floor where nothing is horizon-rejected.
 
 \begin{figure}[tbp]
 \centering
@@ -451,8 +447,9 @@ $80^\circ$ above the horizon nothing in this scene casts one.}
 linearly with light count, which does not survive a scene lit by hundreds of sources. The engine
 therefore implements a second strategy, enabled by \texttt{render.shadows.stochastic} and off by
 default, following the MegaLights approach \cite{epic_megalights}: each pixel takes
-\texttt{render.shadows.rays} independent
-samples, and each sample separately uses resampled importance sampling \cite{talbot2005ris} to pick \emph{one} light with
+\texttt{render.shadows.rays} independent samples (this CVar drives only this path, not the inline one
+above, whose ray count is the compile-time constant), and each sample separately uses resampled
+importance sampling \cite{talbot2005ris} to pick \emph{one} light with
 probability proportional to its unshadowed contribution and traces a single ray at it. Averaging the
 samples gives one aggregate visibility ratio, so the cost is set by the sample count rather than by
 the light count.
