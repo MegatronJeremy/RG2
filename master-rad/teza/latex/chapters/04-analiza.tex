@@ -102,41 +102,28 @@ and FLIP 0.024 of 0.349, so the lift in Section~\ref{sec:poredjenje} is dominate
 illumination rather than by this cap.
 
 The two families of measurement in this chapter do not share a resolution, because they are hosted
-differently. Timings come from the editor, whose viewport is $1915 \times 1064$ on this machine, and
-each baseline records that size so a run at another one is skipped rather than compared. Quality
-captures run the editor-free runtime, whose window is maximised rather than pinned, and are
-resampled to a canonical size before scoring, for the reason the quality-measurement paragraph
-below gives. Neither
-family is comparable to the other in absolute terms, and neither is asked to be: costs are compared
-against costs and scores against scores. Both hold the camera
-static for every A/B comparison, since a moving camera
-desynchronizes the frame sequence between two runs and fabricates differences that are timing
-artifacts. The shader cache is cleared before any GPU metric is trusted, since a stale cache produces
-nondeterministic results, and persisted console variables are ignored during a benchmark run, so a
-leftover setting cannot silently change the configuration. Performance baselines are per-machine and
-per-resolution, because absolute milliseconds are not comparable across GPUs or output sizes.
+differently. Timings come from the editor at $1915 \times 1064$, a size each baseline records so that
+a run at another one is skipped rather than compared, while quality captures run the editor-free
+runtime and are resampled to a canonical size before scoring. Costs are therefore compared against
+costs and scores against scores, never across the two. Both hold the camera static for every A/B,
+since a moving camera desynchronizes the frame sequence between two runs and fabricates differences
+that are timing artifacts. The shader cache is cleared before any GPU metric is trusted, since a
+stale cache produces nondeterministic results, and persisted console variables are ignored during a
+benchmark run, so a leftover setting cannot silently change the configuration.
 
 \paragraph{Performance measurement.} GPU time comes from the per-pass timestamp scopes and the
 \texttt{perf-bench} harness of Section~\ref{sec:alati}, averaged over a fixed frame budget once a
 steady state has been detected rather than assumed: frame time takes about fifty frames to settle on
 this scene, so a fixed short warmup would average part of the clock ramp into the result, by an
 amount depending on how warm the machine already was and with nothing in the output to indicate it.
-The benchmark sweeps a fixed
-matrix of configurations, \texttt{rt-off} $\rightarrow$ \texttt{shadows} $\rightarrow$ \texttt{+ao}
-$\rightarrow$ \texttt{+refl} $\rightarrow$ \texttt{+gi}, enabling one more effect at each step, so the
-cost of an effect is the difference between adjacent configurations. A difference rather than an
-isolated timing, because effects share fixed work (acceleration structure built once, G-buffer filled
-once, tonemap run once): timing an effect alone would charge it for all of that, and the four figures
-would then sum to considerably more than the frame costs.
-The difference is taken on \emph{total} GPU time rather than on one pass scope, since
-inline shadows are traced inside the Forward pass and have none of their own. The other three
-effects do, and are reported as whole-frame deltas anyway for consistency. A
-trailing \texttt{ssgi} configuration swaps ray-traced GI for the screen-space producer on top
-of \texttt{+refl} and is diffed against \texttt{+refl}, since the two are alternatives rather than
-cumulative. Timestamps are converted with each device's timestamp period, so
-per-pass times are comparable across vendors, and both GPUs are reported side by side rather
-than against a single-machine baseline, since the cross-vendor comparison is itself the
-measurement.
+The benchmark sweeps a fixed matrix of configurations, enabling one more effect at each step, so an
+effect's cost is the difference between adjacent ones (Table~\ref{tab:cena}). A difference rather
+than an isolated timing, because effects share fixed work: the acceleration structure is built once,
+the G-buffer filled once, the tonemap run once, so timing an effect alone would charge it for all of
+that and the four figures would sum to well over the frame. The difference is taken on \emph{total}
+GPU time rather than on one pass scope, since inline shadows are traced inside the Forward pass and
+have none of their own, and the other three are reported the same way for consistency. Timestamps are
+converted with each device's timestamp period, so per-pass times are comparable across vendors.
 
 \paragraph{Quality measurement.} Reconstruction quality is measured by \texttt{quality-bench} against
 the converged path-traced reference of Section~\ref{sec:pathtracer}. Each real-time technique's
@@ -152,17 +139,15 @@ silently change a score. Quality figures elsewhere in this chapter are
 the RX 9070 XT's, although Section~\ref{sec:cross-vendor-quality} captures the whole matrix on the
 RTX 5070 as well.
 
-Several results below turn on a difference being too small to read, so the floor those claims are
-measured against needs a number. Recapturing the whole matrix after a denoiser change gives one
-without a dedicated experiment: five of the techniques (\texttt{raster}, \texttt{ssao},
-\texttt{ssr}, \texttt{rtao}, \texttt{rtrefl}) do not run the filter that changed, so whatever their
-scores moved by is repeatability rather than effect. Across three viewpoints and fifteen captures
-their FLIP moved by at most \textbf{0.0024} and their PSNR by at most \textbf{0.060 dB}, while the
-three techniques that do run the filter moved up to 0.0096 FLIP. \emph{Below roughly 0.003 FLIP or
-0.06 dB PSNR, this protocol cannot distinguish two configurations.} Every small difference claimed
-below is read against those two numbers, and the sections that follow state where a difference clears
-them and where it does not. The estimate comes from one such recapture rather than from a
-repeated-measures study, so treat it as the right order of magnitude and not a confidence interval.
+Several results below turn on a difference being too small to read, so that floor needs a number.
+Recapturing the whole matrix after a denoiser change supplies one without a dedicated experiment:
+five techniques (\texttt{raster}, \texttt{ssao}, \texttt{ssr}, \texttt{rtao}, \texttt{rtrefl}) do not
+run the filter that changed, so whatever their scores moved by is repeatability rather than effect.
+Across three viewpoints and fifteen captures their FLIP moved by at most \textbf{0.0024} and their
+PSNR by at most \textbf{0.060 dB}, against up to 0.0096 FLIP for the three that do run it.
+\emph{Below roughly 0.003 FLIP or 0.06 dB PSNR, this protocol cannot distinguish two
+configurations.} It comes from one recapture rather than a repeated-measures study, so it is the
+right order of magnitude and not a confidence interval.
 
 \section{Per-effect cost (GPU ms)}
 \label{sec:cena}
