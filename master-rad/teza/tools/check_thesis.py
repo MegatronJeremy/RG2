@@ -47,8 +47,14 @@ def check_build() -> None:
             # the thesis is being read, so name it rather than sending the reader after a LaTeX
             # error that is not there.
             if "can't write on file" in out or "cannot write on file" in out:
+                # The aborted run also leaves a half-written main.aux, which makes the NEXT build
+                # fail on a bogus undefined control sequence pointing into the aux rather than the
+                # source. Clear it here so the lock costs one message instead of a second hunt.
+                for ext in (".aux", ".toc", ".lof", ".lot", ".out"):
+                    (LATEX / f"main{ext}").unlink(missing_ok=True)
                 record("pdflatex", False,
-                       "main.pdf is LOCKED (close your PDF viewer); the document itself is fine")
+                       "main.pdf is LOCKED (close your PDF viewer). The document is fine; "
+                       "stale aux files cleared, so just re-run")
             else:
                 record(f"pdflatex pass {i}", False, f"exit {code}")
             return
