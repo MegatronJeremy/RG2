@@ -72,8 +72,15 @@ small: the shadow technique alone moves PSNR 0.65 dB of the \qRtLiftPsnr{} dB be
 and FLIP 0.024 of 0.349, so the lift in Section~\ref{sec:poredjenje} is dominated by global
 illumination rather than by this cap.
 
-Every measurement in this chapter renders at
-$1915 \times 1064$, with the camera held static for every A/B comparison, since a moving camera
+The two families of measurement in this chapter do not share a resolution, because they are hosted
+differently. Timings come from the editor, whose viewport is $1915 \times 1064$ on this machine, and
+each baseline records that size so a run at another one is skipped rather than compared. Quality
+captures run the editor-free runtime, whose window is maximised rather than pinned, and are
+resampled to a canonical size before scoring, for the reason the quality-measurement paragraph
+below gives. Neither
+family is comparable to the other in absolute terms, and neither is asked to be: costs are compared
+against costs and scores against scores. Both hold the camera
+static for every A/B comparison, since a moving camera
 desynchronizes the frame sequence between two runs and fabricates differences that are timing
 artifacts. The shader cache is cleared before any GPU metric is trusted, since a stale cache produces
 nondeterministic results, and persisted console variables are ignored during a benchmark run, so a
@@ -812,6 +819,23 @@ this renderer against its own still, so it can be driven to zero by degrading th
 be used as an optimisation target. And its absolute scale depends on the capture protocol, which was
 corrected during this work, so only figures from the current baselines may be quoted and never mixed
 with earlier ones.
+
+\paragraph{Stability measures reward blur, and tFLIP is not exempt.} Any measure that scores a result
+by how little it changes between consecutive frames prefers one that has been smoothed, because
+smoothing is the cheapest way to make successive frames resemble each other. TecoGAN met the same
+problem and replaced a pixel-wise frame difference with a perceptual one \cite{chu2020tecogan}, which
+is the construction tFLIP borrows. The perceptual substitution helps, although it does not remove the
+preference: subtracting the reference's inter-frame change takes the scene's own motion out of the
+score, not the technique's blur, so a result that is stable and one that is smeared still both score
+well.
+
+This is not hypothetical here. The two shadow producers of Section~\ref{sec:analiza-shadow-strategy}
+are spatially indistinguishable on this route, FLIP \mRtShadowFlip{} for the inline path against
+\mMegalightsFlip{} for the stochastic one, yet tFLIP separates them clearly, \mRtShadowTflip{}
+against \mMegalightsTflip{}, in favour of the stochastic path. That path is the one that smears under camera
+motion, which is part of why it is not the default (Section~\ref{sec:senke}). Read alone, tFLIP would
+have recommended it. Every temporal number in this section is therefore reported beside a spatial one,
+and none of them is an optimisation target.
 
 \section{Quality across vendors}
 \label{sec:cross-vendor-quality}
