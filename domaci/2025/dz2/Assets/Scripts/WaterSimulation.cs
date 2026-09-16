@@ -122,12 +122,16 @@ public class WaterSimulation : MonoBehaviour
     {
         GetComponent<MeshFilter>().sharedMesh = BuildGrid(resolution, surfaceSize);
         SetupMaterial();
+        // SetupMaterial leaves _material null if the shader is missing; without this guard
+        // that surfaces as a NullReferenceException per frame instead of the single error
+        // it already logged.
+        if (_material == null) return;
         SetupSimulation();
     }
 
     private void Update()
     {
-        if (simShader == null) return;
+        if (simShader == null || _material == null) return;
         HandleInteraction();
 
         // Advance the simulation at a fixed rate (decoupled from frame rate) so the

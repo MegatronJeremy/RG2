@@ -165,7 +165,7 @@ MonoBehaviour:
   maxWaveHeight: 0.8
   normalStrength: 6
   waterColor: {r: 0.1, g: 0.3, b: 0.5, a: 1}
-  reflectivity: 0.5
+  reflectivity: 1
   shininess: 45
   fresnelPower: 5
   minAlpha: 0.5
