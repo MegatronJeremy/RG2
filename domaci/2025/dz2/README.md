@@ -15,12 +15,30 @@ opada sa uglom između normale i pravca pogleda. Korisnik talasa vodu „šaranj
 
 ## Pokretanje
 
+Najlakše preko priloženih skripti (same nađu Unity čija verzija odgovara
+`ProjectSettings/ProjectVersion.txt`):
+
+```
+run-editor.bat       # otvori projekat u Editoru sa scenom Water, pa pritisni Play
+run-game.bat         # build standalone playera u Build\ i pokreni ga
+```
+
+Oba su tanki omotači oko `run.ps1`, koji prima i `build` (samo build) i `check`
+(koji Unity se koristi, da li je Editor otvoren, kad je player build-ovan).
+Batch build ne može preko projekta koji Editor drži zaključanim, pa `run-game.bat`
+traži zatvoren Editor i to jasno kaže umesto da pukne.
+
+**Ručno:**
+
 1. Otvori projekat `dz2/` u Unity Hub-u (verzija 2022.3.4f1).
 2. Otvori scenu [`Assets/Scenes/Water.unity`](Assets/Scenes/Water.unity).
 3. Ako refleksija izgleda bledo (nema skybox-a posle svežeg checkout-a), pokreni
    meni **`RG2 → Generate Sky Cubemap`** (generiše `SkyCubemap.cubemap` + skybox
    materijal i postavlja ga kao skybox scene), pa sačuvaj scenu.
 4. Pritisni **Play**.
+
+> Editor traži aktivnu licencu (prijava na Unity nalog kroz Hub); bez nje i `-batchmode`
+> odbija da krene sa „No valid Unity Editor license found".
 
 **Interakcija:** drži **levi klik** i prevlači mišem po površi da napraviš talase.
 Intenzitet i veličina poteza se podešavaju u Inspektoru (komponenta *Water Simulation*).
@@ -35,9 +53,17 @@ Assets/
 │   ├── WaterSim.compute          # kerneli: init, korak (difuzija/talas), normale, splash
 │   └── Water.shader              # vertex displacement + refleksija + spekular + Fresnel
 ├── Editor/SkyboxCubemapGenerator.cs  # generiše cube map nebo (meni RG2)
+├── Editor/PlayerBuild.cs         # build standalone playera (meni RG2 + run.ps1)
 ├── SkyCubemap.cubemap            # generisani skybox (cube map koji se ogleda u vodi)
 └── SkyboxMaterial.mat
+run.ps1, run-editor.bat, run-game.bat   # pokretanje u Editoru / kao standalone player
 ```
+
+`PlayerBuild` prosleđuje scenu eksplicitno, pa `ProjectSettings/EditorBuildSettings.asset`
+ostaje prazan i build radi na svežem checkout-u bez podešavanja Build Settings-a.
+Shader `RG2/Water` se traži preko `Shader.Find` u runtime-u, pa ga ništa u sceni ne
+referencira; zato je upisan u **Always Included Shaders**, inače ga build izbaci i površ
+u playeru ispadne magenta (u Editoru se ta razlika ne vidi).
 
 ## Kako radi (protok)
 
