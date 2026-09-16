@@ -34,6 +34,9 @@ Shader "RG2/Water"
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
+            // Unity's default compilation target is 2.5; vertex texture fetch
+            // (tex2Dlod on the height map, below) requires at least shader model 3.0.
+            #pragma target 3.0
             #include "UnityCG.cginc"
             #include "Lighting.cginc"
 
