@@ -1,10 +1,11 @@
 # run.ps1 -- pokretanje/build DZ1 "Planeta Zemlja" (OpenGL 4, JogAmp + JOML).
 #
-# Auto-detektuje Maven i JDK: prvo sa PATH-a, pa iz IntelliJ IDEA / JetBrains
-# Toolbox instalacije (jer na ovoj masini mvn/java nisu na PATH-u).
+# Auto-detektuje Maven i JDK: prvo sa PATH-a, pa iz samostalne Maven instalacije
+# i bilo kog JetBrains IDE-a (Rider, PyCharm, IDEA, Gateway...), jer na ovoj
+# masini mvn/java nisu na PATH-u.
 #
 #   .\run.ps1            # interaktivni meni
-#   .\run.ps1 run        # build + pokreni simulaciju  (mvn compile exec:java)
+#   .\run.ps1 run        # build + pokreni simulaciju  (mvn compile exec:exec)
 #   .\run.ps1 build      # samo build/jar              (mvn package)
 #   .\run.ps1 clean      # ocisti target/              (mvn clean)
 #   .\run.ps1 check      # prikazi koje mvn/java koristi (+ verzije)
@@ -15,20 +16,35 @@ $ErrorActionPreference = "Stop"
 $root = $PSScriptRoot
 $pom = Join-Path $root "pom.xml"
 
+# Vrati prvu putanju koja postoji; obrasci sa * se razresavaju wildcard-om
+# (npr. "apache-maven-*" pokriva svaku verziju bez zakucavanja broja).
+function First-Existing([string[]]$patterns) {
+    foreach ($p in $patterns) {
+        $hit = Get-Item $p -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($hit) { return $hit.FullName }
+    }
+    return $null
+}
+
 # --- pronadji java.exe (vrati koren JDK-a za JAVA_HOME) ---
 function Resolve-JavaHome {
     $cmd = Get-Command java -ErrorAction SilentlyContinue
     if ($cmd) { return (Split-Path (Split-Path $cmd.Source -Parent) -Parent) }
     if ($env:JAVA_HOME -and (Test-Path (Join-Path $env:JAVA_HOME "bin\java.exe"))) { return $env:JAVA_HOME }
-    $roots = @(
-        "$env:LOCALAPPDATA\Programs\IntelliJ IDEA\jbr",
-        "$env:LOCALAPPDATA\Programs\IntelliJ IDEA Community Edition\jbr"
+    # Svaki JetBrains IDE nosi svoj JBR (JDK 17/21) -- bilo koji je dovoljan za release 9.
+    # Ne gadjamo samo IDEA-u: na ovoj masini postoje Rider/PyCharm, ne i IDEA.
+    $hit = First-Existing @(
+        "$env:LOCALAPPDATA\Programs\*\jbr\bin\java.exe",
+        "$env:LOCALAPPDATA\JetBrains\*\jbr\bin\java.exe",
+        "$env:ProgramFiles\JetBrains\*\jbr\bin\java.exe",
+        "$env:ProgramFiles\Eclipse Adoptium\jdk-*\bin\java.exe",
+        "$env:ProgramFiles\Java\jdk-*\bin\java.exe"
     )
-    foreach ($r in $roots) { if (Test-Path (Join-Path $r "bin\java.exe")) { return $r } }
-    # JetBrains Toolbox / ostalo: potrazi bilo koji jbr/bin/java.exe
-    $hit = Get-ChildItem "$env:LOCALAPPDATA\Programs","$env:LOCALAPPDATA\JetBrains" -Recurse -Filter java.exe -ErrorAction SilentlyContinue |
-           Where-Object { $_.FullName -match '\\jbr\\bin\\java\.exe$' } | Select-Object -First 1
-    if ($hit) { return (Split-Path (Split-Path $hit.FullName -Parent) -Parent) }
+    if ($hit) { return (Split-Path (Split-Path $hit -Parent) -Parent) }
+    # Poslednja linija odbrane: rekurzivna pretraga (sporo, pa tek ovde).
+    $deep = Get-ChildItem "$env:LOCALAPPDATA\Programs","$env:LOCALAPPDATA\JetBrains" -Recurse -Filter java.exe -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -match '\\jbr\\bin\\java\.exe$' } | Select-Object -First 1
+    if ($deep) { return (Split-Path (Split-Path $deep.FullName -Parent) -Parent) }
     return $null
 }
 
@@ -36,22 +52,35 @@ function Resolve-JavaHome {
 function Resolve-Mvn {
     $cmd = Get-Command mvn -ErrorAction SilentlyContinue
     if ($cmd) { return $cmd.Source }
-    $roots = @(
-        "$env:LOCALAPPDATA\Programs\IntelliJ IDEA\plugins\maven\lib\maven3\bin\mvn.cmd",
-        "$env:LOCALAPPDATA\Programs\IntelliJ IDEA Community Edition\plugins\maven\lib\maven3\bin\mvn.cmd"
+    # Ne zvati promenljivu $home -- to je rezervisano ime u PowerShell-u (read-only).
+    foreach ($mavenRoot in @($env:MAVEN_HOME, $env:M2_HOME)) {
+        if ($mavenRoot -and (Test-Path (Join-Path $mavenRoot "bin\mvn.cmd"))) {
+            return (Join-Path $mavenRoot "bin\mvn.cmd")
+        }
+    }
+    # Samostalna instalacija (bilo koja verzija) + Maven koji bundluje IntelliJ IDEA.
+    $hit = First-Existing @(
+        "C:\Dev\tools\apache-maven-*\bin\mvn.cmd",
+        "C:\tools\apache-maven-*\bin\mvn.cmd",
+        "$env:ProgramFiles\apache-maven-*\bin\mvn.cmd",
+        "$env:LOCALAPPDATA\Programs\*\plugins\maven\lib\maven3\bin\mvn.cmd",
+        "$env:LOCALAPPDATA\JetBrains\*\plugins\maven\lib\maven3\bin\mvn.cmd"
     )
-    foreach ($r in $roots) { if (Test-Path $r) { return $r } }
-    $hit = Get-ChildItem "$env:LOCALAPPDATA\Programs","$env:LOCALAPPDATA\JetBrains" -Recurse -Filter mvn.cmd -ErrorAction SilentlyContinue |
-           Select-Object -First 1
-    if ($hit) { return $hit.FullName }
+    if ($hit) { return $hit }
+    $deep = Get-ChildItem "$env:LOCALAPPDATA\Programs","$env:LOCALAPPDATA\JetBrains" -Recurse -Filter mvn.cmd -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+    if ($deep) { return $deep.FullName }
     return $null
 }
 
 $javaHome = Resolve-JavaHome
 $mvn = Resolve-Mvn
 
-if (-not $javaHome) { Write-Host "Nije pronadjen JDK. Instaliraj JDK 9+ ili otvori projekat u IntelliJ-u." -ForegroundColor Red; exit 1 }
-if (-not $mvn)      { Write-Host "Nije pronadjen Maven. Instaliraj Maven ili koristi IntelliJ-ev bundlovani." -ForegroundColor Red; exit 1 }
+if (-not $javaHome) { Write-Host "Nije pronadjen JDK. Instaliraj JDK 9+ ili postavi JAVA_HOME." -ForegroundColor Red; exit 1 }
+if (-not $mvn) {
+    Write-Host "Nije pronadjen Maven. Raspakuj apache-maven u C:\Dev\tools\ ili postavi MAVEN_HOME." -ForegroundColor Red
+    exit 1
+}
 $env:JAVA_HOME = $javaHome
 
 # Iza korporativnog TLS proxyja (npr. Zscaler) JBR-ov cacerts ne veruje presretnutom
