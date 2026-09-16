@@ -105,7 +105,7 @@ procenjeni ili "tipični" brojevi za tu arhitekturu.
 
 ## Projekat: `domaci/2025/dz1` — Planeta Zemlja (OpenGL 4)
 
-Maven projekat, **Java 9**. Postavka je u [postavka.pdf](domaci/2025/dz1/postavka.pdf).
+Maven projekat, **Java 9**. Postavka je u [DZ1_2025.pdf](domaci/2025/dz1/DZ1_2025.pdf).
 
 **Zavisnosti:** JogAmp JOGL 2.6.0 (`jogl-all-main` + `gluegen-rt-main`, nose native biblioteke),
 JOML 1.9.15 (matematika), `pngdecoder` (učitavanje slika).
@@ -114,21 +114,57 @@ JOML 1.9.15 (matematika), `pngdecoder` (učitavanje slika).
 - `common/` — framework sa nastave (kamera, shader-programi, graphics objekti, scene, teksture).
   Ne menjati bez razloga; deli se sa drugim OpenGL zadacima.
 - `dz1/` — rešenje zadatka: `CubeSphereGenerator`, `EarthMesh`/`EarthShaderProgram`,
-  `SkyboxMesh`/`SkyboxShaderProgram`, `EditorCameraView`, `Main`.
+  `SkyboxMesh`/`SkyboxShaderProgram`, `EditorCameraView`/`EarthView`, `Main`.
 - GLSL šejderi i teksture: `src/main/resources/opengl4/dz1/`.
 
 **Pokretanje** (traži displej + GPU):
 ```
 # iz IDE-a: pokreni klasu opengl4.dz1.Main
-# ili preko Mavena (exec plugin, eksplicitna main klasa):
-mvn -f domaci/2025/dz1/pom.xml compile \
-    org.codehaus.mojo:exec-maven-plugin:3.1.0:java -Dexec.mainClass=opengl4.dz1.Main
+# ili preko skripte, koja sama nadje mvn i JDK: domaci/2025/dz1/run.ps1 run
+# ili rucno preko Mavena (konfiguracija exec plugina je u pom.xml):
+mvn -f domaci/2025/dz1/pom.xml compile exec:exec
 ```
+Goal je **`exec:exec`**, ne `exec:java`: `exec:java` vrti aplikaciju u Mavenovom JVM-u pod
+zasebnim URLClassLoader-om, gde gluegen-ov JNI ne uspe da se veze, pa `GLProfile.get(GL4)`
+puca sa „GL4 not available, but: []". `exec:exec` forkuje svez JVM.
 
 **Zahtevi postavke (checklist):** cube-sphere mreža (ravnomerna temena), height-map displacement
 terena, UV po zadatim formulama, diffuse tekstura, Phong senčenje sa jednim belim tačkastim
 svetlom, normale iz normal-mape, specular iz specular-mape, kamera (zoom scroll-om + rotacija oko
 X/Y drag-om), skybox. Domaći se brani u ispitnom roku.
+
+## Projekat: `domaci/2025/dz2` (Vodena površ, Unity)
+
+Unity **2022.3.4f1** (LTS), **Built-in Render Pipeline**. Postavka je u
+[DZ2_2025.pdf](domaci/2025/dz2/DZ2_2025.pdf). Editor traži aktivnu licencu (prijava na Unity
+nalog kroz Hub); bez nje i `-batchmode` odbija da se pokrene sa „No valid Unity Editor license
+found". Iza Zscaler proxyja Hub-ov downloader puca sa „certificate has expired", pa se
+instalater povlači ručno sa `download.unity3d.com` i pokreće uz UAC.
+
+**Struktura** (`Assets/`):
+- `Scripts/WaterSimulation.cs`: gradi mrežu trouglova, dispatch-uje compute kernele, čita miš,
+  izlaže parametre u Inspektoru.
+- `Shaders/WaterSim.compute`: kerneli `CSInit`, `CSStep` (difuzija po pseudokodu),
+  `CSStepWave` (talasna jednačina), `CSNormals`, `CSSplash`.
+- `Shaders/Water.shader`: vertex displacement iz mape visina (`tex2Dlod`, zato
+  `#pragma target 3.0`), cube-map refleksija, spekular usmerenog svetla, Fresnel prozirnost.
+- `Editor/SkyboxCubemapGenerator.cs`: meni `RG2 → Generate Sky Cubemap`.
+- `Scenes/Water.unity`: površ, kamera (tag `MainCamera`, traži ga `Camera.main`), usmereno svetlo.
+
+Mrežu i materijal pravi `Start()`, pa je scena **prazna u Edit modu**; vidi se tek u Play modu.
+`Library/`, `Temp/`, `Logs/`, `UserSettings/` pokriva `dz2/.gitignore` i nikad se ne commit-uju.
+
+**Dva režima** (`Mode` u Inspektoru): `Diffusion` je doslovno pseudokod iz postavke, `Wave` je
+talasna jednačina sa putujućim ripple-ovima (scena je podešena na `Wave`, jer slika rezultata u
+postavci prikazuje interferenciju koju difuzija ne proizvodi). Za doslovnu podudarnost sa
+pseudokodom: `Mode = Diffusion` **i** `Restore Factor = 0`, pošto taj član ne postoji u postavci.
+
+**Zahtevi postavke (checklist):** mapa visina preko Compute shader-a u svakom frejmu pre crtanja,
+mapa normala istih dimenzija po zadatoj formuli, empirijski `damp_factor`/dimenzije/`strength`,
+površ kao mreža trouglova sa visinama iz teksture u vertex shader-u, podesiva boja vode,
+refleksija cube mape, spekular usmerenog svetla, prozirnost opada sa porastom ugla
+normala-pogled, bez kaustike i refrakcije, talasanje „šaranjem" kursora sa intenzitetom
+podesivim iz Editora. Domaći se brani u ispitnom roku.
 
 ## Submodule napomene
 
