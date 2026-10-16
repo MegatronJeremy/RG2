@@ -46,9 +46,9 @@ TECHNIQUES = ["raster", "ssao", "rtao", "ssr", "rtrefl", "rtshadow", "megalights
 # (label, screen-space config, shared baseline config, ray-traced config, SS technique, RT technique).
 # The first four name perf configs, the last two quality ones.
 TRADEOFF = [
-    ("AO", "ssao", "shadows", "+ao", "ssao", "rtao"),
-    ("Reflections", "ssr", "+ao", "+refl", "ssr", "rtrefl"),
-    ("GI", "ssgi", "+refl", "+gi", "ssgi", "rtgi"),
+    ("ambient occlusion", "ssao", "shadows", "+ao", "ssao", "rtao"),
+    ("reflections", "ssr", "+ao", "+refl", "ssr", "rtrefl"),
+    ("global illumination", "ssgi", "+refl", "+gi", "ssgi", "rtgi"),
 ]
 
 
@@ -126,14 +126,20 @@ def build():
     # comparable across effects: neither depends on which ladder rung the pair sits on, so the perf
     # ladder's cumulative baselines and the quality matrix's single-effect ones do not have to agree.
     # Plotting the two absolute values against each other instead would silently mix the two matrices.
-    lines = ["effect\tmultAmd\tmultNv\tflipGain"]
+    # tradeoff-seg.dat repeats the same numbers as one two-point segment per effect (blank line between
+    # effects), so the figure draws both the segments and the markers from generated data.
+    lines = ["effect\tmultAmd\tmultNv\tmid\tflipGain"]
+    seg = ["effect\tmult\tflipGain"]
     for label, ss, base, rt, ssq, rtq in TRADEOFF:
         def delta(dev, cfg):
             return total(dev, cfg) - total(dev, base)
         gain = flip_mean(ssq) - flip_mean(rtq)
-        lines.append(f"{label}\t{delta(AMD, rt) / delta(AMD, ss):.2f}\t"
-                     f"{delta(NV, rt) / delta(NV, ss):.2f}\t{gain:.4f}")
+        a = f"{delta(AMD, rt) / delta(AMD, ss):.2f}"
+        n = f"{delta(NV, rt) / delta(NV, ss):.2f}"
+        lines.append(f"{label}\t{a}\t{n}\t{(float(a) + float(n)) / 2:.3f}\t{gain:.4f}")
+        seg += [f"{label}\t{a}\t{gain:.4f}", f"{label}\t{n}\t{gain:.4f}", ""]
     out["tradeoff.dat"] = "\n".join(lines) + "\n"
+    out["tradeoff-seg.dat"] = "\n".join(seg[:-1]) + "\n"
 
     return out
 

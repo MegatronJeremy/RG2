@@ -754,14 +754,13 @@ illumination, and does not demonstrate it for occlusion.
 \draw[dashed, black!55] (axis cs:1.35,0.0024) -- (axis cs:3.7,0.0024);
 \node[font=\scriptsize, black!55, anchor=south east] at (axis cs:3.68,0.0024)
   {measurement floor};
-\draw[black!55, line width=1.1pt] (axis cs:1.70,0.0027) -- (axis cs:2.31,0.0027);
-\draw[black!55, line width=1.1pt] (axis cs:2.42,0.0069) -- (axis cs:3.41,0.0069);
-\draw[black!55, line width=1.1pt] (axis cs:1.54,0.1978) -- (axis cs:2.25,0.1978);
-\addplot[only marks, mark=*, mark size=2.2pt, black]
-  coordinates {(1.70,0.0027) (2.31,0.0027) (3.41,0.0069) (2.42,0.0069) (2.25,0.1978) (1.54,0.1978)};
-\node[font=\small, anchor=south, yshift=4pt] at (axis cs:2.0,0.0027) {ambient occlusion};
-\node[font=\small, anchor=south, yshift=4pt] at (axis cs:2.9,0.0069) {reflections};
-\node[font=\small, anchor=south, yshift=4pt] at (axis cs:1.9,0.1978) {global illumination};
+% Segments, markers and label positions all come from data/tradeoff-seg.dat and data/tradeoff.dat
+% (tools/gen_perf_plots.py), so they cannot drift from the ladder numbers.
+\addplot[black!55, line width=1.1pt] table[col sep=tab, x=mult, y=flipGain] {data/tradeoff-seg.dat};
+\addplot[only marks, mark=*, mark size=2.2pt, black] table[col sep=tab, x=mult, y=flipGain] {data/tradeoff-seg.dat};
+\addplot[only marks, mark=none, font=\small, nodes near coords, point meta=explicit symbolic,
+  every node near coord/.style={anchor=south, yshift=4pt}]
+  table[col sep=tab, x=mid, y=flipGain, meta=effect] {data/tradeoff.dat};
 \end{axis}
 \end{tikzpicture}
 \caption[What ray tracing costs against what it returns]{What ray tracing costs against what it

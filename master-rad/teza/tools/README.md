@@ -28,7 +28,7 @@ committovane baseline-e, pa se izvrsavaju svuda.
 | `thesis_shots.py` | da | 29 snimaka u `latex/figures/`: teaser, senke (mapa/RT, tvrde/meke), refleksije (bez/SSR/RT), GI (bez/sa, polovicna/puna rezolucija), path-traced referenca, deset `render.debugview` rezima, i screen-space naspram RT parovi |
 | `raycount_denoise_sweep.py` | da | `raycount_denoise_results.json` plus slike `spp_sweep_*.png` i `denoise_compare_*.png` |
 | `gen_perf_tables.py` | ne | `data/perf-{effects,passes,shadow-strategy,macros}.tex` iz `Scripts/perf-baseline/` |
-| `gen_perf_plots.py` | ne | `data/{ladder,passcost-vendor,quality-spread}.dat` za pgfplots |
+| `gen_perf_plots.py` | ne | `data/{ladder,passcost-vendor,quality-spread,shadow-strategy,tradeoff,tradeoff-seg}.dat` za pgfplots |
 | `gen_quality_tables.py` | ne | `data/{quality,raycount,denoise-eval,motion,motion-probes}.tex` i `quality-macros.tex` |
 | `gen_shader_tables.py` | ne | `data/shader-occupancy.tex`, `data/rga-macros.tex` i `data/occupancy-{curve,marks}.dat` iz RGA baseline-a |
 
