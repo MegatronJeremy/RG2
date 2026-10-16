@@ -603,8 +603,8 @@ cut the shader's register pressure (Section~\ref{sec:occupancy}), paid asymmetri
 5070 every stride got faster, while on the RX 9070 XT it was close to a wash on the half-resolution
 GI and AO chains (first iteration slower, last one faster) and paid only on the full-resolution ones.
 The per-pass table shows the residue: the AMD denoise chain is front-loaded (\texttt{GIDenoise0}
-0.133 ms falling to 0.089 ms at \texttt{GIDenoise2}) while the NVIDIA one inverts (0.095 ms rising to
-0.127 ms). This is the same resolution-dependent asymmetry isolated in Section~\ref{sec:cena}, seen
+\perfGiDenoiseFirstAMD{} ms falling to \perfGiDenoiseLastAMD{} ms at \texttt{GIDenoise2}) while the NVIDIA one inverts (\perfGiDenoiseFirstNV{} ms rising to
+\perfGiDenoiseLastNV{} ms). This is the same resolution-dependent asymmetry isolated in Section~\ref{sec:cena}, seen
 from the other side, and locality against occupancy at the narrow stride is the obvious lever. As
 there, timestamps cannot separate it from the alternatives, and doing so needs the memory counters
 this thesis does not measure. What the numbers do establish is the practical point: a shader
@@ -1021,7 +1021,7 @@ Only one shader on the render path is occupancy-limited on either card, and it i
 better than a third of the pool of work available to cover memory latency. Compiled without the
 inline shadow query it drops to 87 VGPRs and full occupancy, which
 locates the cost precisely: tracing shadow rays inside the forward shader is what pushes it over a
-wave boundary, the same effect Section~\ref{sec:cena} sees as a Forward pass that grows by 3.551 ms.
+wave boundary, the same effect Section~\ref{sec:cena} sees as a Forward pass that grows by \perfFwdGrowAMD{} ms.
 Nothing in the table spills registers, and across all 47 cooked shaders exactly one uses scratch
 memory at all (\texttt{NeuralConv.comp}, 272 bytes), off the render path.
 
