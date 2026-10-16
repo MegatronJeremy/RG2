@@ -247,6 +247,20 @@ def build():
     macros.append(rf"\newcommand{{\perfLadderRatioBase}}{{{amd_t('rt-off') / nv_t('rt-off'):.2f}}}")
     macros.append(rf"\newcommand{{\perfLadderRatioShadows}}{{{amd_t('shadows') / nv_t('shadows'):.2f}}}")
     macros.append(rf"\newcommand{{\perfLadderRatioGi}}{{{amd_t('+gi') / nv_t('+gi'):.2f}}}")
+    # Per-pass vendor ratios at +gi (same pass set and 0.05 ms floor as passcost-vendor.dat): the mean
+    # over the passes that trace rays against the mean over every other pass, and the a-trous chains'
+    # first-to-last-iteration drop.
+    pa, pn = load(ADAPTERS[0][0], "+gi")["passes"], load(ADAPTERS[1][0], "+gi")["passes"]
+    vr = {n: pa[n]["avgMs"] / pn[n]["avgMs"] for n in pa
+          if n in pn and pn[n]["avgMs"] and max(pa[n]["avgMs"], pn[n]["avgMs"]) >= 0.05}
+    tracing = ("Forward", "Reflection", "GI", "AO")
+    mean = lambda xs: sum(xs) / len(xs)
+    macros.append(rf"\newcommand{{\perfVendorTracingMean}}{{{mean([vr[n] for n in tracing]):.2f}}}")
+    macros.append(rf"\newcommand{{\perfVendorOtherMean}}{{{mean([v for n, v in vr.items() if n not in tracing]):.2f}}}")
+    for chain in ("GI", "AO"):
+        macros.append(rf"\newcommand{{\perfAtrous{chain}First}}{{{vr[chain + 'Denoise0']:.2f}}}")
+        macros.append(rf"\newcommand{{\perfAtrous{chain}Last}}{{{vr[chain + 'Denoise2']:.2f}}}")
+        macros.append(rf"\newcommand{{\perfAtrous{chain}Drop}}{{{vr[chain + 'Denoise2'] / vr[chain + 'Denoise0']:.2f}}}")
     # ray-traced work alone: the +gi total minus the rt-off total, per adapter
     macros.append(rf"\newcommand{{\perfRtOnlyRatio}}"
                   rf"{{{(amd_t('+gi') - amd_t('rt-off')) / (nv_t('+gi') - nv_t('rt-off')):.2f}}}")
