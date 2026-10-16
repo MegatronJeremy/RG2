@@ -593,8 +593,8 @@ since the signature of merely deleting blur is FLIP and PSNR improving while SSI
 structural reason is that the filter is guided by the receiving surface's normal and depth, correct
 for a diffuse gather although wrong for reflections: reflected radiance is view-dependent, so on a
 flat reflective surface those guides are constant and the kernel opens wide exactly where reflected
-detail lives. The chain ran at full resolution with no upsample after it, so removing it is most of
-the 1.1 ms by which reflections became cheaper in
+detail lives. The chain ran at full resolution with no upsample after it, so removing it takes a
+full-resolution pass chain out of the reflection cost in
 Table~\ref{tab:cena}. A roughness-driven kernel remains the structurally right fix, although it now
 has to beat filtering off rather than beat three iterations.
 
