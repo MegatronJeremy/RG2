@@ -95,8 +95,9 @@ pass.}
 \caption[Per-frame passes, in order]{Per-frame passes in execution order. Three effects are
 reconstructed before shading and enter \texttt{Forward} as textures, although shadows are the
 exception and are traced inline inside the \texttt{Forward} pass. The listed post chain is what
-actually executes: \texttt{render.aa} selects one anti-aliasing method rather than chaining them, so
-FXAA and TAA are alternatives and every measurement here uses TAA, while \texttt{render.sharpen} and
+actually executes: \texttt{render.aa} selects one anti-aliasing method rather than chaining them (none, FXAA, TAA, or
+DLAA, the neural temporal network run at native resolution as the temporal resolve), so the four are
+alternatives and every measurement here pins TAA, while \texttt{render.sharpen} and
 \texttt{render.scale} sit at their defaults of 0 and 1.0, which leaves the sharpen and upscale passes
 unscheduled. The frame measured in Table~\ref{tab:pass-cost} contains 22 passes and none of the three
 is among them.}
@@ -117,7 +118,7 @@ Reflections (full) & \texttt{Reflection} $\rightarrow$ \texttt{ReflectionTempora
 \addlinespace[2pt]
 Shading & \texttt{Forward} (\texttt{DefaultLit}): a depth-only prepass, so the lit shader runs once per visible pixel, sky, inline shadow rays, and the combine with GI/AO/reflections \\
 \addlinespace[2pt]
-Post & \texttt{TemporalResolve} (TAA) $\rightarrow$ \texttt{PostProcess} (tonemap). \texttt{Upscale}, \texttt{FXAA} and \texttt{Sharpen} exist but do not run in any configuration measured here \\
+Post & \texttt{TemporalResolve} (TAA) $\rightarrow$ \texttt{PostProcess} (tonemap). \texttt{Upscale} (including the DLAA path), \texttt{FXAA} and \texttt{Sharpen} exist but do not run in any configuration measured here \\
 \addlinespace[2pt]
 Measurement & \texttt{Compare}, \texttt{Metrics} (PSNR, SSIM) \\
 \bottomrule
@@ -312,7 +313,8 @@ degrades to off without ray-tracing support.
 \subsection{Shadows (RT shadows)}
 \label{sec:senke}
 
-Shadows are traced inline in the forward pass, once per light per pixel, at full resolution and
+Shadows are traced inline in the forward pass, once per light per pixel for every enabled directional,
+point and spot light (up to four directionals), at full resolution and
 without an intervening denoiser (\texttt{DefaultLit.frag.hlsl} and the shared RT includes, in the
 \texttt{SS_RAYTRACING} permutation). A shadow ray is a pure visibility test, so it uses the cheapest
 traversal, \texttt{ACCEPT_FIRST_HIT_AND_END_SEARCH}. That traversal is not fully fixed-function,
@@ -324,9 +326,15 @@ self-intersection (Listing~\ref{lst:shadow}). The offset uses the shading normal
 already resolved, which is what the call site passes despite the parameter's name.
 
 The alternative the engine keeps is the raster shadow map, also the default and the fallback on a
-device without ray tracing (Figure~\ref{fig:shadow-vs-map}). Intersecting the real geometry needs no
+device without ray tracing (Figure~\ref{fig:shadow-vs-map}). The sun keeps a dedicated map, and
+\texttt{render.shadow.directionals} (default 1) lets up to three further directionals share an
+atlas of scene-fit tiles, each costing one more scene depth pass, while the ray-traced path ignores
+that budget and traces every casting directional. Cutout (alpha-masked) materials render into the
+map through a separate \texttt{ShadowMasked} pipeline that tests the material's alpha. Intersecting the real geometry needs no
 depth-bias tuning at all, although its price grows with light count where the map amortises over the
-whole frame. Section~\ref{sec:analiza-shadow-strategy} measures that tradeoff.
+whole frame. Section~\ref{sec:analiza-shadow-strategy} measures that tradeoff. Secondary directionals only light
+and shadow the scene: GI, reflections, the path tracer, the sky disc and image-based ambient read the
+first light alone.
 
 \begin{figure}[tbp]
 \centering
@@ -569,7 +577,9 @@ around normal $N$. The fraction that hits geometry within the given radius gives
 
 Reflections are a compute pass (\texttt{Reflection.comp.hlsl}) run at full resolution, unlike the
 half-resolution GI and AO gathers, since reflection detail is view-dependent and does not
-tolerate the blur that half-res tracing plus upsampling introduces. Each pixel reconstructs world
+tolerate the blur that half-res tracing plus upsampling introduces. Pixels whose roughness is at or above \texttt{render.reflections.max\_roughness} (default 0.8) are
+skipped and keep the prefiltered-cube specular, so the traced share of the frame depends on the
+scene's material mix. Each remaining pixel reconstructs world
 position and reflects the view vector about the normal-mapped shading normal (read from a separate
 shading-normal G-buffer, not the geometric normal, so normal maps are mirrored correctly). It needs
 the closest hit, so unlike the visibility queries it uses a plain \texttt{RayQuery<RAY_FLAG_NONE>}
@@ -905,8 +915,8 @@ locally, not on CI.}
 \toprule
 Tool & What it measures & Gate \\
 \midrule
-\texttt{perf-bench}     & GPU ms per pass, config matrix & yes \\
-\texttt{quality-bench}  & FLIP/PSNR/SSIM against the path trace, static camera & yes \\
+\texttt{perf-bench}     & GPU ms per pass, config matrix; optional clock pinning, paired A/B verdict & yes \\
+\texttt{quality-bench}  & FLIP/PSNR/SSIM (LPIPS when available) against the path trace, static camera & yes \\
 \texttt{quality-motion} & FLIP, tFLIP, lag and JOD along the route & yes \\
 \texttt{rga-occupancy}  & register pressure and occupancy, offline & yes \\
 \texttt{quality-tune}   & CVar search against the reference & no \\
