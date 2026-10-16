@@ -285,6 +285,10 @@ def build():
         who = "AMD" if col == "9070" else "NV"
         for k, nm in ((0, "First"), (2, "Last")):
             macros.append(rf"\newcommand{{\perfGiDenoise{nm}{who}}}{{{pass_ms(v, f'GIDenoise{k}@'):.3f}}}")
+    # Passes in the measured frame (+gi rung); the Chapter 3 framegraph caption cites it.
+    if len(p9) != len(p5):
+        sys.exit(f"pass count differs between adapters: {len(p9)} vs {len(p5)}")
+    macros.append(rf"\newcommand{{\perfPassCount}}{{{len(p9)}}}")
     out["perf-macros.tex"] = "\n".join(macros) + "\n"
 
     if res["9070"][:2] != res["5070"][:2]:
