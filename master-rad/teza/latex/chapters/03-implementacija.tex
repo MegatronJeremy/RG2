@@ -99,7 +99,7 @@ actually executes: \texttt{render.aa} selects one anti-aliasing method rather th
 DLAA, the neural temporal network run at native resolution as the temporal resolve), so the four are
 alternatives and every measurement here pins TAA, while \texttt{render.sharpen} and
 \texttt{render.scale} sit at their defaults of 0 and 1.0, which leaves the sharpen and upscale passes
-unscheduled. The frame measured in Table~\ref{tab:pass-cost} contains 22 passes and none of the three
+unscheduled. The frame measured in Table~\ref{tab:pass-cost} contains \perfPassCount{} passes and none of the three
 is among them.}
 \label{tab:framegraph}
 \centering
@@ -581,7 +581,7 @@ tolerate the blur that half-res tracing plus upsampling introduces. Pixels whose
 skipped and keep the prefiltered-cube specular, so the traced share of the frame depends on the
 scene's material mix. Each remaining pixel reconstructs world
 position and reflects the view vector about the normal-mapped shading normal (read from a separate
-shading-normal G-buffer, not the geometric normal, so normal maps are mirrored correctly). It needs
+shading-normal G-buffer, not the geometric normal, so normal maps are mirrored correctly; cooked normal maps are BC5, which stores only X and Y, so \texttt{NormalEncode.hlsli} reconstructs Z, and the path tracer decodes through the same function). It needs
 the closest hit, so unlike the visibility queries it uses a plain \texttt{RayQuery<RAY_FLAG_NONE>}
 and runs traversal to completion.
 
@@ -916,7 +916,7 @@ locally, not on CI.}
 Tool & What it measures & Gate \\
 \midrule
 \texttt{perf-bench}     & GPU ms per pass, config matrix; optional clock pinning, paired A/B verdict & yes \\
-\texttt{quality-bench}  & FLIP/PSNR/SSIM (LPIPS when available) against the path trace, static camera & yes \\
+\texttt{quality-bench}  & FLIP/PSNR/SSIM (LPIPS when available) against the path trace, static camera, fixed \texttt{render.resolution} & yes \\
 \texttt{quality-motion} & FLIP, tFLIP, lag and JOD along the route & yes \\
 \texttt{rga-occupancy}  & register pressure and occupancy, offline & yes \\
 \texttt{quality-tune}   & CVar search against the reference & no \\

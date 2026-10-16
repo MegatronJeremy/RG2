@@ -323,22 +323,22 @@ constant ambient cannot reproduce.
 
 \paragraph{Two caveats bound the vendor ratios.} The first is that they are not properties of a
 shader. The three a-trous rows in Figure~\ref{fig:vendor-ratio} are one shader dispatched three times
-with a widening tap stride, and the ratio falls across them from \(1.40\) to \(0.71\). A controlled
+with a widening tap stride, and the ratio falls across them from \perfAtrousGIFirst{} to \perfAtrousGILast{} on the GI chain (\perfAtrousAOFirst{} to \perfAtrousAOLast{} on AO). A controlled
 experiment on the shadow denoise chain, which runs that same shader, separates the two things that
 differ between those rows. Holding the kernel uniform and varying only the internal resolution, the
 ratio between the first and third iteration is \(1.02\) at full resolution and \(0.47\) at half, and
 with the penumbra-sized kernel it is \(1.20\) and \(0.65\). Both full-resolution arms are flat and
 both half-resolution arms invert, so what drives it is the resolution the chain runs at rather than
 the kernel, and the half-resolution uniform arm reproduces the GI and AO chains (\(0.47\) against
-\(0.51\)). Why a smaller working set should reverse the vendor ordering is not isolated here and
+\perfAtrousGIDrop{} and \perfAtrousAODrop{}, the same first-to-third drop read from the \texttt{+gi} baselines). Why a smaller working set should reverse the vendor ordering is not isolated here and
 would need hardware counters rather than timestamps. What the experiment does establish is that a
 per-pass vendor ratio has to be quoted with the resolution it was measured at, since the same code
 inverts across that one variable (three runs per arm, medians, RX 9070 XT against RTX 5070).
 
 The second bounds the traversal argument itself. Section~\ref{sec:accel-pregled} offers the
 shader-driven traversal loop as the structural reason to expect ray work to cost more on RDNA, and
-the per-pass split is consistent with it, since the passes that trace average a ratio of 1.36 against
-1.04 for the pure reconstruction passes. It does not explain the whole-frame gap, though, and the
+the per-pass split is consistent with it, since the passes that trace average a ratio of \perfVendorTracingMean{} against
+\perfVendorOtherMean{} for all the other passes. It does not explain the whole-frame gap, though, and the
 ladder says so. The RX 9070 XT is \perfLadderRatioShadows{} times slower than the RTX 5070 at the \texttt{shadows} rung
 and \perfLadderRatioGi{} times slower at \texttt{+gi}, so the gap \emph{narrows} as ray tracing is added, and the
 ray-traced work alone (the \texttt{+gi} total minus the \texttt{rt-off} total) carries a ratio of
@@ -1021,8 +1021,8 @@ better than a third of the pool of work available to cover memory latency. Compi
 inline shadow query it drops to 87 VGPRs and full occupancy, which
 locates the cost precisely: tracing shadow rays inside the forward shader is what pushes it over a
 wave boundary, the same effect Section~\ref{sec:cena} sees as a Forward pass that grows by \perfFwdGrowAMD{} ms.
-Nothing in the table spills registers, and across all 47 cooked shaders exactly one uses scratch
-memory at all (\texttt{NeuralConv.comp}, 272 bytes), off the render path.
+Nothing in the table spills registers, and across all \rgaShaderCount{} cooked shaders exactly one uses scratch
+memory at all (\texttt{NeuralConv.comp}, \rgaScratchBytes{} bytes), off the render path.
 
 Figure~\ref{fig:occupancy-cliff} plots why the two permutations land so far apart for a difference of
 43 registers. Occupancy is a step function of register use, since registers are allocated in fixed
