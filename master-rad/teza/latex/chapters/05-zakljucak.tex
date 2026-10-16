@@ -12,10 +12,9 @@ existing rasterizing forward renderer rather than a standalone tracer
 (Chapter~\ref{ch:implementacija}). Shadows are the exception that shows the design works: on the
 default path two rays per light resolve visibility inline during shading, cheaply enough to need no
 reconstruction pass at all. Table~\ref{tab:summary} collects the headline
-numbers from Chapter~\ref{ch:analiza}. The two cards do not agree on which effect costs most: the
-most expensive is \perfTopEffectAMD{} on the RX 9070 XT and \perfTopEffectNV{} on the RTX 5070, and
-each winner is separated from every other effect by more than the run-to-run spread, so the
-disagreement is a result rather than a tie being broken by noise. It reaches the engineering decision
+numbers from Chapter~\ref{ch:analiza}. The two cards agree that \perfTopEffectAMD{} cost most, but only the
+RX 9070 XT separates it from the other effects by more than the run-to-run spread; on the RTX 5070 it
+is tied with global illumination. Where they do disagree is the engineering decision
 itself: with this scene's five lights the stochastic shadow strategy is the cheaper of the two on the
 RX 9070 XT (\perfShadowStochAMD{} against \perfShadowInlineAMD{} ms) and \perfShadowRatioNV{}x the
 more expensive on the RTX 5070 (\perfShadowStochNV{} against \perfShadowInlineNV{} ms), so a renderer

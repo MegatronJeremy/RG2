@@ -240,6 +240,45 @@ def build():
     for tag, passes in (("AMD", p9), ("NV", p5)):
         tot = sum(pass_ms(passes, f"GIDenoise{i}") or 0.0 for i in range(3))
         macros.append(rf"\newcommand{{\perfDenoise{tag}}}{{{tot:.3f}}}")
+    # Derived ratios the Section 4.2 prose quotes. All of them were typed by hand and two of them
+    # (the ladder ratios) no longer matched the baselines after a re-capture.
+    amd_t = lambda c: totals[("9070", c)]
+    nv_t = lambda c: totals[("5070", c)]
+    macros.append(rf"\newcommand{{\perfLadderRatioBase}}{{{amd_t('rt-off') / nv_t('rt-off'):.2f}}}")
+    macros.append(rf"\newcommand{{\perfLadderRatioShadows}}{{{amd_t('shadows') / nv_t('shadows'):.2f}}}")
+    macros.append(rf"\newcommand{{\perfLadderRatioGi}}{{{amd_t('+gi') / nv_t('+gi'):.2f}}}")
+    # ray-traced work alone: the +gi total minus the rt-off total, per adapter
+    macros.append(rf"\newcommand{{\perfRtOnlyRatio}}"
+                  rf"{{{(amd_t('+gi') - amd_t('rt-off')) / (nv_t('+gi') - nv_t('rt-off')):.2f}}}")
+    # Run-to-run spread (percent of the rung's own total): the rt-off rung against its neighbours
+    spct = {}
+    for slug, col in ADAPTERS:
+        for cfg in ("rt-off", "shadows", "+ao"):
+            spct[(col, cfg)] = load(slug, cfg).get("totalSpreadPct", 0.0)
+    macros.append(rf"\newcommand{{\perfSpreadBaseAMD}}{{{spct[('9070', 'rt-off')]:.1f}}}")
+    macros.append(rf"\newcommand{{\perfSpreadBaseNV}}{{{spct[('5070', 'rt-off')]:.1f}}}")
+    macros.append(rf"\newcommand{{\perfSpreadNeighbourMax}}"
+                  rf"{{{max(spct[(c, k)] for c in ('9070', '5070') for k in ('shadows', '+ao')):.1f}}}")
+    # Cost multiple of each ray-traced effect over its screen-space producer, per adapter
+    factors = []
+    for rt, ss, name in (("+ao", "ssao", "Ao"), ("+refl", "ssr", "Refl"), ("+gi", "ssgi", "Gi")):
+        base = dict(((c, b) for c, b, _ in SCREEN_SPACE))[ss]
+        for slug, col in ADAPTERS:
+            f = delta(col, rt) / (load(slug, ss)["totalGpuMs"] - totals[(col, base)])
+            factors.append(f)
+            macros.append(rf"\newcommand{{\perfSsFactor{name}{'AMD' if col == '9070' else 'NV'}}}{{{f:.2f}}}")
+    macros.append(rf"\newcommand{{\perfSsFactorMin}}{{{min(factors):.1f}}}")
+    macros.append(rf"\newcommand{{\perfSsFactorMax}}{{{max(factors):.1f}}}")
+    # Per-pass closure of the shadows rung on the 9070 XT: Forward growth against what the raster
+    # shadow passes (Shadow, PointShadows) return, both against the whole-frame delta.
+    r_off = load(ADAPTERS[0][0], "rt-off")["passes"]
+    r_sh = load(ADAPTERS[0][0], "shadows")["passes"]
+    fwd = pass_ms(r_sh, "Forward@") - pass_ms(r_off, "Forward@")
+    ret = sum(pass_ms(r_off, n + "@") - pass_ms(r_sh, n + "@") for n in ("Shadow", "PointShadows"))
+    macros.append(rf"\newcommand{{\perfFwdGrowAMD}}{{{fwd:.3f}}}")
+    macros.append(rf"\newcommand{{\perfShadowMapsAMD}}{{{ret:.3f}}}")
+    macros.append(rf"\newcommand{{\perfPassNetAMD}}{{{fwd - ret:.3f}}}")
+    macros.append(rf"\newcommand{{\perfPassResidAMD}}{{{fwd - ret - delta('9070', 'shadows'):.3f}}}")
     out["perf-macros.tex"] = "\n".join(macros) + "\n"
 
     if res["9070"][:2] != res["5070"][:2]:

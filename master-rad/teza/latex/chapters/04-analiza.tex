@@ -102,7 +102,7 @@ and FLIP 0.024 of 0.349, so the lift in Section~\ref{sec:poredjenje} is dominate
 illumination rather than by this cap.
 
 The two families of measurement in this chapter do not share a resolution, because they are hosted
-differently. Timings come from the editor at $1915 \times 1064$, a size each baseline records so that
+differently. Timings come from the editor at $\perfWidth{} \times \perfHeight{}$, a size each baseline records so that
 a run at another one is skipped rather than compared, while quality captures run the editor-free
 runtime and are resampled to a canonical size before scoring. Costs are therefore compared against
 costs and scores against scores, never across the two. Both hold the camera static for every A/B,
@@ -259,13 +259,15 @@ AMD.}
 \label{fig:vendor-ratio}
 \end{figure}
 
-The two cards do not agree on which effect is most expensive, and that disagreement is the result
-rather than a rounding artifact. The most expensive is \perfTopEffectAMD{} on the RX 9070 XT
-(\perfEffShadowsAMD{} ms) and \perfTopEffectNV{} on the RTX 5070 (\perfEffGiNV{} ms, where shadows
-cost \perfEffShadowsNV{}). Each winner clears the combined run-to-run spread of the two
-configurations its cost is differenced from, so the ranking is readable on both cards. The one pair
-the 5070 cannot separate is \perfUnresolvedNV{}, \perfUnresolvedGapNV{} ms apart, and ambient
-occlusion is cheapest on both. All four together cost \perfFourEffectsAMD{} and
+The two cards agree on the most expensive effect, \perfTopEffectAMD{} on the RX 9070 XT
+(\perfEffShadowsAMD{} ms) and \perfTopEffectNV{} on the RTX 5070 (\perfEffShadowsNV{} ms), and on the
+cheapest, ambient occlusion. Below the top they do not give the same order, and the measurement
+resolves only part of it. Each cost is a difference of two configurations, so it carries both
+configurations' run-to-run spread. On the 9070 XT shadows clear that spread, while
+\perfUnresolvedAMD{} are \perfUnresolvedGapAMD{} ms apart, inside it. On the 5070 shadows do not
+clear it against global illumination (\perfEffGiNV{} ms), \perfUnresolvedGapNV{} ms apart, so the
+top of the 5070 ranking is a tie and the order of the effects below it (global illumination above
+reflections at \perfEffReflNV{} ms) is the only one it supports. All four together cost \perfFourEffectsAMD{} and
 \perfFourEffectsNV{} ms, for totals of \perfTotalAMD{} and \perfTotalNV{} ms, both inside the
 16.7 ms of a 60 Hz frame, which is what makes the real-time claim a measurement rather than a label.
 Figure~\ref{fig:ladder} plots the ladder and Figure~\ref{fig:effect-gallery} shows what each effect
@@ -278,18 +280,21 @@ terminate on first hit where a reflection ray can cross the scene and then shade
 Reflections are the only effect still tracing at full resolution, and that they are no longer the
 most expensive is a default change rather than an optimisation: their à-trous measured net-negative
 and now runs zero iterations (Section~\ref{sec:denoise-eval}), removing a full-resolution three-pass
-chain worth roughly 1.1 ms. Every effect with a screen-space alternative is cheaper in that form, on
-both cards and by a similar factor of roughly two to three (Table~\ref{tab:cena}). That factor is
-what asking about off-screen geometry costs, and it is the stable half of the comparison. Whether it
+chain. Every effect with a screen-space alternative is cheaper in that form, on both cards, but not
+by one factor: \perfSsFactorMin{} to \perfSsFactorMax{} times (Table~\ref{tab:cena}), from
+\perfSsFactorGiNV{} for global illumination on the 5070 up to \perfSsFactorReflAMD{} for reflections on
+the 9070 XT. That factor is what asking about off-screen geometry costs, and it is the stable half of
+the comparison, in that it never falls below \perfSsFactorMin{}. Whether it
 buys anything is Section~\ref{sec:poredjenje}, where the answer turns out to depend entirely on which
 effect is being paid for.
 
 Shadows are read across configurations rather than from a pass, having no scope of their own, and
 their per-pass terms do not quite close. Between \texttt{rt-off} and \texttt{shadows} on the 9070 XT
-the Forward pass grows 3.551 ms while the raster shadow maps return 1.179 ms, giving 2.372 ms against
-a measured whole-frame delta of \perfEffShadowsAMD{} ms. The remaining 0.125 ms is every other pass
-shrinking at once, which is a clock shift rather than a saving, so the whole-frame difference is the
-number to quote.
+the Forward pass grows \perfFwdGrowAMD{} ms while the raster shadow passes (\texttt{Shadow} and
+\texttt{PointShadows}) return \perfShadowMapsAMD{} ms, giving \perfPassNetAMD{} ms against a measured
+whole-frame delta of \perfEffShadowsAMD{} ms. The remaining \perfPassResidAMD{} ms is the other
+passes shrinking at once and the time outside any pass scope, which is a clock shift rather than a
+saving, so the whole-frame difference is the number to quote.
 
 \begin{figure}[tbp]
 \centering
@@ -334,16 +339,16 @@ The second bounds the traversal argument itself. Section~\ref{sec:accel-pregled}
 shader-driven traversal loop as the structural reason to expect ray work to cost more on RDNA, and
 the per-pass split is consistent with it, since the passes that trace average a ratio of 1.36 against
 1.04 for the pure reconstruction passes. It does not explain the whole-frame gap, though, and the
-ladder says so. The RX 9070 XT is 1.71 times slower than the RTX 5070 at the \texttt{shadows} rung
-and 1.43 times slower at \texttt{+gi}, so the gap \emph{narrows} as ray tracing is added, and the
+ladder says so. The RX 9070 XT is \perfLadderRatioShadows{} times slower than the RTX 5070 at the \texttt{shadows} rung
+and \perfLadderRatioGi{} times slower at \texttt{+gi}, so the gap \emph{narrows} as ray tracing is added, and the
 ray-traced work alone (the \texttt{+gi} total minus the \texttt{rt-off} total) carries a ratio of
-1.36 against 1.70 for the frame with no ray tracing in it. If shader-driven traversal were the
+\perfRtOnlyRatio{} against \perfLadderRatioBase{} for the frame with no ray tracing in it. If shader-driven traversal were the
 dominant term, adding ray tracing should widen the gap rather than close it. The honest reading is
 that this engine is broadly slower on this AMD card for reasons the measurement does not identify,
 and that ray tracing is not where the penalty concentrates. The \texttt{rt-off} rung is the least
-trustworthy of these numbers, at 12.7\% run-to-run spread against 2.1\% on the NVIDIA side for the
+trustworthy of these numbers, at \perfSpreadBaseAMD{}\% run-to-run spread against \perfSpreadBaseNV{}\% on the NVIDIA side for the
 reason given in Section~\ref{sec:metodologija}, although the trend survives without it, since the two
-rungs either side of it spread under 3.5\%.
+rungs either side of it spread at most \perfSpreadNeighbourMax{}\% on either card.
 
 \section{Two shadow strategies: inline versus stochastic}
 \label{sec:analiza-shadow-strategy}
@@ -741,28 +746,28 @@ illumination, and does not demonstrate it for occlusion.
 \begin{axis}[width=0.82\textwidth, height=6.4cm,
   xlabel={cost of ray tracing, as a multiple of the screen-space method},
   ylabel={FLIP gained over it}, ymode=log,
-  ymin=0.0018, ymax=0.42, xmin=1.35, xmax=2.95,
+  ymin=0.0018, ymax=0.42, xmin=1.35, xmax=3.7,
   ytick={0.002,0.005,0.01,0.02,0.05,0.1,0.2},
   yticklabels={0.002,0.005,0.01,0.02,0.05,0.10,0.20},
   grid=major, grid style={black!12},
   tick label style={font=\small}, label style={font=\small}]
-\draw[dashed, black!55] (axis cs:1.35,0.0024) -- (axis cs:2.95,0.0024);
-\node[font=\scriptsize, black!55, anchor=south east] at (axis cs:2.93,0.0024)
+\draw[dashed, black!55] (axis cs:1.35,0.0024) -- (axis cs:3.7,0.0024);
+\node[font=\scriptsize, black!55, anchor=south east] at (axis cs:3.68,0.0024)
   {measurement floor};
-\draw[black!55, line width=1.1pt] (axis cs:1.63,0.0027) -- (axis cs:1.71,0.0027);
-\draw[black!55, line width=1.1pt] (axis cs:2.03,0.0069) -- (axis cs:2.66,0.0069);
-\draw[black!55, line width=1.1pt] (axis cs:2.34,0.1978) -- (axis cs:2.49,0.1978);
+\draw[black!55, line width=1.1pt] (axis cs:1.70,0.0027) -- (axis cs:2.31,0.0027);
+\draw[black!55, line width=1.1pt] (axis cs:2.42,0.0069) -- (axis cs:3.41,0.0069);
+\draw[black!55, line width=1.1pt] (axis cs:1.54,0.1978) -- (axis cs:2.25,0.1978);
 \addplot[only marks, mark=*, mark size=2.2pt, black]
-  coordinates {(1.63,0.0027) (1.71,0.0027) (2.66,0.0069) (2.03,0.0069) (2.49,0.1978) (2.34,0.1978)};
-\node[font=\small, anchor=south, yshift=4pt] at (axis cs:1.67,0.0027) {ambient occlusion};
-\node[font=\small, anchor=south, yshift=4pt] at (axis cs:2.35,0.0069) {reflections};
-\node[font=\small, anchor=south, yshift=4pt] at (axis cs:2.42,0.1978) {global illumination};
+  coordinates {(1.70,0.0027) (2.31,0.0027) (3.41,0.0069) (2.42,0.0069) (2.25,0.1978) (1.54,0.1978)};
+\node[font=\small, anchor=south, yshift=4pt] at (axis cs:2.0,0.0027) {ambient occlusion};
+\node[font=\small, anchor=south, yshift=4pt] at (axis cs:2.9,0.0069) {reflections};
+\node[font=\small, anchor=south, yshift=4pt] at (axis cs:1.9,0.1978) {global illumination};
 \end{axis}
 \end{tikzpicture}
 \caption[What ray tracing costs against what it returns]{What ray tracing costs against what it
 returns, per effect. Each segment spans the two adapters' cost multiples at that effect's quality
 gain, which is measured on the RX 9070 XT alone, and the dashed line is the measurement floor of
-Section~\ref{sec:metodologija}. The prices are all alike, between 1.6 and 2.7 times the screen-space
+Section~\ref{sec:metodologija}. The prices are all alike, between \perfSsFactorMin{} and \perfSsFactorMax{} times the screen-space
 method, and the returns are not: global illumination sits an order of magnitude above the other two,
 and ambient occlusion lands on the floor. Both axes are computed
 inside one screen-space/ray-traced pair, a ratio and a difference, so neither depends on which
