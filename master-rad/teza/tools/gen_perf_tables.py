@@ -279,6 +279,12 @@ def build():
     macros.append(rf"\newcommand{{\perfShadowMapsAMD}}{{{ret:.3f}}}")
     macros.append(rf"\newcommand{{\perfPassNetAMD}}{{{fwd - ret:.3f}}}")
     macros.append(rf"\newcommand{{\perfPassResidAMD}}{{{fwd - ret - delta('9070', 'shadows'):.3f}}}")
+    # GIDenoise stride cost per adapter at +gi (the per-pass vendor asymmetry paragraph of Ch.4)
+    for slug, col in ADAPTERS:
+        v = load(slug, "+gi")["passes"]
+        who = "AMD" if col == "9070" else "NV"
+        for k, nm in ((0, "First"), (2, "Last")):
+            macros.append(rf"\newcommand{{\perfGiDenoise{nm}{who}}}{{{pass_ms(v, f'GIDenoise{k}@'):.3f}}}")
     out["perf-macros.tex"] = "\n".join(macros) + "\n"
 
     if res["9070"][:2] != res["5070"][:2]:
