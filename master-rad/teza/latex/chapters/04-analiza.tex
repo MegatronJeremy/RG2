@@ -1021,7 +1021,7 @@ Only one shader on the render path is occupancy-limited on either card, and it i
 better than a third of the pool of work available to cover memory latency. Compiled without the
 inline shadow query it drops to 87 VGPRs and full occupancy, which
 locates the cost precisely: tracing shadow rays inside the forward shader is what pushes it over a
-wave boundary, the same effect Section~\ref{sec:cena} sees as a Forward pass that grows by 3.551 ms.
+wave boundary, the same effect Section~\ref{sec:cena} sees as a Forward pass that grows by \perfFwdGrowAMD{} ms.
 Nothing in the table spills registers, and across all 47 cooked shaders exactly one uses scratch
 memory at all (\texttt{NeuralConv.comp}, 272 bytes), off the render path.
 
