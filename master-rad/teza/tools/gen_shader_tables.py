@@ -29,7 +29,7 @@ NV = ENGINE / "Scripts" / "shader-stats-baseline" / "nvidia-geforce-rtx-5070.jso
 
 # gfx1201 is Navi 48 (RX 9070 / 9070 XT); gfx1200 is Navi 44 (RX 9060 / 9060 XT), per RGA's own target
 # list. The table names the 9070 XT, so it has to read the 9070 XT's ASIC even though the two agree:
-# all 47 cooked shaders allocate identically on both, so this changes provenance, not numbers.
+# the RGA baselines of the two ASICs can differ (gfx1200 was regenerated after engine #101, gfx1201 was not), so the 9070 XT file is the one cited.
 ASIC = "gfx1201"
 
 # The occupancy models are IMPORTED, never restated here. A copy in this file would be a third
@@ -139,8 +139,20 @@ def main():
             marks.append(f"{v}\t{amd_waves(v)}\t{short}")
     marks_txt = "\n".join(marks) + "\n"
 
+    # The scratch claim in the occupancy section: the prose names one shader, so refuse to emit
+    # macros when the baseline's scratch set is anything else, instead of leaving the sentence stale.
+    scratch = {k: int(v["scratch"]) for k, v in rga.items() if v.get("scratch")}
+    if list(scratch) != ["NeuralConv.comp"]:
+        sys.exit(f"FAIL: scratch users in the RGA baseline are {sorted(scratch)}; "
+                 "rewrite the scratch sentence in 04-analiza.tex")
+    macros = (
+        f"\\newcommand{{\\rgaShaderCount}}{{{len(rga)}}}\n"
+        f"\\newcommand{{\\rgaScratchBytes}}{{{scratch['NeuralConv.comp']}}}\n"
+    )
+
     DATA.mkdir(parents=True, exist_ok=True)
     outputs = {
+        "rga-macros.tex": macros,
         "shader-occupancy.tex": table,
         "occupancy-curve.dat": curve_txt,
         "occupancy-marks.dat": marks_txt,

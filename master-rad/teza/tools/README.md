@@ -30,7 +30,7 @@ committovane baseline-e, pa se izvrsavaju svuda.
 | `gen_perf_tables.py` | ne | `data/perf-{effects,passes,shadow-strategy,macros}.tex` iz `Scripts/perf-baseline/` |
 | `gen_perf_plots.py` | ne | `data/{ladder,passcost-vendor,quality-spread}.dat` za pgfplots |
 | `gen_quality_tables.py` | ne | `data/{quality,raycount,denoise-eval,motion,motion-probes}.tex` i `quality-macros.tex` |
-| `gen_shader_tables.py` | ne | `data/shader-occupancy.tex` i `data/occupancy-{curve,marks}.dat` iz RGA baseline-a |
+| `gen_shader_tables.py` | ne | `data/shader-occupancy.tex`, `data/rga-macros.tex` i `data/occupancy-{curve,marks}.dat` iz RGA baseline-a |
 
 Svaki generator ima `--check`, koji ne pise nista i vraca ne-nulti kod ako je izlaz zastareo u
 odnosu na baseline. To je kapija: ako `--check` prijavi STALE, brojevi u tezi vise ne odgovaraju
