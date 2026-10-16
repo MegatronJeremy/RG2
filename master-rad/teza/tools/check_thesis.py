@@ -12,6 +12,8 @@ here, since those cannot be automated and re-litigating them is what makes a rev
 
 Exit 0 = all gates pass. Exit 1 = at least one failed.
 """
+from __future__ import annotations
+
 import argparse
 import io
 import re
