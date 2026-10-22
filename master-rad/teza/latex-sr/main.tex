@@ -1,0 +1,172 @@
+% !TeX program = pdflatex
+% Srpsko izdanje (probno: samo glava 5). Deli etf.cls, figures/, data/ i literaturu sa ../latex/.
+% Build iz latex-sr/: TEXINPUTS=../latex//: pdflatex x2 (vidi README.md u ovom folderu).
+\documentclass[master,a4paper,12pt,oneside]{etf}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[a4paper, top=30mm, bottom=30mm, left=20mm, right=20mm]{geometry} % PPK margins
+% Serbian last, so it is the document language and the text is hyphenated by Serbian patterns.
+\usepackage[english,serbian]{babel}
+
+\usepackage{graphicx}
+\graphicspath{{../latex/figures/}{../latex/}}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning, fit, backgrounds}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage{microtype}
+\usepackage[hidelinks]{hyperref}
+\usepackage[nohyphen]{underscore} % literal _ in text/\texttt; break at _ without a hyphen
+\setlength{\emergencystretch}{3em} % avoid right-margin overhang on hard-to-break code lines
+\usepackage{needspace} % keep short atomic blocks (code listings) from splitting across pages
+
+% Float packing. The defaults assume a text-heavy document and reserve at least 20% of every page for
+% prose (\textfraction), which in a chapter with roughly one float per page pushes floats onto pages of
+% their own and leaves large gaps. These let a page carry more float and less filler; the content is
+% unchanged, only how densely it sets.
+\renewcommand{\topfraction}{0.92}
+\renewcommand{\bottomfraction}{0.75}
+\renewcommand{\textfraction}{0.08}
+\renewcommand{\floatpagefraction}{0.72}
+\setcounter{topnumber}{3}
+\setcounter{bottomnumber}{2}
+\setcounter{totalnumber}{4}
+
+% Widow/orphan control: don't strand a single line at the top/bottom of a page.
+% Safe here because the class is \raggedbottom (oneside): slack goes to the page bottom.
+\clubpenalty=10000
+\widowpenalty=10000
+\displaywidowpenalty=10000
+\usepackage{fancyhdr}
+
+% Nazivi strukture na srpskom (babel serbian daje ove nazive, ali eksplicitno radi doslednosti sa ../latex/).
+\addto\captionsserbian{%
+  \renewcommand{\contentsname}{Sadr\v{z}aj}%
+  \renewcommand{\listfigurename}{Spisak slika}%
+  \renewcommand{\listtablename}{Spisak tabela}%
+  \renewcommand{\bibname}{Literatura}%
+  \renewcommand{\figurename}{Slika}%
+  \renewcommand{\tablename}{Tabela}%
+  \renewcommand{\abstractname}{Sa\v{z}etak}%
+  \renewcommand{\chaptername}{Glava}%
+}
+
+% PPK: page number in the bottom-right corner, on every page including chapter-opening (plain) pages.
+\setlength{\headheight}{15pt}
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\fancyfoot[R]{\thepage}
+\fancypagestyle{plain}{\fancyhf{}\renewcommand{\headrulewidth}{0pt}\fancyfoot[R]{\thepage}}
+
+% PPK: chapter titles UPPERCASE at ~20pt (\LARGE); the "Glava N" label at \large. ToC/bookmarks keep
+% mixed case (they are written before \@makechapterhead runs).
+\makeatletter
+\renewcommand\@makechapterhead[1]{%
+  \vspace*{50\p@}%
+  {\parindent\z@ \raggedright \normalfont
+    \ifnum \c@secnumdepth >\m@ne
+      \large\bfseries \@chapapp\space\thechapter \par\nobreak \vskip 18\p@
+    \fi
+    \interlinepenalty\@M
+    \LARGE\bfseries \MakeUppercase{#1}\par\nobreak \vskip 40\p@}}
+\renewcommand\@makeschapterhead[1]{%
+  \vspace*{50\p@}%
+  {\parindent\z@ \raggedright \normalfont
+    \interlinepenalty\@M
+    \LARGE\bfseries \MakeUppercase{#1}\par\nobreak \vskip 40\p@}}
+\makeatother
+
+% Inline/code listing defaults (characteristic snippets, per PPK; not full code).
+\lstset{basicstyle=\ttfamily\small, breaklines=true, columns=fullflexible,
+        frame=single, captionpos=b, tabsize=2, showstringspaces=false}
+
+% Reference title quotes. PPK specifies the Serbian „...“ pair; the thesis text is English, so the
+% titles take English quotes and the one macro switches the whole bibliography either way.
+\newcommand{\rqt}[1]{\textquotedblleft #1\textquotedblright}
+
+% Both titles are registered on the topic-application form (master-rad/prijava/); the Serbian one leads
+% here because this edition is in Serbian. Keep both in step with the form and with ../latex/main.tex.
+\title{Hibridno osvetljenje u realnom vremenu primenom pra\'cenja zraka\\[0.6ex]
+       {\large Real-Time Hybrid Lighting Using Ray Tracing}}
+\author{Vuk \DJ or\dj evi\'c}
+\indeks{2024/3102}
+\mentor{prof. dr Dra\v{z}en Dra\v{s}kovi\'c}
+% Revised edition: the cover says so (etf.cls prints \@date under "Beograd,"). The defended text is
+% frozen unchanged in ../defended/.
+\date{2026\\[1.5ex]{\normalsize revidirano izdanje, uz doprinos AI agenata}}
+
+% Performance figures quoted in the text. Generated from the engine's committed perf baselines by
+% tools/gen_perf_tables.py, never typed by hand: the previous hand-maintained data file drifted out
+% of sync with a re-baseline and nothing detected it.
+\input{../latex/data/perf-macros.tex}
+\input{../latex/data/quality-macros.tex}
+\input{../latex/data/omm-macros.tex}
+\input{../latex/data/rga-macros.tex}
+
+\begin{document}
+
+\maketitle
+
+% --- Sa\v{z}etak + klju\v{c}ne re\v{c}i (PPK) ---
+\begin{abstract}
+Ovaj rad integri\v{s}e \v{c}etiri efekta osvetljenja zasnovana na pra\'cenju zrakova (senke,
+ambijentalnu okluziju, refleksije i difuzno globalno osvetljenje) kao inline ray query
+(\texttt{VK_KHR_ray_query}) prolaze preko rasterizacionog forward prolaza, u engine-u koji je autor
+sam napisao kori\v{s}\'cenjem Vulkan API-ja. Rasterizacija te globalne efekte ina\v{c}e pribli\v{z}no
+aproksimira postupcima u
+prostoru ekrana i unapred izra\v{c}unatim postupcima, koji otkazuju na geometriji van ekrana i na
+dinami\v{c}koj sceni. \v{S}umoviti signali se rekonstrui\v{s}u jednim zajedni\v{c}kim SVGF filtrom i
+stabilizuju temporalnim anti-aliasing-om, dok senke na podrazumevanoj putanji ne zahtevaju prolaz za
+uklanjanje \v{s}uma nego se vidljivost razre\v{s}ava inline tokom sen\v{c}enja. Cena svakog efekta na grafi\v{c}kom procesoru izoluje se
+A/B matricom konfiguracija, a kvalitet rekonstrukcije meri se merama FLIP, PSNR i SSIM u odnosu na
+konvergiranu path-traced referencu, preko vi\v{s}e ta\v{c}aka gledi\v{s}ta, na hardveru dva
+proizvo\dj a\v{c}a (AMD RDNA4 i NVIDIA Blackwell) uz isti kod. Sva \v{c}etiri efekta zajedno ko\v{s}taju
+\perfTotalAMD{} ms i \perfTotalNV{} ms po kadru na dve kartice, unutar bud\v{z}eta za 60 Hz, i
+podi\v{z}u kvalitet rekonstrukcije sa FLIP \qRasterFlip{} na \qAllRtFlip{} i PSNR \qRasterPsnr{} na
+\qAllRtPsnr{} dB u odnosu na referencu. Dva proizvo\dj a\v{c}a se ne sla\v{z}u oko toga koji je efekat
+najskuplji, na RX 9070 XT su to senke a na RTX 5070 globalno osvetljenje, i to neslaganje se prenosi
+na in\v{z}enjersku odluku: od dve implementirane strategije za senke, stohasti\v{c}ka je jeftinija na
+AMD-u a \perfShadowRatioNV{} puta skuplja na NVIDIA-i, pa je renderer koji fiksira bilo koju od njih
+pogre\v{s}an na jednoj od ove dve kartice aktuelne generacije. Merenje na jednom proizvo\dj a\v{c}u to
+ne bi otkrilo.
+\end{abstract}
+
+\begin{keywords}
+ray tracing u realnom vremenu; ray query; Vulkan; globalno osvetljenje; ambijentalna okluzija;
+refleksije; SVGF; uklanjanje \v{s}uma; hibridno renderovanje; cross-vendor; AMD RDNA4; NVIDIA Blackwell
+\end{keywords}
+
+% PPK: front matter in roman numerals; arabic count restarts at Uvod.
+\pagenumbering{roman}
+
+\tableofcontents
+
+\clearpage \phantomsection \addcontentsline{toc}{chapter}{\listfigurename}
+\listoffigures
+
+\clearpage \phantomsection \addcontentsline{toc}{chapter}{\listtablename}
+\listoftables
+
+
+\clearpage % ship the last roman (front-matter) page before switching to arabic
+\pagenumbering{arabic}
+\setcounter{chapter}{4} % probno izdanje sadr\v{z}i samo glavu 5, pa nosi svoj redni broj
+
+\input{chapters/05-zakljucak}
+
+% Manual bibliography, hand-formatted to PPK's citation style, ordered by citation.
+\clearpage
+\phantomsection
+\addcontentsline{toc}{chapter}{\bibname}
+\input{../latex/chapters/99-literatura}
+
+\end{document}
