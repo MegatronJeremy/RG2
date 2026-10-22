@@ -1,33 +1,29 @@
 \chapter{Introduction}
 \label{ch:uvod}
 
-% Draft: English. PPK: 1-1.5 pages; ends with the thesis-structure paragraph.
-
 \section{Problem and motivation}
 
 Real-time rendering is dominated by rasterization, which resolves primary visibility (what is
 directly seen from the camera) very efficiently but has no native notion of what any surface point
 can see beyond itself. The effects that make an image look real depend on exactly that: indirect
 illumination bouncing between surfaces, contact shadows, glossy reflections, and ambient occlusion
-all answer questions of the form ``what else is visible from here.'' Real-time engines have long
-approximated them.
-Screen-space methods (SSAO, screen-space reflections and global illumination) are cheap but see only
+all answer the question ``what else is visible from here.'' Real-time engines have long approximated
+them. Screen-space methods (SSAO, screen-space reflections and global illumination) are cheap but see only
 what is currently on screen, so they fail wherever the needed geometry is off-screen or newly
 disoccluded \cite{mittring2007cryengine, bavoil2008hbao}. Precomputed methods bake lighting into
 lightmaps or probes and cannot follow dynamic geometry. Voxel approaches such as voxel cone tracing
 are scene-wide but coarse and prone to light leaking \cite{crassin2011vxgi}.
 
-Hardware ray tracing changes what is affordable. Recent GPUs (NVIDIA RTX from 2018, AMD RDNA2 from
-2020) added fixed-function units for bounding-volume-hierarchy traversal and ray-triangle
-intersection, so casting a ray against the whole scene became fast enough to do per pixel at
-interactive rates. This reopens the effects above as first-class, physically grounded passes that
-sample the true scene rather than a screen-space proxy. The catch is cost. Solving the rendering
-equation \cite{kajiya1986rendering} outright by path tracing, which means integrating the light
-arriving at a surface point from every direction, remains far beyond a real-time budget at display
-resolution on this hardware. An affordable ray budget is one or a few rays per pixel, and that
-samples only a handful of the many light paths reaching each pixel, so the estimate is right on
-average but wrong per pixel. That error is what appears as noise. The practical path, and the one this thesis takes, is therefore
-hybrid: rasterize primary visibility, add the secondary effects as ray-traced passes at low sample
+Hardware ray tracing changes what is affordable. GPUs since NVIDIA RTX (2018) and AMD RDNA2 (2020)
+have fixed-function units for bounding-volume-hierarchy traversal and ray-triangle intersection, so
+a ray against the whole scene is cheap enough to cast per pixel at interactive rates. The effects
+above become physically grounded passes that sample the true scene instead of a screen-space proxy.
+The catch is cost. Solving the rendering
+equation \cite{kajiya1986rendering} outright by path tracing, which integrates the light arriving at a surface point from every
+direction, remains far beyond a real-time budget at display resolution. An affordable budget is one
+or a few rays per pixel, which samples only a handful of the many light paths reaching it, so the
+estimate is right on average but wrong per pixel. That error is the noise. The practical path, and
+the one this thesis takes, is therefore hybrid: rasterize primary visibility, add the secondary effects as ray-traced passes at low sample
 counts, and reconstruct a clean image with a denoiser \cite{schied2017svgf}
 (Figure~\ref{fig:teaser}).
 
@@ -53,10 +49,10 @@ This work uses inline ray queries for architectural fit: the engine is a rasteri
 renderer, and inline queries let each effect drop in as an ordinary compute or fragment pass
 without restructuring the renderer around a ray-tracing pipeline and its binding table. Effects can
 be added one at a time, which matches a hybrid design where rays are a targeted addition on top of
-rasterization rather than the primary architecture. The price is that the implementation can no longer
-reorder ray work across shader invocations to keep divergent paths coherent, and that recursion must
-be written as an explicit loop rather than a shader spawning a new ray, although the effects here are
-shallow (a single bounce) and short, so that price is small.
+rasterization rather than the primary architecture. The price is that ray work cannot be reordered
+across shader invocations to keep divergent paths coherent, and that recursion must be an explicit
+loop rather than a shader spawning a new ray. The effects here are shallow (a single bounce), so the
+second cost is small.
 
 \section{Goal and research question}
 
@@ -67,12 +63,11 @@ GPU cost in milliseconds; the effect of samples per pixel on quality (PSNR/SSIM)
 quality and cost of the denoiser with it enabled versus disabled; the impact of tracing at half
 versus full resolution; and how the identical Vulkan implementation performs across GPU vendors
 (AMD RDNA4 versus NVIDIA Blackwell). The scope is deliberately bounded: a single indoor scene
-(Sponza), two
-current-generation GPUs of comparable tier (Table~\ref{tab:gpus}), diffuse global illumination, and a
+(Sponza), two current-generation GPUs of comparable tier (Table~\ref{tab:gpus}), diffuse global illumination, and a
 converged path-traced reference for the quality metrics.
 
 Three of the answers run against intuition. Eight times the ray budget buys only \rcPsnrGain{} dB of
-PSNR. The gain is real, since it clears the measurement floor by roughly three times, but it costs
+PSNR. The gain is real, clearing the measurement floor by roughly three times, but it costs
 \rcGpuPct\% more GPU time, which puts the operating point at one ray per pixel
 (Section~\ref{sec:raycount}). The denoiser earns its cost in temporal stability rather than in static
 fidelity (Section~\ref{sec:motion}). And the shader carrying the inline shadow query allocates 130
@@ -90,7 +85,7 @@ one custom Vulkan engine;
 \item a per-effect GPU cost breakdown produced by a reproducible A/B benchmark harness rather than
 ad-hoc captures;
 \item a reusable half-resolution, G-buffer-prepass, denoise-and-upsample pattern;
-\item an evaluation of a self-implemented SVGF denoiser shared by every signal that needs one, covering the
+\item an evaluation of a self-implemented SVGF denoiser shared by every signal that needs one: the
 quality it recovers, its cost, and its temporal stability;
 \item a same-code performance comparison of the identical ray-query pipeline on AMD RDNA4 and NVIDIA
 Blackwell hardware, which shows the ranking of the two shadow strategies inverting between vendors
