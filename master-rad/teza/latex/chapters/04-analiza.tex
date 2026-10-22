@@ -455,7 +455,7 @@ image as the mean absolute difference between vertically adjacent pixels of its 
 $\frac{1}{(H-1)W}\sum_{y,x} |g_{y+1,x} - g_{y,x}|$, computed on the 8-bit tonemapped capture. Noise
 raises it, blur lowers it, and it can be recomputed from the committed figures. With TAA enabled, one
 ray per pixel and the fully denoised image both score 5.9, which is the measurement saying the figure
-would show nothing. With TAA disabled the ray count separates cleanly: 10.8, 9.1, 8.1, and 7.3 for
+would show nothing. With TAA disabled the ray count separates cleanly: \hfSppOne{}, \hfSppTwo{}, \hfSppFour{}, and \hfSppEight{} for
 one, two, four, and eight rays per pixel, monotonically approaching the reference as the sample count
 rises.
 
