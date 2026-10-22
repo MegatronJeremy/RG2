@@ -1,0 +1,101 @@
+\chapter{Zaklju\v{c}ak}
+\label{ch:zakljucak}
+
+
+\section{Rezime u odnosu na ciljeve zadatka}
+
+Cilj zadatka, \v{c}etiri efekta osvetljenja zasnovana na pra\'cenju zrakova (senke, ambijentalna
+okluzija, refleksije i difuzno globalno osvetljenje) kroz inline ray query u sopstvenom Vulkan
+engine-u, uz karakterizaciju cene i kvaliteta, ostvaren je. Sva \v{c}etiri efekta dele jednu rutinu
+za sen\v{c}enje pogotka nad bindless tabelom geometrije, tri koja daju \v{s}umoviti bafer dele jedan
+SVGF filter za uklanjanje \v{s}uma koji se mo\v{z}e ponovo koristiti, a svi su sme\v{s}teni u postoje\'ci
+rasterizacioni forward renderer, a ne u zaseban tracer (Glava~\ref{ch:implementacija}). Senke su
+izuzetak koji pokazuje da dizajn radi: na podrazumevanoj putanji dva zraka po svetlu razre\v{s}avaju
+vidljivost inline tokom sen\v{c}enja, dovoljno jeftino da prolaz za rekonstrukciju uop\v{s}te nije
+potreban. Tabela~\ref{tab:summary} sabira klju\v{c}ne brojeve iz Glave~\ref{ch:analiza}. Obe kartice se sla\v{z}u oko najskupljeg efekta (engl.\ \perfTopEffectAMD{}), ali ga samo RX 9070 XT
+odvaja od ostalih za vi\v{s}e od varijacije izme\dj u pokretanja, dok je na RTX 5070 izjedna\v{c}en
+sa globalnim osvetljenjem. Razilaze se u samoj in\v{z}enjerskoj odluci: sa pet svetala u ovoj sceni stohasti\v{c}ka
+strategija senki jeftinija je od dve na RX 9070 XT (\perfShadowStochAMD{} prema
+\perfShadowInlineAMD{} ms), a \perfShadowRatioNV{}x skuplja na RTX 5070 (\perfShadowStochNV{} prema
+\perfShadowInlineNV{} ms), pa je renderer koji fiksira bilo koju od njih pogre\v{s}an na jednoj od ove
+dve kartice (Odeljak~\ref{sec:analiza-shadow-strategy}).
+
+\begin{table}[tbp]
+\caption[Rezime izmerenih rezultata]{Rezime izmerenih rezultata. Cena po efektu je razlika ukupnog
+GPU vremena izme\dj u susednih konfiguracija. Kvalitet je prosek preko tri ta\v{c}ke gledi\v{s}ta u
+odnosu na konvergiranu path-traced referencu na RX 9070 XT.}
+\label{tab:summary}
+\centering
+\begin{tabular}{lrr}
+\toprule
+ & RX 9070 XT & RTX 5070 \\
+\midrule
+bazna linija bez RT (ms)  & \perfBaseAMD{}        & \perfBaseNV{} \\
+senke (ms)                & \perfEffShadowsAMD{}  & \perfEffShadowsNV{} \\
+AO (ms)                   & \perfEffAoAMD{}       & \perfEffAoNV{} \\
+refleksije (ms)           & \perfEffReflAMD{}     & \perfEffReflNV{} \\
+GI (ms)                   & \perfEffGiAMD{}       & \perfEffGiNV{} \\
+\midrule
+ukupno, sva \v{c}etiri (ms) & \perfTotalAMD{}     & \perfTotalNV{} \\
+\midrule
+FLIP: raster $\rightarrow$ ceo RT  & \multicolumn{2}{c}{\qRasterFlip{} $\rightarrow$ \qAllRtFlip{}} \\
+PSNR (dB): raster $\rightarrow$ ceo RT & \multicolumn{2}{c}{\qRasterPsnr{} $\rightarrow$ \qAllRtPsnr{}} \\
+SSIM: raster $\rightarrow$ ceo RT  & \multicolumn{2}{c}{\qRasterSsim{} $\rightarrow$ \qAllRtSsim{}} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Koleno po broju zrakova nalazi se na jednom zraku po pikselu: prelazak sa jednog na osam zrakova
+ko\v{s}ta \rcGpuPct\% vi\v{s}e GPU vremena za dobitak od \rcPsnrGain{} dB PSNR-a, koji je stvaran
+(oko tri puta ve\'ci od praga merenja), ali daleko premali da opravda cenu, jer filter za uklanjanje
+\v{s}uma i temporalna akumulacija ve\'c vra\'caju ve\'cinu dostizivog kvaliteta iz jednog uzorka
+(Odeljak~\ref{sec:raycount}). Prostorna gustina uzoraka pona\v{s}a se isto: trasiranje GI i AO u punoj,
+a ne u polovinskoj rezoluciji ko\v{s}ta \hrDeltaMs{} ms, odnosno \hrDeltaPct\% vi\v{s}e na kadru od
+\hrHalfTotal{} ms, a donosi \hrPsnrGain{} dB (Odeljak~\ref{sec:halfres}). Doprinos prostornog filtera
+za uklanjanje \v{s}uma tako\dj e nije tamo gde ga stati\v{c}ka metrika mo\v{z}e videti: PSNR, SSIM i FLIP
+menja za manje od \v{s}uma izme\dj u pokretanja, a RMS razlike izme\dj u uzastopnih kadrova na
+stati\v{c}kom pogledu smanjuje sa \flickerOff{} na \flickerOn{}, odnosno za \flickerPct\%, uz cenu od
+\perfDenoiseAMD{} ms (Odeljak~\ref{sec:denoise-eval}). Pri ovom broju uzoraka rekonstrukciju radi
+temporalna istorija, a prostorni filter kupuje stabilnost, a ne stati\v{c}ku vernost. Cena
+ugradnje ray query-ja vidljiva je i stati\v{c}ki: na RX 9070 XT forward prolaz sen\v{c}enja sa inline
+upitom za senke raste sa 87 na 130 registara po niti, \v{s}to prelazi granicu alokacije i spu\v{s}ta broj
+istovremeno rezidentnih talasa sa 16 na 10, i to je jedini \v{s}ejder ograni\v{c}en zauzeto\v{s}\'cu na
+putanji renderovanja na obe kartice (Odeljak~\ref{sec:occupancy}).
+
+Prakti\v{c}na vrednost je hibridni ray query pipeline koji osvetljenje razre\v{s}ava iz geometrije
+van vidnog polja kamere, \v{s}to nijedan postupak u prostoru ekrana ne mo\v{z}e, za \perfFourEffectsAMD{}
+ms kadra na RX 9070 XT i \perfFourEffectsNV{} ms na RTX 5070, bez punog path tracer-a.
+
+\section{Ograni\v{c}enja}
+
+Merenja su obavljena na dve grafi\v{c}ke kartice uporedivog tr\v{z}i\v{s}nog ranga i na jednoj klasi
+scena, pa se apsolutni brojevi ne uop\v{s}tavaju na drugi hardver ni sadr\v{z}aj. Pokrivenost
+sadr\v{z}aja je najslabiji deo evaluacije po objavljenom standardu: ITU-T P.910 \cite{itu_p910}
+tra\v{z}i najmanje \v{c}etiri izvorne sekvence koje obuhvataju raspon prostorne i vremenske
+slo\v{z}enosti, a ovde su kori\v{s}\'cene jedna scena i dve putanje, pa artefakt specifi\v{c}an za drugi
+sadr\v{z}aj ovaj protokol ne bi prona\v{s}ao. Globalno osvetljenje ograni\v{c}eno je na jedan difuzni
+odskok, a senke su o\v{s}tre ili blago omek\v{s}ane, a ne fizi\v{c}ki ta\v{c}ne senke od povr\v{s}inskih
+izvora. Da bi se ostalo u okviru bud\v{z}eta za rad u realnom vremenu, broj zrakova je veoma mali (jedan
+ili dva po pikselu po efektu, i dva po svetlu za inline senke), \v{s}to name\'ce veliki zahtev filteru
+za uklanjanje \v{s}uma i otkriva njegove na\v{c}ine otkazivanja: temporalni duh (ghosting) i
+ka\v{s}njenje pri brzom kretanju, naro\v{c}ito kod refleksija, koje ponovo koriste reprojekciju
+pode\v{s}enu za difuzni signal. Akceleraciona struktura najvi\v{s}eg nivoa u potpunosti se
+ponovo gradi u svakom dinami\v{c}kom kadru umesto da se osve\v{z}ava, \v{s}to je za male promene
+transformacija te\v{z}e nego \v{s}to je potrebno. Inline ray query-ji se odri\v{c}u hardverskog
+raspore\dj ivanja zrakova i rekurzije koje bi pru\v{z}io ray tracing pipeline, \v{s}to je svesna
+razmena radi jednostavnosti integracije i bila bi bitna za dublje ili brojnije odskoke.
+
+\section{Budu\'ci rad}
+
+Uzorkovanje je najneposredniji pravac. Stohasti\v{c}ka putanja senki ve\'c ponovo uzorkuje unutar
+kadra, pa nedostaje ponovna upotreba rezervoara me\dj u susednim pikselima i izme\dj u kadrova
+(ReSTIR, a za indirektne putanje ReSTIR GI), \v{s}to pri velikom broju svetala donosi kvalitet pri
+istom broju zrakova \cite{bitterli2020restir, ouyang2021restirgi}. Uzorkovanje hemisfere sa
+kosinusnom te\v{z}inom u osnovi GI i AO tim radom ostaje netaknuto i naivno. Kod rekonstrukcije,
+nau\v{c}eni filter za uklanjanje \v{s}uma ili skaliranje koji zamenjuje ili dopunjuje SVGF prirodan
+je slede\'ci korak. Sama stohasti\v{c}ka strategija senki prototip je, a ne zavr\v{s}ena tehnika:
+da bi postala podrazumevana, prvo bi trebalo ukloniti artefakte koje pokazuje pri kretanju kamere
+tamo gde se dva ta\v{c}kasta svetla preklapaju. Posebni filter za senke koji uzima u obzir
+polusenku, umesto zajedni\v{c}kog, srodno je pobolj\v{s}anje. \v{S}ire cross-vendor pore\dj enje
+od dve kartice aktuelne generacije, kao i drugi renderski backend (DirectX 12), dodatno bi
+pro\v{s}irili sliku o performansama.
