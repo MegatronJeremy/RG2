@@ -1,0 +1,84 @@
+\chapter*{Spisak skra\'cenica}
+\addcontentsline{toc}{chapter}{Spisak skra\'cenica}
+
+\begin{description}
+  \item[AO] Ambient Occlusion (ambijentalna okluzija): zatamnjenje tamo gde obli\v{z}nja geometrija
+    blokira difuznu svetlost, npr. u uglovima i pukotinama
+  \item[\`a-trous] filter koji u svakoj iteraciji udvostru\v{c}uje razmak izme\dj u uzoraka, pa
+    dopire \v{s}ire bez kvadratnog rasta cene
+  \item[bindless] svaka tekstura i bafer u sceni izlo\v{z}eni kao jedan veliki indeksirani niz, pa
+    \v{s}ejder mo\v{z}e da adresira resurs celobrojnim indeksom umesto da on bude vezan za
+    konkretan poziv crtanja
+  \item[BLAS] Bottom-Level Acceleration Structure: BVH nad trouglovima jedne mre\v{z}e, u prostoru
+    objekta
+  \item[blue noise] niz \v{c}ija je gre\v{s}ka koncentrisana na visokim frekvencijama, pa susedni
+    pikseli i uzastopni kadrovi dobijaju namerno raznorodne uzorke, zbog \v{c}ega prosek preko njih
+    br\v{z}e konvergira
+  \item[BRDF] Bidirectional Reflectance Distribution Function: opisuje koliko svetlosti povr\v{s}
+    odbija iz jednog smera u drugi
+  \item[BVH] Bounding Volume Hierarchy: stablo ugnje\v{z}denih kutija koje omogu\'cava zraku da
+    presko\v{c}i ve\'cinu trouglova
+  \item[CVar] Console Variable
+  \item[DDGI] Dynamic Diffuse Global Illumination
+  \item[disokluzija] piksel koji u prethodnom kadru nije bio vidljiv, pa ne postoji istorija koju
+    temporalni filter mo\v{z}e da iskoristi
+  \item[ECS] Entity-Component-System
+  \item[FLIP] perceptivna mera razlike izme\dj u slika (NVIDIA), ni\v{z}a vrednost je bolja
+  \item[G-bafer] me\dj ubafer sa geometrijskim podacima po pikselu (dubina, normala), popunjen pre
+    sen\v{c}enja
+  \item[GI] Global Illumination (globalno osvetljenje): svetlost koja stigne do povr\v{s}i posle
+    najmanje jednog odbijanja
+  \item[HLSL] High-Level Shading Language
+  \item[JOD] Just-Objectionable-Difference: jedinica mere ColorVideoVDP, gde razlika od oko 1 JOD
+    odgovara otprilike 75\% preferencije populacije izme\dj u dve slike
+  \item[ka\v{s}njenje (lag)] koliko slika u pokretu zaostaje za sopstvenom konvergiranom mirnom slikom
+    sa istom pozicijom kamere, mera temporalnog razmazivanja a ne ta\v{c}nosti
+  \item[LDS] Local Data Share: deljena memorija radne grupe na AMD grafi\v{c}kim procesorima
+  \item[MIS] Multiple Importance Sampling
+  \item[NEE] Next-Event Estimation: kod path tracer-a, uzorkovanje izvora svetlosti direktno iz
+    svakog temena putanje umesto \v{c}ekanja da ga zrak slu\v{c}ajno pogodi
+  \item[OMM] Opacity Micromap: mapa neprozirnosti po mikro-trouglu koja omogu\'cava obilasku da
+    presko\v{c}i alfa test
+  \item[penumbra] meki prelaz izme\dj u osvetljenog dela i pune senke (umbre), \v{s}iri \v{s}to je
+    izvor svetlosti ve\'ci ili zaklanja\v{c} dalji
+  \item[PSNR] Peak Signal-to-Noise Ratio: logaritamska mera srednje kvadratne gre\v{s}ke, ve\'ca
+    vrednost je bolja, mada sistemati\v{c}no favorizuje zamu\'cenu sliku
+  \item[radijansa] svetlosna energija po jedinici projektovane povr\v{s}ine i jedinici prostornog
+    ugla, veli\v{c}ina koju piksel na kraju \v{c}uva. Iradijansa je ista energija integrisana po
+    dolaznim smerovima, bez sopstvenog smera
+  \item[RDNA] Radeon DNA (arhitektura AMD grafi\v{c}kih procesora)
+  \item[reprojekcija] preslikavanje piksela iz teku\'ceg kadra u prethodni preko vektora kretanja,
+    radi ponovne upotrebe ranije izra\v{c}unatog rezultata
+  \item[ReSTIR] Reservoir Spatiotemporal Importance Resampling
+  \item[RIS] Resampled Importance Sampling
+  \item[RT] Ray Tracing
+  \item[RTXGI] RTX Global Illumination
+  \item[SIMD / SM] jedinica raspore\dj iva\v{c}a koja dr\v{z}i vi\v{s}e talasa (AMD) ili warp-ova
+    (NVIDIA) rezidentnih istovremeno i izdaje instrukcije iz njih
+  \item[SPIR-V] Standard Portable Intermediate Representation (Vulkan)
+  \item[spp] uzoraka po pikselu
+  \item[SSAO] Screen-Space Ambient Occlusion
+  \item[SSGI] Screen-Space Global Illumination
+  \item[SSIM] Structural Similarity Index Measure: poredi lokalnu strukturu a ne apsolutne
+    vrednosti, ve\'ca vrednost je bolja
+  \item[SSR] Screen-Space Reflections
+  \item[SVGF] Spatiotemporal Variance-Guided Filtering: uklanja\v{c} \v{s}uma koji kombinuje
+    temporalnu akumulaciju sa prostornim filterom vo\dj enim procenjenom varijansom
+  \item[TAA] Temporal Anti-Aliasing
+  \item[tFLIP] temporalni FLIP: koliko se tehnika menja izme\dj u susednih kadrova preko onoga koliko
+    se referenca menja u istom intervalu, pa stabilan rezultat dobija nisku vrednost
+  \item[TLAS] Top-Level Acceleration Structure: BVH nad instancama, gde svaka instanca nosi
+    transformaciju i pokaziva\v{c} na BLAS
+  \item[tonemap] preslikavanje HDR vrednosti u opseg ekrana
+  \item[VGPR] Vector General-Purpose Register: registri po niti \v{c}ija brojnost odre\dj uje koliko
+    talasa mo\v{z}e istovremeno da bude u letu (zauzetost)
+  \item[visokofrekventna energija] udeo signala bafera u finom detalju a ne u \v{s}irokim
+    gradijentima, ovde kori\v{s}\'cen da se izmeri koliko je filter zamutio sliku
+  \item[Vulkan] niskonivojski grafi\v{c}ki i compute API, nezavisan od proizvo\dj a\v{c}a, na kome je
+    ovaj engine izgra\dj en i u kome je pra\'cenje zraka opciono pro\v{s}irenje a ne deo jezgra
+  \item[wave / warp] grupa niti koje izvr\v{s}avaju istu instrukciju u koraku, na AMD-u se zove wave a
+    na NVIDIA-i warp. Warp uvek ima 32 niti; RDNA bira 32 ili 64 po \v{s}ejderu, a drajver za compute
+    \v{s}ejdere ovog engine-a prijavljuje 64
+  \item[zauzetost (occupancy)] broj istovremeno aktivnih talasa po SIMD jedinici: ve\'ca zauzetost
+    bolje skriva latenciju memorije
+  \end{description}
