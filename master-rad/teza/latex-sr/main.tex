@@ -1,5 +1,5 @@
 % !TeX program = pdflatex
-% Srpsko izdanje (probno: samo glava 5). Deli etf.cls, figures/, data/ i literaturu sa ../latex/.
+% Srpsko izdanje (probno: glave 1, 2 i 5). Deli etf.cls, figures/, data/ i literaturu sa ../latex/.
 % Build iz latex-sr/: TEXINPUTS=.:../latex: pdflatex x2 (vidi README.md u ovom folderu).
 \documentclass[master,a4paper,12pt,oneside]{etf}
 
@@ -160,7 +160,8 @@ refleksije; SVGF; uklanjanje \v{s}uma; hibridno renderovanje; cross-vendor; AMD 
 \clearpage % ship the last roman (front-matter) page before switching to arabic
 \pagenumbering{arabic}
 \input{chapters/01-uvod}
-\setcounter{chapter}{4} % glave 2-4 jo\v{s} nisu prevedene, glava 5 nosi svoj redni broj
+\input{chapters/02-pregled}
+\setcounter{chapter}{4} % glave 3-4 jo\v{s} nisu prevedene, glava 5 nosi svoj redni broj
 \input{chapters/05-zakljucak}
 
 % Manual bibliography, hand-formatted to PPK's citation style, ordered by citation.
