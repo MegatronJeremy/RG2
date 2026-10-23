@@ -1,0 +1,223 @@
+% !TeX program = pdflatex
+% Master rad, ETF Beograd, using the official etf.cls (master option).
+% Body language: English (permitted by Clan 30 of the Pravilnik); structural strings Serbian via babel.
+% Build: pdflatex x2 (manual thebibliography, no bibtex).
+\documentclass[master,a4paper,12pt,oneside]{etf}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[a4paper, top=30mm, bottom=30mm, left=20mm, right=20mm]{geometry} % PPK margins
+% English last, so it is the document language: the body is English and was previously being
+% hyphenated by Serbian patterns. Serbian stays loaded for the Serbian abstract and keywords.
+\usepackage[serbian,english]{babel}
+
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning, fit, backgrounds}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage{microtype}
+\usepackage[hidelinks]{hyperref}
+\usepackage[nohyphen]{underscore} % literal _ in text/\texttt; break at _ without a hyphen
+\setlength{\emergencystretch}{3em} % avoid right-margin overhang on hard-to-break code lines
+\usepackage{needspace} % keep short atomic blocks (code listings) from splitting across pages
+
+% Float packing. The defaults assume a text-heavy document and reserve at least 20% of every page for
+% prose (\textfraction), which in a chapter with roughly one float per page pushes floats onto pages of
+% their own and leaves large gaps. These let a page carry more float and less filler; the content is
+% unchanged, only how densely it sets.
+\renewcommand{\topfraction}{0.92}
+\renewcommand{\bottomfraction}{0.75}
+\renewcommand{\textfraction}{0.08}
+\renewcommand{\floatpagefraction}{0.72}
+\setcounter{topnumber}{3}
+\setcounter{bottomnumber}{2}
+\setcounter{totalnumber}{4}
+
+% Widow/orphan control: don't strand a single line at the top/bottom of a page.
+% Safe here because the class is \raggedbottom (oneside): slack goes to the page bottom.
+\clubpenalty=10000
+\widowpenalty=10000
+\displaywidowpenalty=10000
+\usepackage{fancyhdr}
+
+% Structural names. The thesis is written in English (Clan 30), so these follow the body rather than
+% the faculty's Serbian default. The title page stays Serbian: etf.cls hardcodes it and it carries the
+% faculty's identity, not the thesis content.
+\addto\captionsenglish{%
+  \renewcommand{\contentsname}{Contents}%
+  \renewcommand{\listfigurename}{List of Figures}%
+  \renewcommand{\listtablename}{List of Tables}%
+  \renewcommand{\bibname}{Bibliography}%
+  \renewcommand{\figurename}{Figure}%
+  \renewcommand{\tablename}{Table}%
+  \renewcommand{\abstractname}{Abstract}%
+  \renewcommand{\chaptername}{Chapter}%
+}
+% Serbian equivalents, used only while the Serbian abstract is selected.
+\addto\captionsserbian{%
+  \renewcommand{\abstractname}{Sa\v{z}etak}%
+}
+
+% PPK: page number in the bottom-right corner, on every page including chapter-opening (plain) pages.
+\setlength{\headheight}{15pt}
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\fancyfoot[R]{\thepage}
+\fancypagestyle{plain}{\fancyhf{}\renewcommand{\headrulewidth}{0pt}\fancyfoot[R]{\thepage}}
+
+% PPK: chapter titles UPPERCASE at ~20pt (\LARGE); the "Glava N" label at \large. ToC/bookmarks keep
+% mixed case (they are written before \@makechapterhead runs).
+\makeatletter
+\renewcommand\@makechapterhead[1]{%
+  \vspace*{50\p@}%
+  {\parindent\z@ \raggedright \normalfont
+    \ifnum \c@secnumdepth >\m@ne
+      \large\bfseries \@chapapp\space\thechapter \par\nobreak \vskip 18\p@
+    \fi
+    \interlinepenalty\@M
+    \LARGE\bfseries \MakeUppercase{#1}\par\nobreak \vskip 40\p@}}
+\renewcommand\@makeschapterhead[1]{%
+  \vspace*{50\p@}%
+  {\parindent\z@ \raggedright \normalfont
+    \interlinepenalty\@M
+    \LARGE\bfseries \MakeUppercase{#1}\par\nobreak \vskip 40\p@}}
+\makeatother
+
+% Inline/code listing defaults (characteristic snippets, per PPK; not full code).
+\lstset{basicstyle=\ttfamily\small, breaklines=true, columns=fullflexible,
+        frame=single, captionpos=b, tabsize=2, showstringspaces=false}
+
+% Reference title quotes. PPK specifies the Serbian „...“ pair; the thesis text is English, so the
+% titles take English quotes and the one macro switches the whole bibliography either way.
+\newcommand{\rqt}[1]{\textquotedblleft #1\textquotedblright}
+
+% etf.cls hardcodes a Serbian label in its `keywords` environment, since the template assumes a
+% Serbian thesis. This mirrors that environment (same leading, same bold label, same titlepage
+% termination) with an English label, so the English abstract does not carry a Serbian heading and
+% the faculty class file stays as issued.
+\newenvironment{keywordsen}
+  {\vspace{5ex}\parindent 0pt {\bfseries Keywords:}}
+  {\par\vfil\null\endtitlepage}
+
+% Both titles are registered on the topic-application form (master-rad/prijava/), and the Serbian one
+% is what e-Student holds, so both appear here: the English one leads because the thesis is in
+% English, and the Serbian one stays so the cover cannot be read as disagreeing with the record.
+% Changing either invalidates that match, so keep them in step with the form.
+\title{Real-Time Hybrid Lighting Using Ray Tracing\\[0.6ex]
+       {\large Hibridno osvetljenje u realnom vremenu primenom pra\'cenja zraka}}
+\author{Vuk \DJ or\dj evi\'c}
+\indeks{2024/3102}
+\mentor{prof. dr Dra\v{z}en Dra\v{s}kovi\'c}
+% Revised edition: the cover says so (etf.cls prints \@date under "Beograd,"). The defended text is
+% frozen unchanged in ../defended/.
+\date{2026\\[1.5ex]{\normalsize revidirano izdanje, uz doprinos AI agenata}}
+
+% Performance figures quoted in the text. Generated from the engine's committed perf baselines by
+% tools/gen_perf_tables.py, never typed by hand: the previous hand-maintained data file drifted out
+% of sync with a re-baseline and nothing detected it.
+\input{data/perf-macros.tex}
+\input{data/quality-macros.tex}
+\input{data/omm-macros.tex}
+\input{data/rga-macros.tex}
+
+\begin{document}
+
+\maketitle
+
+% --- Sa\v{z}etak + klju\v{c}ne re\v{c}i (PPK) ---
+\begin{abstract}
+This thesis integrates four ray-traced lighting effects (shadows, ambient occlusion, reflections,
+and diffuse global illumination) as inline ray-query (\texttt{VK_KHR_ray_query}) passes over a
+rasterized forward renderer in a custom Vulkan engine, where rasterization otherwise approximates
+these global effects with screen-space and precomputed methods that fail on off-screen or dynamic
+information. The noisy signals are reconstructed by one SVGF denoiser shared between them and
+stabilized by temporal anti-aliasing, while shadows need no denoise pass on the default path and
+resolve their visibility inline during shading. The per-effect GPU cost is isolated with an A/B configuration matrix, and
+reconstruction quality is measured with FLIP, PSNR, and SSIM against a converged path-traced
+reference across several viewpoints, on two vendors' hardware (AMD RDNA4 and NVIDIA Blackwell)
+running identical code. All four effects together cost \perfTotalAMD{} ms and \perfTotalNV{} ms per
+frame on the two cards, inside a 60 Hz budget, and lift reconstruction quality from FLIP
+\qRasterFlip{} to \qAllRtFlip{} and PSNR \qRasterPsnr{} to \qAllRtPsnr{} dB against the reference.
+The two vendors do not agree on which effect is the expensive one, \perfTopEffectAMD{} on the
+RX 9070 XT against \perfTopEffectNV{} on the RTX 5070, and the disagreement reaches the engineering
+decision: of the two shadow strategies implemented, the stochastic one is the cheaper on AMD and
+\perfShadowRatioNV{} times the more expensive on NVIDIA, so a renderer that hard-codes either is
+wrong on one of these two current-generation cards. Measuring one vendor would not have found that.
+\end{abstract}
+
+\begin{keywordsen}
+real-time ray tracing; ray query; Vulkan; global illumination; ambient occlusion; reflections; SVGF;
+denoising; hybrid rendering; cross-vendor; AMD RDNA4; NVIDIA Blackwell
+\end{keywordsen}
+
+% Clan 30 permits the thesis in English and defers the rest to the Faculty Statute, which is not in
+% this repository, so the Serbian abstract stays as well: it is the usual practice for an English
+% thesis here and it costs one page.
+\selectlanguage{serbian}
+\begin{abstract}
+Ovaj rad integri\v{s}e \v{c}etiri efekta osvetljenja zasnovana na pra\'cenju zrakova (senke,
+ambijentalnu okluziju, refleksije i difuzno globalno osvetljenje) kao inline ray query
+(\texttt{VK_KHR_ray_query}) prolaze preko rasterizacionog forward prolaza, u engine-u koji je autor
+sam napisao kori\v{s}\'cenjem Vulkan API-ja. Rasterizacija te globalne efekte ina\v{c}e pribli\v{z}no
+aproksimira postupcima u
+prostoru ekrana i unapred izra\v{c}unatim postupcima, koji otkazuju na geometriji van ekrana i na
+dinami\v{c}koj sceni. \v{S}umoviti signali se rekonstrui\v{s}u jednim zajedni\v{c}kim SVGF filtrom i
+stabilizuju temporalnim anti-aliasing-om, dok senke na podrazumevanoj putanji ne zahtevaju prolaz za
+uklanjanje \v{s}uma nego se vidljivost razre\v{s}ava inline tokom sen\v{c}enja. Cena svakog efekta na grafi\v{c}kom procesoru izoluje se
+A/B matricom konfiguracija, a kvalitet rekonstrukcije meri se merama FLIP, PSNR i SSIM u odnosu na
+konvergiranu path-traced referencu, preko vi\v{s}e ta\v{c}aka gledi\v{s}ta, na hardveru dva
+proizvo\dj a\v{c}a (AMD RDNA4 i NVIDIA Blackwell) uz isti kod. Sva \v{c}etiri efekta zajedno ko\v{s}taju
+\perfTotalAMD{} ms i \perfTotalNV{} ms po kadru na dve kartice, unutar bud\v{z}eta za 60 Hz, i
+podi\v{z}u kvalitet rekonstrukcije sa FLIP \qRasterFlip{} na \qAllRtFlip{} i PSNR \qRasterPsnr{} na
+\qAllRtPsnr{} dB u odnosu na referencu. Dva proizvo\dj a\v{c}a se ne sla\v{z}u oko toga koji je efekat
+najskuplji, na RX 9070 XT su to senke a na RTX 5070 globalno osvetljenje, i to neslaganje se prenosi
+na in\v{z}enjersku odluku: od dve implementirane strategije za senke, stohasti\v{c}ka je jeftinija na
+AMD-u a \perfShadowRatioNV{} puta skuplja na NVIDIA-i, pa je renderer koji fiksira bilo koju od njih
+pogre\v{s}an na jednoj od ove dve kartice aktuelne generacije. Merenje na jednom proizvo\dj a\v{c}u to
+ne bi otkrilo.
+\end{abstract}
+
+\begin{keywords}
+ray tracing u realnom vremenu; ray query; Vulkan; globalno osvetljenje; ambijentalna okluzija;
+refleksije; SVGF; uklanjanje \v{s}uma; hibridno renderovanje; cross-vendor; AMD RDNA4; NVIDIA Blackwell
+\end{keywords}
+\selectlanguage{english}
+
+% PPK: front matter in roman numerals; arabic count restarts at Uvod.
+\pagenumbering{roman}
+
+\tableofcontents
+
+\clearpage \phantomsection \addcontentsline{toc}{chapter}{\listfigurename}
+\listoffigures
+
+\clearpage \phantomsection \addcontentsline{toc}{chapter}{\listtablename}
+\listoftables
+
+\input{chapters/00-skracenice}
+
+\clearpage % ship the last roman (front-matter) page before switching to arabic
+\pagenumbering{arabic}
+
+\input{chapters/01-uvod}
+\input{chapters/02-pregled}
+\input{chapters/03-implementacija}
+\input{chapters/04-analiza}
+\input{chapters/05-zakljucak}
+
+% Manual bibliography, hand-formatted to PPK's citation style, ordered by citation.
+\clearpage
+\phantomsection
+\addcontentsline{toc}{chapter}{\bibname}
+\input{chapters/99-literatura}
+
+\end{document}
