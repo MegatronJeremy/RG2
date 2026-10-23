@@ -5,14 +5,16 @@ The list was authored in Serbian and translated in place, so entries keep the sl
 sorted into: "zauzetost" sorted last and its English replacement "occupancy" inherited that position.
 Sorting is the whole point of the list, so it is worth checking rather than eyeballing.
 
-    py check_abbrev_order.py [--fix]
+    py check_abbrev_order.py [--sr] [--fix]    (--sr checks latex-sr/ instead of latex/)
 """
 import io
 import re
 import sys
 from pathlib import Path
 
-SRC = Path(__file__).resolve().parent.parent / "latex" / "chapters" / "00-skracenice.tex"
+HERE = Path(__file__).resolve().parent.parent
+SRC = HERE / "latex" / "chapters" / "00-skracenice.tex"
+SRC_SR = HERE / "latex-sr" / "chapters" / "00-skracenice.tex"
 ITEM = re.compile(r"\\item\[(.*?)\]", re.S)
 
 
@@ -24,7 +26,8 @@ def sort_key(label):
 
 
 def main():
-    text = io.open(SRC, encoding="utf-8").read()
+    src = SRC_SR if "--sr" in sys.argv else SRC
+    text = io.open(src, encoding="utf-8").read()
     entries = ITEM.findall(text)
     keys = [sort_key(e) for e in entries]
     bad = [(i, entries[i]) for i in range(1, len(entries)) if keys[i] < keys[i - 1]]
@@ -41,7 +44,7 @@ def main():
         blocks = re.split(r"(?=\\item\[)", items_txt)
         blocks = [b for b in blocks if b.strip()]
         blocks.sort(key=lambda b: sort_key(ITEM.search(b).group(1)))
-        io.open(SRC, "w", encoding="utf-8").write(head + "".join(blocks) + tail)
+        io.open(src, "w", encoding="utf-8").write(head + "".join(blocks) + tail)
         print("reordered")
         return 0
     return 1 if bad else 0
