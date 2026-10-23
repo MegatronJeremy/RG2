@@ -1,9 +1,0 @@
-effect	mult	flipGain
-ambient occlusion	1.70	0.0027
-ambient occlusion	2.31	0.0027
-
-reflections	3.41	0.0069
-reflections	2.42	0.0069
-
-global illumination	2.25	0.1978
-global illumination	1.54	0.1978
