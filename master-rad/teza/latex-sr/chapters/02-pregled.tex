@@ -1,0 +1,315 @@
+\chapter{Pregled postoje\'cih re\v{s}enja i tehnologija}
+\label{ch:pregled}
+
+
+\section{Rasterizacija naspram pra\'cenja zraka}
+\label{sec:rastervsrt}
+
+Rasterizacija projektuje svaki trougao na ravan slike i vidljivost razre\v{s}ava baferom dubine. To je
+operacija nad tokom podataka koja se dobro preslikava na GPU hardver, ali obra\dj uje jedan trougao po
+jedan, bez pristupa ostatku scene, pa ne mo\v{z}e prirodno da odgovori na pitanje \quotedblbase{}\v{s}ta je
+jo\v{s} vidljivo iz ove ta\v{c}ke\textquotedblright{}. Pra\'cenje zraka (ray tracing) umesto toga ba\v{c}a zrake u scenu i
+nalazi njihove najbli\v{z}e preseke \cite{moller1997raytri}, a transport svetlosti procenjuje uzorkovanjem
+\cite{pharr2016pbrt}. Time se razre\v{s}ava vidljivost izme\dj u proizvoljnih ta\v{c}aka, \v{s}to zahtevaju
+indirektno osvetljenje, refleksije i okluzija, po ceni obilaska strukture po zraku i \v{s}uma uzorkovanja.
+
+Zajedni\v{c}ka referenca za oba pristupa je jedna\v{c}ina renderovanja \cite{kajiya1986rendering}. Ona deli
+izlaznu radijansu $L_o$ u ta\v{c}ki $\mathbf{x}$ u pravcu $\omega_o$ na emitovanu radijansu i reflektovani
+integral preko hemisfere $\Omega$, pri \v{c}emu je radijansa energija svetlosti po jedinici projektovane
+povr\v{s}ine i jedinici prostornog ugla, fizi\v{c}ka veli\v{c}ina koju piksel na kraju skladi\v{s}ti:
+\begin{equation}
+L_o(\mathbf{x}, \omega_o) = L_e(\mathbf{x}, \omega_o) + \int_{\Omega}
+f_r(\mathbf{x}, \omega_i, \omega_o)\, L_i(\mathbf{x}, \omega_i)\, (\omega_i \cdot \mathbf{n})\,
+\mathrm{d}\omega_i,
+\label{eq:rendering}
+\end{equation}
+gde je $f_r$ BRDF, $L_i$ dolazna radijansa, a $\mathbf{n}$ normala povr\v{s}i.
+Rasterizacija efikasno razre\v{s}ava emitovani i direktni \v{c}lan projekcijom, ali integral zahteva
+dolaznu radijansu iz svih pravaca, dakle vidljivost u celoj sceni, \v{s}to rasterizacija ne mo\v{z}e da
+izrazi, a pra\'cenje zraka procenjuje uzorkovanjem. Hibridni renderer koristi svaki pristup tamo gde je
+jak (Slika~\ref{fig:rastervsrt}) \cite{akenine2018rtr}.
+
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}[>={Stealth[]}, scale=0.9]
+  \begin{scope}
+    \node[font=\small] at (1.9,3.1) {Rasterizacija};
+    \fill (0,1.3) circle (1.6pt) node[left, font=\scriptsize] {oko};
+    \draw[thick] (1,0.35) -- (1,2.35); \node[font=\scriptsize] at (1,0.05) {ravan slike};
+    \draw[fill=black!8] (3.4,0.7) -- (4.0,2.1) -- (2.8,1.95) -- cycle;
+    \draw[black!55] (0,1.3) -- (3.4,0.7);
+    \draw[black!55] (0,1.3) -- (4.0,2.1);
+    \draw[black!55] (0,1.3) -- (2.8,1.95);
+    \node[font=\scriptsize] at (3.5,2.4) {trougao};
+  \end{scope}
+  \begin{scope}[xshift=6.4cm]
+    \node[font=\small] at (1.9,3.1) {Pra\'cenje zraka};
+    \fill (0,1.3) circle (1.6pt) node[left, font=\scriptsize] {oko};
+    \draw[thick] (1,0.35) -- (1,2.35); \node[font=\scriptsize] at (1,0.05) {ravan slike};
+    \fill[black!8] (3.5,1.3) circle (0.5);
+    \draw[->, black!70] (0,1.3) -- (2.95,1.3);
+    \node[font=\scriptsize] at (2.0,1.55) {zrak};
+  \end{scope}
+\end{tikzpicture}
+\caption[Rasterizacija naspram pra\'cenja zraka]{Rasterizacija (projekcija trouglova na ravan slike) naspram pra\'cenja zraka (zrak kroz
+piksel u scenu do najbli\v{z}eg preseka).}
+\label{fig:rastervsrt}
+\end{figure}
+
+\section{Strukture ubrzanja: BVH, TLAS/BLAS}
+\label{sec:accel-pregled}
+
+Testiranje svakog zraka protiv svakog trougla je $O(\text{zraka} \times \text{trouglova})$ i bezizlazno na
+razmeri scene, pa pra\'cenje zraka zavisi od prostorne strukture ubrzanja. Standardna je hijerarhija
+grani\v{c}nih zapremina (BVH): stablo ugnje\v{z}denih grani\v{c}nih kutija \v{c}iji obilazak silazi samo u kutije u
+koje zrak zaista ulazi, \v{s}to o\v{c}ekivanu cenu po zraku svodi na pribli\v{z}no logaritamsku u broju
+trouglova (Slika~\ref{fig:bvh}).
+
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}[>={Stealth[]}, font=\small,
+  tri/.style={draw, fill=black!12},
+  bx/.style={draw, rounded corners=1pt, thick},
+  nd/.style={draw, rounded corners, minimum width=7mm, minimum height=5mm, font=\scriptsize,
+             inner sep=2pt},
+  hit/.style={nd, fill=black!12},
+  skip/.style={nd, densely dashed, text=black!45, draw=black!45}]
+
+  \begin{scope}
+    \node[font=\small] at (2.5,4.0) {scena u kutijama};
+    \draw[bx, black!45] (0.15,0.15) rectangle (4.85,3.5);
+    \node[font=\scriptsize, black!45] at (4.62,3.28) {A};
+    \draw[bx] (0.35,0.4) rectangle (2.3,3.05);  \node[font=\scriptsize] at (0.6,2.82) {B};
+    \draw[bx] (2.6,0.4) rectangle (4.65,3.05);  \node[font=\scriptsize] at (2.85,2.82) {C};
+    \draw[tri] (0.7,0.8) -- (1.5,0.8) -- (1.1,1.6) -- cycle;
+    \draw[tri] (1.2,1.9) -- (2.05,1.9) -- (1.6,2.7) -- cycle;
+    \draw[tri] (2.9,0.8) -- (3.7,0.8) -- (3.3,1.6) -- cycle;
+    \draw[tri] (3.6,1.9) -- (4.4,1.9) -- (4.0,2.7) -- cycle;
+    % zrak ulazi u A i B, potpuno promasuje C, pa se podstablo C nikad ne otvara
+    \draw[->, very thick] (-0.5,1.15) -- (2.35,1.15);
+    \node[font=\scriptsize] at (-0.1,1.45) {zrak};
+  \end{scope}
+
+  \begin{scope}[xshift=7.2cm, yshift=0.35cm]
+    \node[font=\small] at (1.6,3.65) {stablo koje obilazi};
+    \node[hit]  (a)  at (1.6,3.0) {A};
+    \node[hit]  (b)  at (0.6,2.0) {B};
+    \node[skip] (c)  at (2.6,2.0) {C};
+    \node[hit]  (t1) at (0.1,1.0) {$\triangle$};
+    \node[skip] (t2) at (1.1,1.0) {$\triangle$};
+    \node[skip] (t3) at (2.1,1.0) {$\triangle$};
+    \node[skip] (t4) at (3.1,1.0) {$\triangle$};
+    \draw (a) -- (b); \draw[black!45] (a) -- (c);
+    \draw (b) -- (t1); \draw[black!45] (b) -- (t2);
+    \draw[black!45] (c) -- (t3); \draw[black!45] (c) -- (t4);
+    \node[font=\scriptsize, align=left] at (1.6,0.25)
+      {senka\v{c}eno = kutija u koju se ulazi, testirana\\isprekidano = nikad otvoreno};
+  \end{scope}
+\end{tikzpicture}
+\caption[Kako hijerarhija grani\v{c}nih zapremina u\v{s}tedi rad]{Hijerarhija grani\v{c}nih zapremina nad \v{c}etiri trougla.
+Svaka kutija obuhvata sve ispod sebe, pa zrak koji proma\v{s}i kutiju ne mo\v{z}e pogoditi ni\v{s}ta unutar nje i
+celo podstablo se presko\v{c}i bez ijednog testa trougla. Ovde zrak ulazi u A i B, a proma\v{s}i C, pa testira jedan
+trougao umesto \v{c}etiri. Prave hijerarhije su dublje i \v{s}ire, \v{s}to taj odnos pretvara u pribli\v{z}no
+logaritamsku umesto linearne cene, a dve GPU se razlikuju po tome ko obilazi stablo, a ne po njegovom
+obliku (Slika~\ref{fig:traversal}).}
+\label{fig:bvh}
+\end{figure} Koliko dobro dato stablo radi zavisi od toga gde su postavljene podele, koje se biraju
+heuristikom cene (naj\v{c}e\v{s}\'ce heuristikom povr\v{s}ine, koja favorizuje podele nakon kojih je malo verovatno da zrak
+ude u oba deteta). Na ovom hardveru stablo gradi drajver i on bira heuristiku, pa to nije parametar koji ovaj rad
+postavlja. Na dana\v{s}njim GPU testovi zrak-kutija i zrak-trougao rade u fiksnoj hardverskoj funkciji, \v{s}to
+\v{c}ini zrak po pikselu pristupa\v{c}nim u realnom vremenu. Koliki je deo \emph{obilaska} oko tih testova tako\dj e
+fiksna funkcija, razlikuje se po proizvo\dj a\v{c}u, a dve GPU ocenjene u glavi~\ref{ch:analiza} nalaze se na
+suprotnim stranama te granice (Slika~\ref{fig:traversal}): NVIDIA RT jezgra obilaze hijerarhiju u hardveru
+\cite{nvidia_turing}, dok se na AMD RDNA arhitekturama petlja obilaska izvr\v{s}ava shader instrukcijama koje
+izdaju hardverske testove preseka \cite{amd_rdna_isa}, pa obilazak sa sen\v{c}enjem deli iste izvr\v{s}ne resurse.
+To je strukturni razlog da se \emph{o\v{c}ekuje} da isti shader ko\v{s}ta razli\v{c}ito na dva proizvo\dj a\v{c}a, a ne
+pripisivanje uzroka. Odeljak~\ref{sec:cena} meri odnos cene po prolazu AMD/NVIDIA koji u konfiguraciji
+\texttt{+gi} obuhvata raspon od \perfRatioMin{} do \perfRatioMax{}, pa razlika nije jedan globalni faktor
+takta. Ova evaluacija ne izoluje koliki deo te razlike poti\v{c}e od ovog mehanizma, a koliki od takta,
+ke\v{s}a ili drajvera.
+
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}[>={Stealth[]}, font=\small,
+  unit/.style={draw, rounded corners, align=center, minimum width=2.6cm, minimum height=9mm},
+  fixed/.style={unit, fill=black!8}]
+  \begin{scope}
+    \node[font=\small\bfseries] at (1.9,3.5) {NVIDIA (RT jezgra)};
+    \node[unit] (sm) at (1.9,2.5) {SM / shader};
+    \node[fixed, below=12mm of sm, minimum height=14mm, text width=2.4cm] (rtc)
+      {RT jezgro:\\obilazak \emph{i} preseci};
+    \draw[->] ([xshift=-9mm]sm.south) -- node[left, font=\scriptsize] {1 zrak} ([xshift=-9mm]rtc.north);
+    \draw[<-] ([xshift=9mm]sm.south) -- node[right, font=\scriptsize] {pogodak} ([xshift=9mm]rtc.north);
+  \end{scope}
+  \begin{scope}[xshift=6.6cm]
+    \node[font=\small\bfseries] at (1.9,3.5) {AMD RDNA (ray query)};
+    \node[unit, text width=2.4cm] (cu) at (1.9,2.5) {CU / shader:\\petlja obilaska};
+    \node[fixed, below=12mm of cu, text width=2.4cm] (isect) {jedinica preseka};
+    \draw[->] ([xshift=-9mm]cu.south) -- node[left, font=\scriptsize] {po \v{c}voru} ([xshift=-9mm]isect.north);
+    \draw[<-] ([xshift=9mm]cu.south) -- node[right, font=\scriptsize] {rezultat} ([xshift=9mm]isect.north);
+  \end{scope}
+\end{tikzpicture}
+\caption[Gde se nalazi petlja obilaska]{Preseci zrak-kutija i zrak-trougao su fiksna funkcija na obe
+arhitekture, a razlika je u tome ko vodi petlju obilaska. Na NVIDIA-i je petlja tako\dj e u hardveru, pa shader
+predaje zrak i \v{c}eka pogodak, dok se na RDNA arhitekturama petlja izvr\v{s}ava u shaderu, koji po pose\'cenom \v{c}voru
+poziva jedinicu preseka, pa obilazak tro\v{s}i iste izvr\v{s}ne resurse kao sen\v{c}enje. Dijagram obja\v{s}njava
+za\v{s}to se razlika u ceni o\v{c}ekuje, ne koliko je velika.}
+\label{fig:traversal}
+\end{figure}
+
+Vulkan izla\v{z}e BVH kao dvonivosku strukturu: struktura ubrzanja donjeg nivoa (BLAS) sadr\v{z}i trouglove
+mre\v{z}e u prostoru objekta, a struktura gornjeg nivoa (TLAS) sadr\v{z}i instance, od kojih je svaka
+transformacija koja upu\'cuje na BLAS. Podela omogu\'cava da vi\v{s}e instanci deli jedan BLAS i da se TLAS, koji
+se menja dok se objekti kre\'cu, ponovo gradi po kadru dok te\v{z}i BLAS ostaje (Slika~\ref{fig:tlasblas}).
+Svaka od njih mo\v{z}e se potpuno izgraditi iznova (najbolji kvalitet obilaska) ili osve\v{z}iti (refit: opsezi
+kutija se a\v{z}uriraju za male deformacije, jeftinije ali slabijeg kvaliteta). Dinami\v{c}ke scene biraju
+izme\dj u to dvoje u svakom kadru.
+
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}[>={Stealth[]},
+  inst/.style={draw, rounded corners, font=\small, align=center, minimum width=2.9cm, minimum height=9mm},
+  blas/.style={draw, rounded corners, font=\small, align=center, minimum width=3.2cm, minimum height=10mm, fill=black!5}]
+  \node[inst] (i0) {Instance 0--24\\\footnotesize stati\v{c}ka geometrija Sponze};
+  \node[inst, right=10mm of i0] (i1) {Instance 25--28\\\footnotesize \v{c}etiri rotiraju\'ca objekta};
+  \begin{scope}[on background layer]
+    \node[draw, dashed, rounded corners, fit=(i0)(i1), inner sep=7pt,
+          label=above:{\small TLAS: 29 instanci (ponovna izgradnja u \quotedblbase{}prljavom\textquotedblright{} kadru)}] (tlas) {};
+  \end{scope}
+  \node[blas, below=17mm of i0] (bA) {25 BLAS-ova\\\footnotesize po jedan za svaku mre\v{z}u};
+  \node[blas, below=17mm of i1] (bB) {1 BLAS\\\footnotesize deli se 4 puta};
+  \draw[->] (i0) -- (bA);
+  \draw[->] ([xshift=-9mm]i1.south) -- (bB);
+  \draw[->] ([xshift=-3mm]i1.south) -- (bB);
+  \draw[->] ([xshift=3mm]i1.south) -- (bB);
+  \draw[->] ([xshift=9mm]i1.south) -- (bB);
+\end{tikzpicture}
+\caption[Dvonivoska struktura ubrzanja (TLAS/BLAS)]{Dvonivoska struktura ubrzanja, sa izmerenim
+brojevima iz scene \texttt{Sponza-Motion.world}: TLAS sadr\v{z}i 29 instanci (transformaciju i pokaziva\v{c} na
+BLAS) nad 26 BLAS-ova, jer \v{c}etiri rotiraju\'ca objekta dele istu mre\v{z}u, a svaka od 25 stati\v{c}nih mre\v{z}a ima
+svoju. BLAS \v{c}uva geometriju u lokalnom prostoru.}
+\label{fig:tlasblas}
+\end{figure}
+
+\section{Pra\'cenje zraka u Vulkanu: RT pipeline naspram ray query}
+\label{sec:vulkanrt}
+
+Pra\'cenje zraka u Vulkanu po\v{c}iva na tri ekstenzije: \texttt{VK_KHR_acceleration_structure} za izgradnju
+i upravljanje BVH-om, i dva na\v{c}ina da se protiv njega trasira, \texttt{VK_KHR_ray_tracing_pipeline} i
+\texttt{VK_KHR_ray_query} \cite{khronos_rayquery}. Ray tracing pipeline je prirodna struktura za pun path tracer:
+hardversko raspore\dj ivanje zraka i rekurzija, po ceni namenskih stupnjeva (ray generation, closest-hit,
+any-hit, miss, intersection) i tabele vezivanja shadera (shader binding table), pretrage na strani GPU-a koja
+govori hardveru koji hit shader da izvr\v{s}i za svaki komad geometrije, i koja mora da se gradi i usagla\v{s}ava
+sa scenom. Inline ray query umesto toga izla\v{z}e objekat \texttt{RayQuery} upotrebljiv iz bilo kog postoje\'ceg
+stupnja shadera: shader sam izvr\v{s}ava petlju obilaska, bez tabele vezivanja i bez rekurzije
+(Tabela~\ref{tab:pipeline-vs-rayquery}). Ovaj rad koristi ray query jer su efekti ograni\v{c}ena dopuna
+postoje\'ceg rasterizacionog renderera, a ne samostalan tracer, kako je obrazlo\v{z}eno u
+odeljku~\ref{sec:rendergraph}.
+
+\begin{table}[tbp]
+\caption[RT pipeline naspram inline ray query]{Ray tracing pipeline naspram inline ray query u Vulkanu.}
+\label{tab:pipeline-vs-rayquery}
+\centering
+\begin{tabular}{lll}
+\toprule
+Aspekt & RT pipeline & Ray query \\
+\midrule
+Stupnjevi shadera    & namenski (raygen, hit, miss) & bilo koji postoje\'ci stupanj \\
+Tabela vezivanja     & obavezna & nije potrebna \\
+Rekurzija            & podr\v{z}ana & nije podr\v{z}ana \\
+Hardversko raspore\dj ivanje & da & ne (pozivalac pi\v{s}e petlju) \\
+Integracija          & zahteva zaseban pipeline & ume\'ce se u postoje\'ci prolaz \\
+Pogodno za           & pun path tracer & ograni\v{c}ene efekte na rasterizatoru \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Hardversko raspore\dj ivanje zna\v{c}i da pipeline, a ne shader koji ga poziva, odlu\v{c}uje kada i u kakvom
+grupisanju se izvr\v{s}ava sen\v{c}enje pogodaka. NVIDIA izla\v{z}e eksplicitan oblik toga od generacije Ada
+nadalje kao promenu redosleda izvr\v{s}avanja shadera (shader execution reordering) \cite{nvidia_ada}, gde shader
+predaje rezultat obilaska drajveru i tra\v{z}i da se invokacije pregrupi\v{s}u po pogotku pre sen\v{c}enja.
+Inline upit nema nijedno: pozivalac vodi petlju i sen\v{c}i na licu mesta, pa zraci koji se razilaze unutar
+jednog talasa rade tempom najsporijeg.
+
+\section{Postoje\'ca re\v{s}enja u realnom vremenu za GI i RT efekte}
+\label{sec:postojeca}
+
+Efekti implementirani ovde imaju dugu lozu aproksimacija u realnom vremenu
+(Tabela~\ref{tab:postojeca}), u dva nivoa. Porodica u prostoru ekrana implementirana je u ovom engine-u i
+mereno uporedo sa putanjom pra\'cenja zraka u glavi~\ref{ch:analiza}, dok se voksel, probe i reservoir metode
+pregledaju samo radi pozicioniranja, nisu ni implementirane ni mere se ovde, pa o njima nema kvantitativne
+tvrdnje.
+
+Nivoi otkazuju na razli\v{c}ite na\v{c}ine. Metode u prostoru ekrana otkazuju zbog \emph{nedostaju\'ce informacije}:
+vide samo ono \v{s}to je trenutno na ekranu, pa je okluder ili reflektor van ekrana jednostavno odsutan, \v{s}to
+direktno pokazuje Slika~\ref{fig:ssvsrt-refl}, i to je klasa gre\v{s}ke koju ray query uklanja konsultovanjem
+prave scene. Voksel i probe metode vide celu scenu i otkazuju zbog \emph{rezolucije}: njihova reprezentacija
+sveta je grublja od efekta koji rekonstrui\v{s}u, \v{s}to se vidi kao curenje svetlosti kroz tanke zidove ili
+izgla\dj eno kontaktno zatamnjenje. Nikakvo uzorkovanje ne popravlja prvo, a finija re\v{s}etka, po
+cenu, ubla\v{z}ava drugo.
+
+\begin{table}[tbp]
+\caption[Postoje\'ci pristupi i njihova ograni\v{c}enja]{Porodice postoje\'cih re\v{s}enja za iste efekte.
+Prva tri reda ne vide scenu van ekrana, naredna dva je vide, ali grublje nego \v{s}to efekat zahteva.
+Poslednja dva su kompletni sistemi, a ne pojedina\v{c}ne tehnike.}
+\label{tab:postojeca}
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}l>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X@{}}
+\toprule
+Pristup & Kako radi & \v{S}ta propu\v{s}ta \\
+\midrule
+SSAO / HBAO \cite{mittring2007cryengine, bavoil2008hbao}
+  & uzorkuje bafer dubine oko piksela, ili integrali ugao horizonta
+  & sve van ekrana, kao i tanku geometriju koju bafer dubine ne predstavlja \\
+\addlinespace[2pt]
+SSR
+  & vodi reflektovani zrak kroz bafer dubine do preseka
+  & isto, uz disokluziju pri kretanju kamere \\
+\addlinespace[2pt]
+SSGI
+  & vodi zrak po hemisferi kroz bafer dubine i prikuplja boju \emph{prethodnog} kadra
+  & jedan odskok, samo sa ekrana, uz ka\v{s}njenje od jednog kadra i gubitak svetlosti iza kamere \\
+\addlinespace[2pt]
+Voksel GI \cite{crassin2011vxgi}
+  & voksel re\v{s}etka sa radijansom, kroz koju se trasira konus
+  & gruba rezolucija: curenje svetlosti kroz tanke zidove, memorija i ponovna vokselizacija \\
+\addlinespace[2pt]
+Probe / DDGI \cite{majercik2019ddgi, nvidia_rtxgi}
+  & re\v{s}etka proba sa iradijansom i raspodelom vidljivosti
+  & niske frekvencije: gubi kontaktno zatamnjenje i fini indirektni detalj \\
+\addlinespace[2pt]
+Lumen \cite{epic_lumen}
+  & softversko trasiranje SDF-ova uz hardversko trasiranje gde je dostupno, sa ke\v{s}om radijanse
+  & kompletan sistem, ovde referentna ta\v{c}ka, a ne cilj \\
+\addlinespace[2pt]
+ReSTIR \cite{bitterli2020restir, ouyang2021restirgi}
+  & prostorno-vremensko ponovno uzorkovanje rezervoara
+  & najnovije dostignu\'ce, ovde budu\'ci rad (glava~\ref{ch:zakljucak}) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Uklanjanje \v{s}uma (denoising) za RT}
+\label{sec:denoise-pregled}
+
+Integral u jedna\v{c}ini~\eqref{eq:rendering} nema zatvoren oblik, pa se procenjuje Monte Karlo
+integracijom: izvla\v{c}enjem $N$ pravaca $\omega_k$ iz gustine verovatno\'ce $p$ i usrednjavanjem,
+\begin{equation}
+L_o \approx L_e + \frac{1}{N}\sum_{k=1}^{N}
+\frac{f_r(\omega_k)\, L_i(\omega_k)\, (\omega_k \cdot \mathbf{n})}{p(\omega_k)}.
+\label{eq:mc}
+\end{equation}
+Procenitelj je nepristrasan, ali mu varijansa opada samo kao $1/N$, pa gre\v{s}ka opada kao $1/\sqrt{N}$:
+\v{c}etiri puta vi\v{s}e zraka prepolovi \v{s}um. Pri jednom do nekoliko zraka po pikselu koje dozvoljava bud\v{z}et
+realnog vremena sirova procena je veoma bu\v{c}na, pa je uklanjanje \v{s}uma obavezan deo pipeline-a, a ne
+opcioni post-efekat (odeljak~\ref{sec:raycount} meri koliko malo dodatni zraci donose kad denoiser radi). Ovaj
+rad implementira prostorno-vremensko filtriranje vo\dj eno varijansom (Spatiotemporal Variance-Guided
+Filtering, SVGF) \cite{schied2017svgf}, koje kombinuje temporalnu reprojekciju i akumulaciju sa
+prostornim \`a-trous filterom vo\dj enim varijansom, \v{c}ija ja\v{c}ina zamu\'cenja prati procenjenu varijansu
+po pikselu, pa zagla\dj uje bu\v{c}ne oblasti a \v{c}uva konvergirani detalj. Glavne alternative su njegov adaptivni
+naslednik A-SVGF \cite{schied2018asvgf}, NVIDIA-ini produkcioni Real-Time Denoisers (ReBLUR i ReLAX)
+\cite{nvidia_nrd} i denoiseri ma\v{s}inskog u\v{c}enja kao Intel Open Image Denoise \cite{intel_oidn}. Nad
+uklonjenim \v{s}umom, temporalni anti-aliasing akumulira kadrove sa pomerajem (jitter) da ukloni
+aliasing i da konvergira preostali \v{s}um \cite{karis2014taa}. Njegova interakcija sa denoiserima po efektu
+deo je implementacije u glavi~\ref{ch:implementacija}.
