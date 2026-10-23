@@ -51,7 +51,6 @@ Ne proizvode nista u tezi; sluze za odrzavanje.
 | `trim_inventory.py` | Snima skup citata, generisanih makroa, izmerenih decimala i labela pre skracivanja i uporedjuje posle (`snapshot` / `compare`). Skracivanje sme da brise recenice, ne sme da izgubi merenje ili citat; ovim se to proverava umesto da se tvrdi. Brojeve broji samo u prozi, jer su decimale unutar TikZ koordinata i sirina slika raspored, ne merenje. |
 | `section_sizes.py` | Broj reci po `\section`, da skracivanje gadja najvece blokove umesto da svuda pomalo struze. Broji i sadrzaj plutajucih okruzenja, pa je sekcija sa dosta slika naduvana u odnosu na svoju prozu. |
 | `find_dupes.py` | Parovi recenica koje tvrde isto na dva mesta, rangirani po deljenim retkim recima. Brisanje druge tvrdnje ne gubi informaciju, za razliku od brisanja jedinstvenog pasusa. |
-
 | `check_translation_parity.py` | Za svako poglavlje u `latex-sr/chapters/` poredi sa `latex/chapters/`: listu `\label`, multiskup `\cite`/`\ref`/`\eqref` kljuceva i makroa (`\perf*`, `\q*`, `\omm*`, `\hf*`, `\rga*`), redosled figure/table/lstlisting/tikzpicture/equation okruzenja i broj `\section`/`\subsection`. Komentari se ignorisu. Ne-nulti exit kod pri razlici. `py check_translation_parity.py [01-uvod ...]` |
 
 `.capture-cache/` je medjukorak (`.npy` readback po snimku) i gitignore-ovan je.
