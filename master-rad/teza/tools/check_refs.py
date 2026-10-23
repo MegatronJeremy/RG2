@@ -4,14 +4,20 @@
 `thebibliography` silently prints an entry nobody cites, so a trimming pass can orphan a reference
 without any LaTeX warning. The undefined-reference check catches the opposite direction only.
 
-    py check_refs.py
+    py check_refs.py [--sr]
+
+--sr checks latex-sr/ instead. Chapters not yet translated count from latex/, so a bibitem cited only
+there is not reported as uncited.
 """
 import io
 import re
 import subprocess
+import sys
 from pathlib import Path
 
-LATEX = Path(__file__).resolve().parent.parent / "latex"
+EN = Path(__file__).resolve().parent.parent / "latex"
+SR_MODE = "--sr" in sys.argv
+LATEX = EN.parent / "latex-sr" if SR_MODE else EN
 REPO = Path(__file__).resolve().parents[3]
 CITE = re.compile(r"\\cite\{([^}]*)\}")
 LABEL = re.compile(r"\\label\{([^}]*)\}")
@@ -36,11 +42,18 @@ def main():
 
     cc, oc = keys(CITE, cur), keys(CITE, old)
     cl, ol = keys(LABEL, cur), keys(LABEL, old)
-    bib = keys(BIBITEM, io.open(LATEX / "chapters/99-literatura.tex", encoding="utf-8").read())
+    bib = keys(BIBITEM, io.open(EN / "chapters/99-literatura.tex", encoding="utf-8").read())
+    cited_elsewhere = set()
+    if SR_MODE:
+        # the shared bibliography lives in latex/; untranslated chapters still cite from there
+        done = {f.name for f in (LATEX / "chapters").glob("*.tex")}
+        for f in (EN / "chapters").glob("*.tex"):
+            if f.name not in done and f.name != "99-literatura.tex":
+                cited_elsewhere |= keys(CITE, io.open(f, encoding="utf-8").read())
 
     problems = 0
     for name, s in [("cites dropped since HEAD", oc - cc), ("labels dropped since HEAD", ol - cl),
-                    ("UNCITED bibitems", bib - cc), ("cited with no bibitem", cc - bib)]:
+                    ("UNCITED bibitems", bib - cc - cited_elsewhere), ("cited with no bibitem", cc - bib)]:
         if s:
             print(f"{name}: {sorted(s)}")
             problems += len(s)
