@@ -9,7 +9,9 @@ these, which is why this exists rather than relying on the build.
 Tab, newline and carriage return are legitimate (the repo is checked out CRLF on Windows); everything
 else in C0, plus DEL and the C1 range, is not.
 
-    py scan_control_chars.py
+    py scan_control_chars.py [--sr]
+
+--sr scans latex-sr/ instead.
 """
 import glob
 import io
@@ -17,7 +19,7 @@ import sys
 import unicodedata
 from pathlib import Path
 
-LATEX = Path(__file__).resolve().parent.parent / "latex"
+LATEX = Path(__file__).resolve().parent.parent / ("latex-sr" if "--sr" in sys.argv else "latex")
 ALLOWED = {0x09, 0x0A, 0x0D}
 
 
