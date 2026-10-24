@@ -1,10 +1,10 @@
-# latex-sr: srpsko izdanje teze (probno, skraćenice i glave 1, 2 i 5)
+# latex-sr: srpsko izdanje teze (probno, skraćenice i glave 1, 2, 3 i 5)
 
 Dodatno izdanje uz englesku tezu u `../latex/` (izvor istine za sadržaj). Plan i pravila: `TRANSLATION-PLAN.md` u zajedničkom radnom prostoru tima; termini: `../glossary.md`.
 
 - Deli sa `../latex/`: `etf.cls`, `LogoETF.png`, `figures/`, `data/` (makroi brojeva i tabele), `chapters/99-literatura.tex`. Brojevi se ne kucaju u tekstu, uvek makro.
-- Prevedena poglavlja imaju ista imena fajlova, iste `\label` i `\cite` kao engleska. Sada: `chapters/00-skracenice.tex`, `chapters/01-uvod.tex`, `chapters/02-pregled.tex`, `chapters/05-zakljucak.tex`.
-- Redni broj glave 5 postavlja `\setcounter{chapter}{4}` u `main.tex` posle glave 2; briše se kad se prevedu glave 3-4.
+- Prevedena poglavlja imaju ista imena fajlova, iste `\label` i `\cite` kao engleska. Sada: `chapters/00-skracenice.tex`, `chapters/01-uvod.tex`, `chapters/02-pregled.tex`, `chapters/03-implementacija.tex`, `chapters/05-zakljucak.tex`.
+- Redni broj glave 5 postavlja `\setcounter{chapter}{4}` u `main.tex` posle glave 3; briše se kad se prevede glava 4.
 
 ## Build
 
@@ -17,7 +17,7 @@ Potreban je TeX Live sa srpskim babel-om (Debian: `texlive-lang-cyrillic` i `tex
 
 Putanja `../latex` je nerekurzivna namerno: `main.tex` i `chapters/` postoje u oba foldera, pa bi rekurzivna putanja učitala englesku verziju.
 
-U probnom izdanju reference na glave 3-4 (`ch:implementacija`, `ch:analiza`, `sec:*`, `tab:gpus`, `tab:shadow-strategy`, `fig:ssvsrt-refl`) ostaju `??` dok se te glave ne prevedu.
+U probnom izdanju reference na glavu 4 (`ch:analiza`, `sec:*`, tabele i slike iz nje) ostaju `??` dok se ta glava ne prevede.
 
 ## Provere
 
