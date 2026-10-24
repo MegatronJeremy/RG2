@@ -47,3 +47,5 @@ Fill/adjust as we translate; this is the single source of truth for terms.
 | reservoir sampling | reservoir sampling (`keep`) | ReSTIR |
 | occupancy | zauzetost (occupancy) | RGA/GPU |
 | entity-component-system (ECS) | ECS (`keep`) | |
+| ladder / rung | lestvica / prečka | konfiguracije koje dodaju po jedan efekat (ch.4) |
+| lag | kašnjenje | quality-motion |

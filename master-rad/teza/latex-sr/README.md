@@ -1,10 +1,9 @@
-# latex-sr: srpsko izdanje teze (probno, skraćenice i glave 1, 2, 3 i 5)
+# latex-sr: srpsko izdanje teze (probno, skraćenice i glave 1 do 5)
 
 Dodatno izdanje uz englesku tezu u `../latex/` (izvor istine za sadržaj). Plan i pravila: `TRANSLATION-PLAN.md` u zajedničkom radnom prostoru tima; termini: `../glossary.md`.
 
 - Deli sa `../latex/`: `etf.cls`, `LogoETF.png`, `figures/`, `data/` (makroi brojeva i tabele), `chapters/99-literatura.tex`. Brojevi se ne kucaju u tekstu, uvek makro.
-- Prevedena poglavlja imaju ista imena fajlova, iste `\label` i `\cite` kao engleska. Sada: `chapters/00-skracenice.tex`, `chapters/01-uvod.tex`, `chapters/02-pregled.tex`, `chapters/03-implementacija.tex`, `chapters/05-zakljucak.tex`.
-- Redni broj glave 5 postavlja `\setcounter{chapter}{4}` u `main.tex` posle glave 3; briše se kad se prevede glava 4.
+- Prevedena poglavlja imaju ista imena fajlova, iste `\label` i `\cite` kao engleska. Sada: `chapters/00-skracenice.tex`, `chapters/01-uvod.tex`, `chapters/02-pregled.tex`, `chapters/03-implementacija.tex`, `chapters/04-analiza.tex`, `chapters/05-zakljucak.tex`.
 
 ## Build
 
@@ -17,13 +16,11 @@ Potreban je TeX Live sa srpskim babel-om (Debian: `texlive-lang-cyrillic` i `tex
 
 Putanja `../latex` je nerekurzivna namerno: `main.tex` i `chapters/` postoje u oba foldera, pa bi rekurzivna putanja učitala englesku verziju.
 
-U probnom izdanju reference na glavu 4 (`ch:analiza`, `sec:*`, tabele i slike iz nje) ostaju `??` dok se ta glava ne prevede.
-
 ## Provere
 
 Iz `master-rad/teza/`: `py tools/<alat> --sr` za `check_refs.py`, `check_float_refs.py`, `check_abbrev_order.py` i `scan_control_chars.py`; `check_translation_parity.py` sam poredi EN i SR. `--sr` tretira glave koje još nisu prevedene kao da su u `latex/`, pa reference na njih i bibliografske stavke koje citiraju samo one nisu greška.
 
-Poslednja provera (2026-10-23, glave 0, 1, 2, 5): sva četiri `--sr` alata i parity čisti (0 problema); `pdflatex` 2x izlazni kod 0, bez `! ` linija, bez nedefinisanih citata, bez Overfull. Nedefinisano ostaje samo 13 različitih labela iz glava 3-4 (gore). `tab:pipeline-vs-rayquery` u glavi 2 koristi `\tabcolsep` 4pt jer je sa 6pt prelazila margine za 8pt.
+Poslednja provera (2026-10-24, glave 0 do 5): sva četiri `--sr` alata i parity čisti (0 problema); `pdflatex` 2x izlazni kod 0 (sandbox, Debian TeX Live), bez `! ` linija, bez nedefinisanih labela i citata. Jedan Overfull hbox (294 pt) u tabeli `tab:tooling` glave 3.
 
 ## Poznata ograničenja
 
