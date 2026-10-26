@@ -20,7 +20,7 @@ Putanja `../latex` je nerekurzivna namerno: `main.tex` i `chapters/` postoje u o
 
 Iz `master-rad/teza/`: `py tools/<alat> --sr` za `check_refs.py`, `check_float_refs.py`, `check_abbrev_order.py` i `scan_control_chars.py`; `check_translation_parity.py` sam poredi EN i SR. `--sr` tretira glave koje još nisu prevedene kao da su u `latex/`, pa reference na njih i bibliografske stavke koje citiraju samo one nisu greška.
 
-Poslednja provera (2026-10-24, glave 0 do 5): sva četiri `--sr` alata i parity čisti (0 problema); `pdflatex` 2x izlazni kod 0 (sandbox, Debian TeX Live), bez `! ` linija, bez nedefinisanih labela i citata. Jedan Overfull hbox (294 pt) u tabeli `tab:tooling` glave 3.
+Poslednja provera (2026-10-24, glave 0 do 5): sva četiri `--sr` alata i parity čisti (0 problema); `pdflatex` 2x izlazni kod 0 (sandbox, Debian TeX Live), bez `! ` linija, bez nedefinisanih labela i citata. Bez Overfull upozorenja (tabela `tab:tooling` glave 3 ima p-kolonu).
 
 ## Poznata ograničenja
 
