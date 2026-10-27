@@ -111,6 +111,22 @@
 \input{../latex/data/quality-macros.tex}
 \input{../latex/data/omm-macros.tex}
 \input{../latex/data/rga-macros.tex}
+% Reci iz generisanih makroa (efekti) dolaze na engleskom; ovde se prevode, a engleski oblik ostaje u \perf...En.
+\newcommand{\srTrOne}[1]{\def\srA{#1}%
+  \def\srB{shadows}\ifx\srA\srB senke\else
+  \def\srB{ambient occlusion}\ifx\srA\srB ambijentalna okluzija\else
+  \def\srB{reflections}\ifx\srA\srB refleksije\else
+  \def\srB{global illumination}\ifx\srA\srB globalno osvetljenje\else #1\fi\fi\fi\fi}
+\def\srTrPairA#1 and #2\relax{\srTrOne{#1} i \srTrOne{#2}}
+\newcommand{\srTrPair}[1]{\srTrPairA#1\relax}
+\let\perfTopEffectAMDEn\perfTopEffectAMD
+\let\perfUnresolvedAMDEn\perfUnresolvedAMD
+\let\perfTopEffectNVEn\perfTopEffectNV
+\let\perfUnresolvedNVEn\perfUnresolvedNV
+\renewcommand{\perfTopEffectAMD}{\expandafter\srTrOne\expandafter{\perfTopEffectAMDEn}}
+\renewcommand{\perfTopEffectNV}{\expandafter\srTrOne\expandafter{\perfTopEffectNVEn}}
+\renewcommand{\perfUnresolvedAMD}{\expandafter\srTrPair\expandafter{\perfUnresolvedAMDEn}}
+\renewcommand{\perfUnresolvedNV}{\expandafter\srTrPair\expandafter{\perfUnresolvedNVEn}}
 
 \begin{document}
 
