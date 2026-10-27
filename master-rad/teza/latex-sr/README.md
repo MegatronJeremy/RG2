@@ -24,5 +24,6 @@ Poslednja provera (2026-10-24, glave 0 do 5): sva četiri `--sr` alata i parity 
 
 ## Poznata ograničenja
 
-- Generisani makroi (`\perfTopEffectAMD` i dr.) daju engleske reči i tačku kao decimalni znak; srpska verzija zahteva `--lang sr` u `tools/gen_*.py`.
+- Reči iz generisanih makroa (`\perfTopEffect*`, `\perfUnresolved*`) prevodi `main.tex` (`\srTrOne`, `\srTrPair`); engleski oblik ostaje u `\perf...En`. Nov naziv efekta u generatoru traži red u `\srTrOne`.
+- Decimalni znak u generisanim brojevima je tačka; zarez bi zahtevao `--lang sr` u `tools/gen_*.py`.
 - Prevod nije pregledao Vuk; kalkovi se ne mogu proveriti alatom.
